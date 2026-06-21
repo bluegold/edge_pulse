@@ -1,3 +1,4 @@
+import { Hono } from "hono";
 import type { CheckJob, CheckInput, CheckRow } from "./lib/checks";
 import {
   buildCheckResult,
@@ -9,10 +10,10 @@ import {
 import { loadChecksPageData } from "./lib/checks-page-data";
 import type { D1Database, ExecutionContext, MessageBatch, ScheduledController } from "./lib/cloudflare";
 import { loadDashboardData } from "./lib/dashboard-data";
-import { renderDashboardPage } from "./views/dashboard-page";
-import { renderChecksPage, renderChecksShell } from "./views/checks-page";
+import { renderDashboardPage } from "./views/dashboard-page.tsx";
+import { renderChecksPage, renderChecksShell } from "./views/checks-page.tsx";
 
-type Env = {
+type Bindings = {
   "pulse-db": D1Database;
   "pulse-queue": { send(message: CheckJob): Promise<void> };
 };
@@ -111,24 +112,24 @@ const getCheckById = async (db: D1Database, id: number): Promise<CheckRow | null
   return db.prepare(`SELECT * FROM checks WHERE id = ? LIMIT 1`).bind(id).first<CheckRow>();
 };
 
-const renderFromDb = async (env: Env): Promise<Response> => {
+const renderFromDb = async (env: Bindings): Promise<Response> => {
   const data = await loadDashboardData(env["pulse-db"]);
   return renderDashboardPage(data);
 };
 
-const renderChecksFromDb = async (env: Env, page = 1, editId: number | null = null): Promise<Response> => {
+const renderChecksFromDb = async (env: Bindings, page = 1, editId: number | null = null): Promise<Response> => {
   const data = await loadChecksPageData(env["pulse-db"], page, editId);
   return renderChecksPage(data);
 };
 
-const renderChecksShellFromDb = async (env: Env, page = 1, editId: number | null = null): Promise<Response> => {
+const renderChecksShellFromDb = async (env: Bindings, page = 1, editId: number | null = null): Promise<Response> => {
   const data = await loadChecksPageData(env["pulse-db"], page, editId);
   return respondHtml(renderChecksShell(data));
 };
 
 const isHxRequest = (request: Request): boolean => request.headers.get("HX-Request") === "true";
 
-const handleCreateCheck = async (request: Request, env: Env): Promise<Response> => {
+const handleCreateCheck = async (request: Request, env: Bindings): Promise<Response> => {
   const url = new URL(request.url);
   const page = Number(url.searchParams.get("page") ?? "1");
   const form = await request.formData();
@@ -143,7 +144,7 @@ const handleCreateCheck = async (request: Request, env: Env): Promise<Response> 
   return isHxRequest(request) ? renderChecksShellFromDb(env, page) : renderChecksFromDb(env, page);
 };
 
-const handleUpdateCheck = async (request: Request, env: Env, id: number): Promise<Response> => {
+const handleUpdateCheck = async (request: Request, env: Bindings, id: number): Promise<Response> => {
   const url = new URL(request.url);
   const page = Number(url.searchParams.get("page") ?? "1");
   const form = await request.formData();
@@ -158,7 +159,7 @@ const handleUpdateCheck = async (request: Request, env: Env, id: number): Promis
   return isHxRequest(request) ? renderChecksShellFromDb(env, page) : renderChecksFromDb(env, page);
 };
 
-const runCheck = async (env: Env, job: CheckJob): Promise<void> => {
+const runCheck = async (env: Bindings, job: CheckJob): Promise<void> => {
   const check = await getCheckById(env["pulse-db"], job.checkId);
   if (!check || !check.enabled) return;
 
@@ -339,7 +340,7 @@ const persistCheckResult = async (db: D1Database, check: CheckRow, result: Retur
   await db.batch(statements);
 };
 
-const handleScheduled = async (controller: ScheduledController, env: Env): Promise<void> => {
+const handleScheduled = async (controller: ScheduledController, env: Bindings): Promise<void> => {
   const now = new Date(controller.scheduledTime).toISOString();
   const due = await env["pulse-db"]
     .prepare(
@@ -376,37 +377,25 @@ const handleScheduled = async (controller: ScheduledController, env: Env): Promi
   }
 };
 
+const app = new Hono<{ Bindings: Bindings }>();
+
+app.get("/", async (c) => renderFromDb(c.env));
+app.get("/checks", async (c) => {
+  const page = Number(c.req.query("page") ?? "1");
+  const editId = c.req.query("edit");
+  return isHxRequest(c.req.raw)
+    ? renderChecksShellFromDb(c.env, page, editId ? Number(editId) : null)
+    : renderChecksFromDb(c.env, page, editId ? Number(editId) : null);
+});
+app.post("/checks", async (c) => handleCreateCheck(c.req.raw, c.env));
+app.post("/checks/:id", async (c) => handleUpdateCheck(c.req.raw, c.env, Number(c.req.param("id"))));
+
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
-    const url = new URL(request.url);
-
-    if (request.method === "GET" && url.pathname === "/") {
-      return renderFromDb(env);
-    }
-
-    if (request.method === "GET" && url.pathname === "/checks") {
-      const page = Number(url.searchParams.get("page") ?? "1");
-      const editId = url.searchParams.get("edit");
-      return isHxRequest(request) ? renderChecksShellFromDb(env, page, editId ? Number(editId) : null) : renderChecksFromDb(env, page, editId ? Number(editId) : null);
-    }
-
-    if (request.method === "POST" && url.pathname === "/checks") {
-      return handleCreateCheck(request, env);
-    }
-
-    if (request.method === "POST" && /^\/checks\/\d+$/.test(url.pathname)) {
-      const id = Number(url.pathname.split("/").pop());
-      return handleUpdateCheck(request, env, id);
-    }
-
-    return new Response("Not found", { status: 404 });
-  },
-
-  async scheduled(controller: ScheduledController, env: Env, _ctx: ExecutionContext): Promise<void> {
+  fetch: app.fetch.bind(app),
+  async scheduled(controller: ScheduledController, env: Bindings, _ctx: ExecutionContext): Promise<void> {
     await handleScheduled(controller, env);
   },
-
-  async queue(batch: MessageBatch<CheckJob>, env: Env, _ctx: ExecutionContext): Promise<void> {
+  async queue(batch: MessageBatch<CheckJob>, env: Bindings, _ctx: ExecutionContext): Promise<void> {
     const message = batch.messages[0];
     if (!message?.body) return;
     await runCheck(env, message.body);

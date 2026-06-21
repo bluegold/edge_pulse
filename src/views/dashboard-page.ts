@@ -1,3 +1,4 @@
+import { html, raw } from "hono/html";
 import type { DashboardData, IncidentRow } from "../lib/dashboard-data";
 import { summarizeDashboard } from "../lib/dashboard-data";
 import type { CheckRow } from "../lib/checks";
@@ -281,8 +282,8 @@ export const renderDashboardHtml = (data: DashboardData): string => renderDocume
 
 export const renderDashboardShell = (data: DashboardData): string => renderDashboardMain(data);
 
-export const renderDashboardPage = (data: DashboardData): Response =>
-  new Response(renderDashboardHtml(data), {
+export const renderDashboardPage = async (data: DashboardData): Promise<Response> =>
+  new Response(await html`${raw(renderDashboardHtml(data))}`, {
     headers: {
       "content-type": "text/html; charset=utf-8",
       "cache-control": "no-store",

@@ -1,3 +1,4 @@
+import { html, raw } from "hono/html";
 import type { ChecksPageData } from "../lib/checks-page-data";
 
 const escapeHtml = (value: unknown): string =>
@@ -314,8 +315,8 @@ export const renderChecksHtml = (data: ChecksPageData): string => renderDocument
 
 export const renderChecksShell = (data: ChecksPageData): string => renderChecksMain(data);
 
-export const renderChecksPage = (data: ChecksPageData): Response =>
-  new Response(renderChecksHtml(data), {
+export const renderChecksPage = async (data: ChecksPageData): Promise<Response> =>
+  new Response(await html`${raw(renderChecksHtml(data))}`, {
     headers: {
       "content-type": "text/html; charset=utf-8",
       "cache-control": "no-store",

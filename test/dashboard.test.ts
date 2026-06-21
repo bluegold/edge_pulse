@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { renderDashboardPage, type DashboardData } from "../src/views/dashboard-page";
+import { renderDashboardPage, type DashboardData } from "../src/views/dashboard-page.tsx";
 
 const dashboardData: DashboardData = {
   checks: [
@@ -79,7 +79,7 @@ const dashboardData: DashboardData = {
 
 describe("renderDashboardPage", () => {
   it("renders a dark dashboard with full-width sticky header and footer", async () => {
-    const response = renderDashboardPage(dashboardData);
+    const response = await renderDashboardPage(dashboardData);
 
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("text/html; charset=utf-8");

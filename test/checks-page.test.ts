@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { renderChecksPage, type ChecksPageData } from "../src/views/checks-page";
+import { renderChecksPage, type ChecksPageData } from "../src/views/checks-page.tsx";
 
 const checksPageData: ChecksPageData = {
   checks: [
@@ -66,7 +66,7 @@ const checksPageData: ChecksPageData = {
 
 describe("renderChecksPage", () => {
   it("renders the management page with edit mode and pagination", async () => {
-    const response = renderChecksPage(checksPageData);
+    const response = await renderChecksPage(checksPageData);
 
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("text/html; charset=utf-8");
