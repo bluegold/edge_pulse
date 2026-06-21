@@ -1,0 +1,258 @@
+export type CheckState = "unknown" | "ok" | "fail";
+
+export type CheckJob = {
+  checkId: number;
+  scheduledAt: string;
+  attemptId: string;
+};
+
+export type CheckResult = {
+  state: "ok" | "fail";
+  statusCode: number | null;
+  latencyMs: number | null;
+  error: string | null;
+  reason: string | null;
+  checkedAt: string;
+};
+
+export type CheckRow = {
+  id: number;
+  name: string;
+  url: string;
+  method: string;
+  enabled: number;
+  expected_status_min: number;
+  expected_status_max: number;
+  timeout_ms: number;
+  interval_minutes: number;
+  next_check_at: string | null;
+  last_enqueued_at: string | null;
+  last_checked_at: string | null;
+  last_state: CheckState;
+  last_status_code: number | null;
+  last_latency_ms: number | null;
+  last_error: string | null;
+  fail_threshold: number;
+  recovery_threshold: number;
+  consecutive_failures: number;
+  consecutive_successes: number;
+  first_failure_at: string | null;
+  first_success_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CheckInput = {
+  name: string;
+  url: string;
+  method: string;
+  enabled: boolean;
+  expectedStatusMin: number;
+  expectedStatusMax: number;
+  timeoutMs: number;
+  intervalMinutes: number;
+  failThreshold: number;
+  recoveryThreshold: number;
+};
+
+export type TransitionChange =
+  | {
+      kind: "none";
+      nextState: CheckState;
+    }
+  | {
+      kind: "incident-opened";
+      nextState: "fail";
+      startedAt: string;
+    }
+  | {
+      kind: "incident-resolved";
+      nextState: "ok";
+      resolvedAt: string;
+    };
+
+export type EvaluatedCheck = {
+  result: CheckResult;
+  nextCheck: CheckRow;
+  transition: TransitionChange;
+};
+
+const isPrivateIpv4 = (hostname: string): boolean => {
+  const parts = hostname.split(".");
+  if (parts.length !== 4) return false;
+
+  const octets = parts.map((part) => {
+    if (!/^\d+$/.test(part)) return Number.NaN;
+    const value = Number(part);
+    return Number.isInteger(value) && value >= 0 && value <= 255 ? value : Number.NaN;
+  });
+
+  if (octets.some((part) => Number.isNaN(part))) {
+    return false;
+  }
+
+  const [a, b] = octets as [number, number, number, number];
+  if (a === 10) return true;
+  if (a === 127) return true;
+  if (a === 169 && b === 254) return true;
+  if (a === 172 && b >= 16 && b <= 31) return true;
+  if (a === 192 && b === 168) return true;
+  return false;
+};
+
+const normalizeHostname = (hostname: string): string => {
+  const trimmed = hostname.trim().toLowerCase();
+  return trimmed.endsWith(".") ? trimmed.slice(0, -1) : trimmed;
+};
+
+export const validateMonitorUrl = (
+  input: string,
+): { ok: true; url: URL } | { ok: false; error: string } => {
+  let url: URL;
+
+  try {
+    url = new URL(input.trim());
+  } catch {
+    return { ok: false, error: "URL の形式が不正です" };
+  }
+
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    return { ok: false, error: "http: / https: のみ許可されています" };
+  }
+
+  const hostname = normalizeHostname(url.hostname);
+  if (!hostname) {
+    return { ok: false, error: "ホスト名が空です" };
+  }
+
+  if (hostname === "localhost") {
+    return { ok: false, error: "localhost は許可されていません" };
+  }
+
+  if (hostname === "::1") {
+    return { ok: false, error: "::1 は許可されていません" };
+  }
+
+  if (isPrivateIpv4(hostname)) {
+    return { ok: false, error: "プライベート IP は許可されていません" };
+  }
+
+  return { ok: true, url };
+};
+
+export const validateCheckInput = (input: CheckInput): { ok: true } | { ok: false; error: string } => {
+  if (!input.name.trim()) return { ok: false, error: "名称を入力してください" };
+  const urlValidation = validateMonitorUrl(input.url);
+  if (!urlValidation.ok) return urlValidation;
+  if (input.expectedStatusMin > input.expectedStatusMax) {
+    return { ok: false, error: "期待ステータス範囲が不正です" };
+  }
+  if (input.timeoutMs < 1000 || input.timeoutMs > 120000) {
+    return { ok: false, error: "timeout は 1000〜120000ms で設定してください" };
+  }
+  if (input.intervalMinutes < 1 || input.intervalMinutes > 1440) {
+    return { ok: false, error: "interval_minutes は 1〜1440 で設定してください" };
+  }
+  if (input.failThreshold < 1 || input.recoveryThreshold < 1) {
+    return { ok: false, error: "threshold は 1 以上で設定してください" };
+  }
+  return { ok: true };
+};
+
+export const buildCheckResult = (
+  params: {
+    state: CheckResult["state"];
+    statusCode: number | null;
+    latencyMs: number | null;
+    error: string | null;
+    reason: string | null;
+    checkedAt: string;
+  },
+): CheckResult => ({
+  state: params.state,
+  statusCode: params.statusCode,
+  latencyMs: params.latencyMs,
+  error: params.error,
+  reason: params.reason,
+  checkedAt: params.checkedAt,
+});
+
+export const evaluateTransition = (
+  check: CheckRow,
+  result: CheckResult,
+): EvaluatedCheck => {
+  const nextCheck: CheckRow = { ...check };
+  let transitionKind: TransitionChange["kind"] = "none";
+  let transitionNextState: CheckState = check.last_state;
+  let startedAt: string | undefined;
+  let resolvedAt: string | undefined;
+
+  nextCheck.last_checked_at = result.checkedAt;
+  nextCheck.last_status_code = result.statusCode;
+  nextCheck.last_latency_ms = result.latencyMs;
+  nextCheck.last_error = result.error;
+  nextCheck.updated_at = result.checkedAt;
+
+  if (result.state === "ok") {
+    nextCheck.consecutive_failures = 0;
+    nextCheck.first_failure_at = null;
+
+    if (check.last_state === "fail") {
+      const consecutiveSuccesses = check.consecutive_successes + 1;
+      nextCheck.consecutive_successes = consecutiveSuccesses;
+      if (consecutiveSuccesses >= check.recovery_threshold) {
+        nextCheck.last_state = "ok";
+        nextCheck.consecutive_successes = 0;
+        nextCheck.first_success_at = null;
+        transitionKind = "incident-resolved";
+        transitionNextState = "ok";
+        resolvedAt = check.first_success_at ?? result.checkedAt;
+      }
+    } else if (check.last_state === "unknown") {
+      nextCheck.last_state = "ok";
+      nextCheck.consecutive_successes = 0;
+      nextCheck.first_success_at = null;
+      transitionNextState = "ok";
+    } else {
+      nextCheck.consecutive_successes = 0;
+      nextCheck.first_success_at = null;
+    }
+  } else {
+    nextCheck.consecutive_successes = 0;
+    nextCheck.first_success_at = null;
+
+    const consecutiveFailures = check.consecutive_failures + 1;
+    nextCheck.consecutive_failures = consecutiveFailures;
+    if (!check.first_failure_at) {
+      nextCheck.first_failure_at = result.checkedAt;
+    }
+
+    if (check.last_state === "ok" || check.last_state === "unknown") {
+      if (consecutiveFailures >= check.fail_threshold) {
+        nextCheck.last_state = "fail";
+        transitionKind = "incident-opened";
+        transitionNextState = "fail";
+        startedAt = nextCheck.first_failure_at ?? result.checkedAt;
+      } else {
+        transitionNextState = check.last_state;
+      }
+    } else if (check.last_state === "fail") {
+      transitionNextState = "fail";
+    }
+  }
+
+  const transition: TransitionChange =
+    transitionKind === "incident-opened"
+      ? { kind: "incident-opened", nextState: "fail", startedAt: startedAt ?? result.checkedAt }
+      : transitionKind === "incident-resolved"
+        ? { kind: "incident-resolved", nextState: "ok", resolvedAt: resolvedAt ?? result.checkedAt }
+        : { kind: "none", nextState: transitionNextState };
+
+  return { result, nextCheck, transition };
+};
+
+export const scheduleNextCheckAt = (nowIso: string, intervalMinutes: number): string => {
+  return new Date(new Date(nowIso).getTime() + intervalMinutes * 60_000).toISOString();
+};
+
+export const formatCheckUrlForDisplay = (value: string): string => value;

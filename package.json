@@ -1,0 +1,20 @@
+{
+  "name": "edge-pulse",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "dev:scheduled": "wrangler dev --test-scheduled",
+    "scheduled:fire": "curl --fail --silent --show-error http://127.0.0.1:8787/cdn-cgi/handler/scheduled",
+    "db:migrate:local": "wrangler d1 migrations apply pulse-db --local",
+    "deploy": "wrangler deploy",
+    "types": "wrangler types ./src/env.d.ts",
+    "check": "wrangler check startup",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "vitest": "^2.1.9",
+    "wrangler": "^4.101.0"
+  }
+}
