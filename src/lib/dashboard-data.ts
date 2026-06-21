@@ -43,6 +43,7 @@ export type StatusEventRow = {
 
 export type DashboardData = {
   checks: CheckRow[];
+  recentChecks: CheckRow[];
   currentIncidents: IncidentRow[];
   recentIncidents: IncidentRow[];
   recentResults: CheckResultRow[];
@@ -115,6 +116,7 @@ export const loadDashboardData = async (db: D1Database): Promise<DashboardData> 
 
   return {
     checks: checks.results,
+    recentChecks: checks.results.slice(0, 5),
     currentIncidents: currentIncidents.results,
     recentIncidents: recentIncidents.results,
     recentResults: recentResults.results,

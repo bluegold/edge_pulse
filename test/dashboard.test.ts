@@ -30,6 +30,34 @@ const dashboardData: DashboardData = {
       updated_at: "2026-06-22T00:00:00.000Z",
     },
   ],
+  recentChecks: [
+    {
+      id: 1,
+      name: 'api<&>"\'',
+      url: "https://api.example.com",
+      method: "GET",
+      enabled: 1,
+      expected_status_min: 200,
+      expected_status_max: 399,
+      timeout_ms: 10_000,
+      interval_minutes: 5,
+      next_check_at: null,
+      last_enqueued_at: null,
+      last_checked_at: "2026-06-22T00:00:00.000Z",
+      last_state: "ok",
+      last_status_code: 200,
+      last_latency_ms: 123,
+      last_error: null,
+      fail_threshold: 2,
+      recovery_threshold: 1,
+      consecutive_failures: 0,
+      consecutive_successes: 0,
+      first_failure_at: null,
+      first_success_at: null,
+      created_at: "2026-06-22T00:00:00.000Z",
+      updated_at: "2026-06-22T00:00:00.000Z",
+    },
+  ],
   currentIncidents: [],
   recentIncidents: [],
   recentResults: [
@@ -62,20 +90,19 @@ describe("renderDashboardPage", () => {
     expect(html).toContain("sticky top-0 z-50 w-full");
     expect(html).toContain("<footer");
     expect(html).toContain("bg-slate-950/85");
+    expect(html).toContain("items-center justify-center text-center");
     expect(html).toContain('id="summary-total-checks"');
     expect(html).toContain('id="current-incidents-panel"');
     expect(html).toContain('id="current-incidents-list"');
-    expect(html).toContain('id="checks-create-form"');
-    expect(html).toContain('id="checks-create-submit"');
-    expect(html).toContain('id="checks-panel"');
-    expect(html).toContain('id="checks-list"');
-    expect(html).toContain('id="check-row-1"');
-    expect(html).toContain('id="check-row-1-save"');
+    expect(html).toContain('id="recent-checks-panel"');
+    expect(html).toContain('id="recent-checks-list"');
+    expect(html).toContain('id="recent-check-1"');
     expect(html).toContain('id="recent-results-panel"');
     expect(html).toContain('id="recent-results-list"');
     expect(html).toContain('id="status-events-panel"');
     expect(html).toContain('id="status-events-list"');
     expect(html).toContain('id="incident-history-panel"');
     expect(html).toContain('id="incident-history-list"');
+    expect(html).not.toContain('id="checks-create-form"');
   });
 });

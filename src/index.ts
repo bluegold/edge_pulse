@@ -6,9 +6,11 @@ import {
   validateCheckInput,
   validateMonitorUrl,
 } from "./lib/checks";
+import { loadChecksPageData } from "./lib/checks-page-data";
 import type { D1Database, ExecutionContext, MessageBatch, ScheduledController } from "./lib/cloudflare";
 import { loadDashboardData } from "./lib/dashboard-data";
-import { renderDashboardHtml, renderDashboardShell } from "./views/dashboard-page";
+import { renderDashboardPage } from "./views/dashboard-page";
+import { renderChecksPage, renderChecksShell } from "./views/checks-page";
 
 type Env = {
   "pulse-db": D1Database;
@@ -38,9 +40,9 @@ const readCheckInput = (form: FormData): CheckInput => ({
   url: String(form.get("url") ?? ""),
   method: "GET",
   enabled: parseEnabled(form.get("enabled")),
-  expectedStatusMin: 200,
-  expectedStatusMax: 399,
-  timeoutMs: 10_000,
+  expectedStatusMin: parseNumber(form.get("expected_status_min"), 200),
+  expectedStatusMax: parseNumber(form.get("expected_status_max"), 399),
+  timeoutMs: parseNumber(form.get("timeout_ms"), 10_000),
   intervalMinutes: parseNumber(form.get("interval_minutes"), 5),
   failThreshold: parseNumber(form.get("fail_threshold"), 2),
   recoveryThreshold: parseNumber(form.get("recovery_threshold"), 1),
@@ -111,38 +113,49 @@ const getCheckById = async (db: D1Database, id: number): Promise<CheckRow | null
 
 const renderFromDb = async (env: Env): Promise<Response> => {
   const data = await loadDashboardData(env["pulse-db"]);
-  return respondHtml(renderDashboardHtml(data));
+  return renderDashboardPage(data);
 };
 
-const renderShellFromDb = async (env: Env): Promise<Response> => {
-  const data = await loadDashboardData(env["pulse-db"]);
-  return respondHtml(renderDashboardShell(data));
+const renderChecksFromDb = async (env: Env, page = 1, editId: number | null = null): Promise<Response> => {
+  const data = await loadChecksPageData(env["pulse-db"], page, editId);
+  return renderChecksPage(data);
 };
+
+const renderChecksShellFromDb = async (env: Env, page = 1, editId: number | null = null): Promise<Response> => {
+  const data = await loadChecksPageData(env["pulse-db"], page, editId);
+  return respondHtml(renderChecksShell(data));
+};
+
+const isHxRequest = (request: Request): boolean => request.headers.get("HX-Request") === "true";
 
 const handleCreateCheck = async (request: Request, env: Env): Promise<Response> => {
+  const url = new URL(request.url);
+  const page = Number(url.searchParams.get("page") ?? "1");
   const form = await request.formData();
   const input = readCheckInput(form);
   const validation = validateCheckInput(input);
   if (!validation.ok) {
-    return respondHtml(`<main id="dashboard-shell" class="p-6 text-sm text-rose-700">${validation.error}</main>`, 400);
+    return respondHtml(`<main id="checks-page-shell" class="p-6 text-sm text-rose-700">${validation.error}</main>`, 400);
   }
 
   const now = new Date().toISOString();
   await insertCheck(env["pulse-db"], input, now);
-  return renderShellFromDb(env);
+  return isHxRequest(request) ? renderChecksShellFromDb(env, page) : renderChecksFromDb(env, page);
 };
 
 const handleUpdateCheck = async (request: Request, env: Env, id: number): Promise<Response> => {
+  const url = new URL(request.url);
+  const page = Number(url.searchParams.get("page") ?? "1");
   const form = await request.formData();
   const input = readCheckInput(form);
   const validation = validateCheckInput(input);
   if (!validation.ok) {
-    return respondHtml(`<main id="dashboard-shell" class="p-6 text-sm text-rose-700">${validation.error}</main>`, 400);
+    return respondHtml(`<main id="checks-page-shell" class="p-6 text-sm text-rose-700">${validation.error}</main>`, 400);
   }
 
   const now = new Date().toISOString();
   await updateCheck(env["pulse-db"], id, input, now);
-  return renderShellFromDb(env);
+  return isHxRequest(request) ? renderChecksShellFromDb(env, page) : renderChecksFromDb(env, page);
 };
 
 const runCheck = async (env: Env, job: CheckJob): Promise<void> => {
@@ -369,6 +382,12 @@ export default {
 
     if (request.method === "GET" && url.pathname === "/") {
       return renderFromDb(env);
+    }
+
+    if (request.method === "GET" && url.pathname === "/checks") {
+      const page = Number(url.searchParams.get("page") ?? "1");
+      const editId = url.searchParams.get("edit");
+      return isHxRequest(request) ? renderChecksShellFromDb(env, page, editId ? Number(editId) : null) : renderChecksFromDb(env, page, editId ? Number(editId) : null);
     }
 
     if (request.method === "POST" && url.pathname === "/checks") {
