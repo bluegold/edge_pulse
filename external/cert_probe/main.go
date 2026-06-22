@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 )
@@ -23,6 +24,18 @@ type CertResult struct {
 	DaysRemaining int    `json:"days_remaining,omitempty"`
 	DNSNames      []string `json:"dns_names,omitempty"`
 	Error         string `json:"error,omitempty"`
+}
+
+type ProbeLog struct {
+	Timestamp string      `json:"timestamp"`
+	Event     string      `json:"event"`
+	Method    string      `json:"method"`
+	Path      string      `json:"path"`
+	Query     string      `json:"query,omitempty"`
+	Status    int         `json:"status"`
+	Duration  int64       `json:"duration_ms"`
+	Result    CertResult  `json:"result"`
+	Error     string      `json:"error,omitempty"`
 }
 
 func probeCert(host string, port int, serverName string) CertResult {
@@ -75,6 +88,7 @@ func probeCert(host string, port int, serverName string) CertResult {
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
+	started := time.Now()
 	q := r.URL.Query()
 	host := q.Get("host")
 	serverName := q.Get("servername")
@@ -83,7 +97,9 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	if p := q.Get("port"); p != "" {
 		parsed, err := strconv.Atoi(p)
 		if err != nil {
-			writeJSON(w, http.StatusBadRequest, CertResult{Host: host, Error: errors.New("invalid port").Error()})
+			result := CertResult{Host: host, Error: errors.New("invalid port").Error()}
+			logProbe(r, http.StatusBadRequest, time.Since(started), result)
+			writeJSON(w, http.StatusBadRequest, result)
 			return
 		}
 		port = parsed
@@ -94,7 +110,28 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	if result.Error != "" {
 		status = http.StatusBadGateway
 	}
+	logProbe(r, status, time.Since(started), result)
 	writeJSON(w, status, result)
+}
+
+func logProbe(r *http.Request, status int, duration time.Duration, result CertResult) {
+	entry := ProbeLog{
+		Timestamp: time.Now().UTC().Format(time.RFC3339Nano),
+		Event:     "probe",
+		Method:    r.Method,
+		Path:      r.URL.Path,
+		Query:     r.URL.RawQuery,
+		Status:    status,
+		Duration:  duration.Milliseconds(),
+		Result:    result,
+	}
+
+	if result.Error != "" {
+		entry.Error = result.Error
+	}
+
+	encoder := json.NewEncoder(os.Stdout)
+	_ = encoder.Encode(entry)
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
