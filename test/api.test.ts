@@ -1,0 +1,163 @@
+import { describe, expect, it } from "vitest";
+import { app } from "../src/index.ts";
+import type { CheckRow } from "../src/lib/checks";
+
+type MockState = {
+  checks: CheckRow[];
+  nextId: number;
+};
+
+const makeCheck = (id: number, overrides: Partial<CheckRow> = {}): CheckRow => ({
+  id,
+  name: "api",
+  url: "https://api.example.com",
+  method: "GET",
+  enabled: 1,
+  expected_status_min: 200,
+  expected_status_max: 399,
+  timeout_ms: 10_000,
+  interval_minutes: 5,
+  next_check_at: null,
+  last_enqueued_at: null,
+  last_checked_at: null,
+  last_state: "unknown",
+  last_status_code: null,
+  last_latency_ms: null,
+  last_error: null,
+  fail_threshold: 2,
+  recovery_threshold: 1,
+  consecutive_failures: 0,
+  consecutive_successes: 0,
+  first_failure_at: null,
+  first_success_at: null,
+  created_at: "2026-06-22T00:00:00.000Z",
+  updated_at: "2026-06-22T00:00:00.000Z",
+  ...overrides,
+});
+
+const createDb = (state: MockState) => ({
+  prepare(sql: string) {
+    const normalized = sql.replaceAll(/\s+/g, " ").trim();
+
+    return {
+      bind(...params: unknown[]) {
+        return {
+          async first<T>() {
+            if (normalized.includes("INSERT INTO checks") && normalized.includes("RETURNING id")) {
+              const [name, url, method, enabled, expectedStatusMin, expectedStatusMax, timeoutMs, intervalMinutes, failThreshold, recoveryThreshold, createdAt, updatedAt] = params as [
+                string,
+                string,
+                string,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                number,
+                string,
+                string,
+              ];
+
+              const id = state.nextId++;
+              state.checks.push(
+                makeCheck(id, {
+                  name,
+                  url,
+                  method,
+                  enabled,
+                  expected_status_min: expectedStatusMin,
+                  expected_status_max: expectedStatusMax,
+                  timeout_ms: timeoutMs,
+                  interval_minutes: intervalMinutes,
+                  fail_threshold: failThreshold,
+                  recovery_threshold: recoveryThreshold,
+                  created_at: createdAt,
+                  updated_at: updatedAt,
+                }),
+              );
+              return { id } as T;
+            }
+
+            if (normalized === "SELECT * FROM checks WHERE id = ? LIMIT 1") {
+              const [id] = params as [number];
+              return (state.checks.find((check) => check.id === id) ?? null) as T;
+            }
+
+            if (normalized === "SELECT COUNT(*) AS count FROM checks") {
+              return { count: state.checks.length } as T;
+            }
+
+            return null as T;
+          },
+          async all<T>() {
+            if (normalized.startsWith("SELECT * FROM checks ORDER BY")) {
+              const [limit, offset] = params as [number, number];
+              return {
+                results: state.checks.slice(offset, offset + limit),
+              } as T;
+            }
+
+            return { results: [] } as T;
+          },
+          async run() {
+            return {};
+          },
+        };
+      },
+    };
+  },
+});
+
+const makeEnv = (state: MockState) => ({
+  "pulse-db": createDb(state),
+  "pulse-queue": { send: async () => {} },
+  ADMIN_API_TOKEN: "secret-token",
+});
+
+describe("api auth", () => {
+  it("rejects requests without a bearer token", async () => {
+    const response = await app.request(
+      "http://localhost/api/checks",
+      {
+        method: "GET",
+      },
+      makeEnv({ checks: [], nextId: 1 }),
+    );
+
+    expect(response.status).toBe(401);
+  });
+});
+
+describe("api checks", () => {
+  it("creates a check from json", async () => {
+    const state: MockState = { checks: [], nextId: 1 };
+
+    const response = await app.request(
+      "http://localhost/api/checks",
+      {
+        method: "POST",
+        headers: {
+          authorization: "Bearer secret-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          name: "payments.example.com",
+          url: "https://payments.example.com",
+          enabled: true,
+          interval_minutes: 10,
+          fail_threshold: 2,
+          recovery_threshold: 1,
+        }),
+      },
+      makeEnv(state),
+    );
+
+    expect(response.status).toBe(201);
+
+    const payload = (await response.json()) as { check: CheckRow | null };
+    expect(payload.check?.id).toBe(1);
+    expect(payload.check?.name).toBe("payments.example.com");
+    expect(state.checks).toHaveLength(1);
+  });
+});
