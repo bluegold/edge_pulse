@@ -203,7 +203,10 @@ const handleCreateCheck = async (request: Request, env: Bindings): Promise<Respo
   const input = await readFormCheckInput(request);
   const validation = validateCheckInput(input);
   if (!validation.ok) {
-    return respondHtml(`<main id="content" class="p-6 text-sm text-rose-700">${validation.error}</main>`, 400);
+    return respondHtml(
+      `<main id="content" class="p-6 text-sm text-rose-200" role="alert" aria-live="assertive">${validation.error}</main>`,
+      400,
+    );
   }
 
   const now = new Date().toISOString();
@@ -217,7 +220,10 @@ const handleUpdateCheck = async (request: Request, env: Bindings, id: number): P
   const input = await readFormCheckInput(request);
   const validation = validateCheckInput(input);
   if (!validation.ok) {
-    return respondHtml(`<main id="content" class="p-6 text-sm text-rose-700">${validation.error}</main>`, 400);
+    return respondHtml(
+      `<main id="content" class="p-6 text-sm text-rose-200" role="alert" aria-live="assertive">${validation.error}</main>`,
+      400,
+    );
   }
 
   const now = new Date().toISOString();

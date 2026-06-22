@@ -282,6 +282,7 @@ const renderChecksMain = (data: ChecksPageData): string => `
           id="checks-create-toggle"
           type="button"
           aria-expanded="false"
+          aria-controls="checks-create-form-wrap"
           class="inline-flex items-center rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm font-semibold text-slate-100"
         >追加</button>
       </header>
