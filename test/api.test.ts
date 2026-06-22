@@ -121,6 +121,18 @@ const createDb = (state: MockState) => ({
 const makeEnv = (state: MockState) => ({
   "pulse-db": createDb(state),
   "pulse-queue": { send: async () => {} },
+  ASSETS: {
+    async fetch(input: RequestInfo | URL) {
+      const url = typeof input === "string" || input instanceof URL ? new URL(input.toString(), "http://localhost") : new URL(input.url);
+      if (url.pathname === "/auto-reload.js") {
+        return new Response("edge-pulse:auto-reload; dashboard-auto-reload-toggle;", {
+          headers: { "content-type": "application/javascript; charset=utf-8" },
+        });
+      }
+
+      return new Response("not found", { status: 404 });
+    },
+  },
   ADMIN_API_TOKEN: "secret-token",
 });
 
@@ -172,6 +184,21 @@ describe("api checks", () => {
 });
 
 describe("hx navigation", () => {
+  it("serves the auto reload script asset", async () => {
+    const response = await app.request(
+      "http://localhost/assets/auto-reload.js",
+      {},
+      makeEnv({ checks: [makeCheck(1)], nextId: 2 }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("javascript");
+
+    const text = await response.text();
+    expect(text).toContain("edge-pulse:auto-reload");
+    expect(text).toContain('dashboard-auto-reload-toggle');
+  });
+
   it("returns a dashboard fragment for htmx root navigation", async () => {
     const response = await app.request(
       "http://localhost/",

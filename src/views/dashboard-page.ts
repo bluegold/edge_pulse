@@ -156,7 +156,25 @@ const renderDashboardMain = (data: DashboardData): string => {
             <h2 class="mt-2 text-3xl font-black tracking-tight text-slate-50">監視状態の概要</h2>
             <p class="mt-2 max-w-2xl text-sm text-slate-400">D1 を唯一の状態保存先として、現在状態・障害・直近の追加情報だけを表示します。</p>
           </div>
-          <div class="flex flex-wrap gap-2">
+          <div class="flex flex-wrap items-end gap-3">
+            <button
+              id="dashboard-auto-reload-toggle"
+              type="button"
+              class="inline-flex items-center gap-3 rounded-2xl border border-slate-700 bg-slate-900/80 px-4 py-3 text-left text-slate-100 shadow-sm shadow-black/20 transition hover:border-sky-500/60 hover:bg-slate-900 focus-visible:outline-none"
+              aria-pressed="false"
+              data-active="false"
+            >
+              <span id="dashboard-auto-reload-idle" class="text-sm font-semibold text-slate-50">自動更新</span>
+              <span id="dashboard-auto-reload-active" class="hidden items-center gap-3">
+                <span
+                  id="dashboard-auto-reload-ring"
+                  class="auto-reload-ring relative grid h-12 w-12 place-items-center rounded-full border border-slate-700 bg-slate-950/90 text-sm font-black text-slate-50"
+                  aria-hidden="true"
+                >
+                  <span data-role="center" class="pointer-events-none select-none">30s</span>
+                </span>
+              </span>
+            </button>
             <a href="/checks" class="inline-flex items-center rounded-xl border border-slate-700 bg-slate-900/80 px-4 py-2 text-sm font-semibold text-slate-100">監視一覧へ</a>
           </div>
         </header>

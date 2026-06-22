@@ -14,6 +14,10 @@ export interface Queue<T = unknown> {
   send(message: T): Promise<void>;
 }
 
+export interface Fetcher {
+  fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>;
+}
+
 export interface ExecutionContext {
   waitUntil(promise: Promise<unknown>): void;
 }

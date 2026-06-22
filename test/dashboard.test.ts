@@ -95,6 +95,12 @@ describe("renderDashboardPage", () => {
     expect(html).toContain("width: min(100%, 80rem);");
     expect(html).toContain(":focus-visible");
     expect(html).toContain('id="dashboard-shell" class="w-full"');
+    expect(html).toContain('id="dashboard-auto-reload-toggle"');
+    expect(html).toContain('id="dashboard-auto-reload-idle"');
+    expect(html).toContain('id="dashboard-auto-reload-active"');
+    expect(html).toContain('id="dashboard-auto-reload-ring"');
+    expect(html).toContain('data-role="center"');
+    expect(html).toContain('<script src="/assets/auto-reload.js" defer=""></script>');
     expect(html).toContain("<footer");
     expect(html).toContain('class="mt-auto w-full border-t border-slate-800 bg-slate-950/85"');
     expect(html).toContain("bg-slate-950/85");

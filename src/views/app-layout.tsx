@@ -71,6 +71,9 @@ export const AppLayout = ({ title, activeHref, children }: AppLayoutProps) => (
           outline-offset: 4px;
           box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.45);
         }
+        #content .auto-reload-ring {
+          background: conic-gradient(#38bdf8 calc(var(--auto-progress, 0) * 1%), rgba(148, 163, 184, 0.2) 0);
+        }
       `}</style>
     </head>
     <body class="flex min-h-screen flex-col text-slate-100" hx-boost="true" hx-target="#content" hx-swap="outerHTML show:top">
@@ -96,6 +99,7 @@ export const AppLayout = ({ title, activeHref, children }: AppLayoutProps) => (
         </div>
       </header>
       <main id="content">{children}</main>
+      <script src="/assets/auto-reload.js" defer></script>
       <footer class="mt-auto w-full border-t border-slate-800 bg-slate-950/85">
         <div class="mx-auto max-w-7xl px-4 py-4 text-sm text-slate-200 sm:px-6 lg:px-8">Edge Pulse</div>
       </footer>

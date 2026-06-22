@@ -11,7 +11,7 @@ import {
 } from "./lib/checks";
 import { fetchCertificateSnapshot, type CertProbeResponse } from "./lib/cert-probe";
 import { loadChecksPageData } from "./lib/checks-page-data";
-import type { D1Database, ExecutionContext, MessageBatch, ScheduledController } from "./lib/cloudflare";
+import type { D1Database, ExecutionContext, Fetcher, MessageBatch, ScheduledController } from "./lib/cloudflare";
 import { loadDashboardData } from "./lib/dashboard-data";
 import { renderDashboardPage, renderDashboardShell } from "./views/dashboard-page.tsx";
 import { renderChecksPage, renderChecksShell } from "./views/checks-page.tsx";
@@ -19,6 +19,7 @@ import { renderChecksPage, renderChecksShell } from "./views/checks-page.tsx";
 type Bindings = {
   "pulse-db": D1Database;
   "pulse-queue": { send(message: CheckJob): Promise<void> };
+  ASSETS: Fetcher;
   ADMIN_API_TOKEN: string;
   CERT_PROBE_URL?: string;
 };
@@ -600,6 +601,11 @@ app.use("/api/*", async (c, next) => {
 });
 
 app.get("/", async (c) => (isHxRequest(c.req.raw) ? renderDashboardShellFromDb(c.env) : renderFromDb(c.env)));
+app.get("/assets/*", async (c) => {
+  const assetUrl = new URL(c.req.url);
+  assetUrl.pathname = assetUrl.pathname.replace(/^\/assets\//, "/");
+  return c.env.ASSETS.fetch(assetUrl);
+});
 app.get("/checks", async (c) => {
   const page = Number(c.req.query("page") ?? "1");
   const editId = c.req.query("edit");
