@@ -15,6 +15,46 @@ export type CheckResult = {
   checkedAt: string;
 };
 
+export type CertificateSnapshot = {
+  checkedAt: string;
+  subject: string | null;
+  issuer: string | null;
+  publicKeyClass: string | null;
+  validFrom: string | null;
+  validTo: string | null;
+  daysRemaining: number | null;
+  dnsNames: string[] | null;
+  error: string | null;
+};
+
+const TLS_ERROR_PATTERNS = [
+  /certificate/i,
+  /tls/i,
+  /ssl/i,
+  /x509/i,
+  /handshake/i,
+  /expired/i,
+  /cert/i,
+];
+
+const DNS_ERROR_PATTERNS = [/dns/i, /nxdomain/i, /getaddrinfo/i, /enotfound/i, /eai_again/i];
+
+const TIMEOUT_ERROR_PATTERNS = [/timeout/i, /timed out/i, /aborted/i, /abort/i];
+
+export const classifyCheckFailureReason = (statusCode: number | null, error: string | null): string => {
+  if (statusCode === 526) return "tls_error";
+
+  const message = `${statusCode ?? ""} ${error ?? ""}`;
+  if (TLS_ERROR_PATTERNS.some((pattern) => pattern.test(message))) return "tls_error";
+  if (TIMEOUT_ERROR_PATTERNS.some((pattern) => pattern.test(message))) return "timeout";
+  if (DNS_ERROR_PATTERNS.some((pattern) => pattern.test(message))) return "dns_error";
+  return "fetch_error";
+};
+
+export const isCertificateExpiringSoon = (daysRemaining: number | null, thresholdDays = 30): boolean => {
+  return daysRemaining !== null && daysRemaining <= thresholdDays;
+};
+
 export type CheckRow = {
   id: number;
   name: string;
@@ -38,6 +78,15 @@ export type CheckRow = {
   consecutive_successes: number;
   first_failure_at: string | null;
   first_success_at: string | null;
+  tls_last_checked_at?: string | null;
+  tls_last_error?: string | null;
+  tls_subject?: string | null;
+  tls_issuer?: string | null;
+  tls_public_key_class?: string | null;
+  tls_valid_from?: string | null;
+  tls_valid_to?: string | null;
+  tls_days_remaining?: number | null;
+  tls_dns_names?: string | null;
   created_at: string;
   updated_at: string;
 };

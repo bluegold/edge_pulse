@@ -130,6 +130,9 @@ export const summarizeDashboard = (checks: CheckRow[], recentIncidents: Incident
   const totalChecks = checks.length;
   const okChecks = checks.filter((check) => check.last_state === "ok" && check.enabled === 1).length;
   const failedChecks = checks.filter((check) => check.last_state === "fail" && check.enabled === 1).length;
+  const certExpiringSoonChecks = checks.filter(
+    (check) => typeof check.tls_days_remaining === "number" && check.tls_days_remaining <= 30,
+  ).length;
   const averageLatency =
     checks.length === 0
       ? null
@@ -142,6 +145,7 @@ export const summarizeDashboard = (checks: CheckRow[], recentIncidents: Incident
     totalChecks,
     okChecks,
     failedChecks,
+    certExpiringSoonChecks,
     incidents24h: recentIncidents.length,
     averageLatencyMs: checks.some((check) => check.last_latency_ms !== null) ? averageLatency : null,
   };

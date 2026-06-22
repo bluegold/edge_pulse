@@ -16,6 +16,25 @@ const formatNullable = (value: string | number | null | undefined, fallback = "-
   return String(value);
 };
 
+const formatCertificateDays = (daysRemaining: number | null | undefined): string => {
+  if (daysRemaining === null || daysRemaining === undefined) return "-";
+  if (daysRemaining < 0) return `期限切れ ${Math.abs(daysRemaining)} 日前`;
+  return `残り ${daysRemaining} 日`;
+};
+
+const renderCertificateBadge = (check: CheckRow): string => {
+  if (check.tls_last_error) {
+    return '<span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">証明書確認失敗</span>';
+  }
+  if (typeof check.tls_days_remaining === "number" && check.tls_days_remaining <= 30) {
+    return '<span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">証明書要確認</span>';
+  }
+  if (check.tls_valid_to) {
+    return '<span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">証明書OK</span>';
+  }
+  return '<span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">証明書未取得</span>';
+};
+
 const formatDuration = (startedAt: string, resolvedAt: string | null): string => {
   const start = new Date(startedAt).getTime();
   const end = resolvedAt ? new Date(resolvedAt).getTime() : Date.now();
@@ -60,7 +79,10 @@ const renderRecentCheckCard = (check: CheckRow) => {
           <p class="truncate font-semibold text-slate-50">${escapeHtml(check.name)}</p>
           <p class="mt-1 truncate text-sm text-slate-400">${escapeHtml(check.url)}</p>
         </div>
-        <span class="shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}">${escapeHtml(stateLabel)}</span>
+        <div class="flex shrink-0 flex-col items-end gap-2">
+          <span class="rounded-full px-3 py-1 text-xs font-semibold ${badgeClass}">${escapeHtml(stateLabel)}</span>
+          ${renderCertificateBadge(check)}
+        </div>
       </div>
       <dl class="mt-4 grid gap-2 text-sm text-slate-300 sm:grid-cols-2">
         <div>
@@ -78,6 +100,10 @@ const renderRecentCheckCard = (check: CheckRow) => {
         <div>
           <dt class="text-slate-500">追加</dt>
           <dd class="mt-1">${escapeHtml(check.created_at)}</dd>
+        </div>
+        <div>
+          <dt class="text-slate-500">証明書</dt>
+          <dd class="mt-1">${escapeHtml(formatCertificateDays(check.tls_days_remaining))}</dd>
         </div>
       </dl>
     </div>
@@ -135,10 +161,11 @@ const renderDashboardMain = (data: DashboardData): string => {
           </div>
         </header>
 
-        <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
           ${renderSummaryCard("summary-total-checks", "監視URL", summary.totalChecks)}
           ${renderSummaryCard("summary-ok-checks", "稼働中", summary.okChecks)}
           ${renderSummaryCard("summary-failed-checks", "障害中", summary.failedChecks)}
+          ${renderSummaryCard("summary-cert-expiring", "証明書30日以内", summary.certExpiringSoonChecks)}
           ${renderSummaryCard("summary-incidents-24h", "24h障害件数", data.incidents24h)}
           ${renderSummaryCard("summary-average-latency", "平均応答", summary.averageLatencyMs === null ? "-" : `${summary.averageLatencyMs}ms`)}
         </section>

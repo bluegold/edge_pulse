@@ -100,6 +100,7 @@ describe("renderDashboardPage", () => {
     expect(html).toContain("bg-slate-950/85");
     expect(html).toContain("items-center justify-center text-center");
     expect(html).toContain('id="summary-total-checks"');
+    expect(html).toContain('id="summary-cert-expiring"');
     expect(html).toContain('id="current-incidents-panel"');
     expect(html).toContain('id="current-incidents-list"');
     expect(html).toContain('id="recent-checks-panel"');

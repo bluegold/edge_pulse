@@ -2,11 +2,14 @@ import { Hono } from "hono";
 import type { CheckJob, CheckInput, CheckRow } from "./lib/checks";
 import {
   buildCheckResult,
+  classifyCheckFailureReason,
   evaluateTransition,
+  isCertificateExpiringSoon,
   scheduleNextCheckAt,
   validateCheckInput,
   validateMonitorUrl,
 } from "./lib/checks";
+import { fetchCertificateSnapshot, type CertProbeResponse } from "./lib/cert-probe";
 import { loadChecksPageData } from "./lib/checks-page-data";
 import type { D1Database, ExecutionContext, MessageBatch, ScheduledController } from "./lib/cloudflare";
 import { loadDashboardData } from "./lib/dashboard-data";
@@ -17,6 +20,7 @@ type Bindings = {
   "pulse-db": D1Database;
   "pulse-queue": { send(message: CheckJob): Promise<void> };
   ADMIN_API_TOKEN: string;
+  CERT_PROBE_URL?: string;
 };
 
 const respondHtml = (body: string, status = 200) =>
@@ -71,6 +75,37 @@ const readFormCheckInput = async (request: Request): Promise<CheckInput> => {
 const readJsonCheckInput = async (request: Request): Promise<CheckInput> => {
   const body = (await request.json()) as Record<string, unknown>;
   return readCheckInput(body);
+};
+
+const CERT_EXPIRY_THRESHOLD_DAYS = 30;
+
+const probeCertificateSnapshot = async (env: Bindings, check: CheckRow): Promise<CertProbeResponse | null> => {
+  const probeBaseUrl = env.CERT_PROBE_URL?.trim();
+  if (!probeBaseUrl) return null;
+
+  const parsed = new URL(check.url);
+  if (parsed.protocol !== "https:") return null;
+
+  const port = parsed.port ? Number(parsed.port) : 443;
+  const serverName = parsed.hostname;
+  return fetchCertificateSnapshot(probeBaseUrl, parsed.hostname, port, serverName);
+};
+
+const describeCertificateAlert = (certificate: CertProbeResponse): { reason: string; error: string } | null => {
+  if (certificate.daysRemaining === null) return null;
+  if (certificate.daysRemaining < 0) {
+    return {
+      reason: "tls_expired",
+      error: `certificate expired ${Math.abs(certificate.daysRemaining)} day${Math.abs(certificate.daysRemaining) === 1 ? "" : "s"} ago`,
+    };
+  }
+  if (isCertificateExpiringSoon(certificate.daysRemaining, CERT_EXPIRY_THRESHOLD_DAYS)) {
+    return {
+      reason: "tls_expiring_soon",
+      error: `certificate expires in ${certificate.daysRemaining} day${certificate.daysRemaining === 1 ? "" : "s"}`,
+    };
+  }
+  return null;
 };
 
 const timingSafeEquals = (left: string, right: string): boolean => {
@@ -289,10 +324,11 @@ const runCheck = async (env: Bindings, job: CheckJob): Promise<void> => {
       reason: "invalid_url",
       checkedAt,
     });
-    await persistCheckResult(env["pulse-db"], check, result);
+    await persistCheckResult(env["pulse-db"], check, result, null);
     return;
   }
 
+  const certificatePromise = probeCertificateSnapshot(env, check);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort("timeout"), check.timeout_ms);
   const started = performance.now();
@@ -311,24 +347,44 @@ const runCheck = async (env: Bindings, job: CheckJob): Promise<void> => {
     clearTimeout(timeout);
   }
 
+  const certificate = await certificatePromise;
   const latencyMs = Math.max(0, Math.round(performance.now() - started));
   const inRange = response
     ? response.status >= check.expected_status_min && response.status <= check.expected_status_max
     : false;
+  const certificateAlert = certificate ? describeCertificateAlert(certificate) : null;
+  const certificateFailure = Boolean(certificateAlert);
+  const shouldFail = certificateFailure || !inRange;
+  const responseReason = response
+    ? response.status === 526
+      ? "tls_error"
+      : inRange
+        ? "http_ok"
+        : "http_status"
+    : classifyCheckFailureReason(null, error);
+  const resultReason = certificateAlert?.reason ?? responseReason;
+  const resultError =
+    certificateAlert?.error ??
+    (response?.status === 526 ? "invalid SSL certificate" : response ? null : error ?? "request failed");
 
   const result = buildCheckResult({
-    state: inRange ? "ok" : "fail",
+    state: shouldFail ? "fail" : "ok",
     statusCode: response?.status ?? null,
     latencyMs: response ? latencyMs : null,
-    error: response ? null : error ?? "request failed",
-    reason: response ? (inRange ? "http_ok" : "http_status") : "fetch_error",
+    error: resultError,
+    reason: resultReason,
     checkedAt,
   });
 
-  await persistCheckResult(env["pulse-db"], check, result);
+  await persistCheckResult(env["pulse-db"], check, result, certificate);
 };
 
-const persistCheckResult = async (db: D1Database, check: CheckRow, result: ReturnType<typeof buildCheckResult>): Promise<void> => {
+const persistCheckResult = async (
+  db: D1Database,
+  check: CheckRow,
+  result: ReturnType<typeof buildCheckResult>,
+  certificate: CertProbeResponse | null,
+): Promise<void> => {
   const evaluated = evaluateTransition(check, result);
   const nextCheck = evaluated.nextCheck;
   const unresolvedIncident = await db
@@ -377,6 +433,50 @@ const persistCheckResult = async (db: D1Database, check: CheckRow, result: Retur
         nextCheck.id,
       ),
   ];
+
+  if (certificate) {
+    statements[1] = db
+      .prepare(
+        `
+        UPDATE checks
+        SET last_checked_at = ?, last_state = ?, last_status_code = ?, last_latency_ms = ?, last_error = ?,
+            consecutive_failures = ?, consecutive_successes = ?, first_failure_at = ?, first_success_at = ?,
+            tls_last_checked_at = COALESCE(?, tls_last_checked_at),
+            tls_last_error = ?,
+            tls_subject = COALESCE(?, tls_subject),
+            tls_issuer = COALESCE(?, tls_issuer),
+            tls_public_key_class = COALESCE(?, tls_public_key_class),
+            tls_valid_from = COALESCE(?, tls_valid_from),
+            tls_valid_to = COALESCE(?, tls_valid_to),
+            tls_days_remaining = COALESCE(?, tls_days_remaining),
+            tls_dns_names = COALESCE(?, tls_dns_names),
+            updated_at = ?
+        WHERE id = ?
+      `,
+      )
+      .bind(
+        nextCheck.last_checked_at,
+        nextCheck.last_state,
+        nextCheck.last_status_code,
+        nextCheck.last_latency_ms,
+        nextCheck.last_error,
+        nextCheck.consecutive_failures,
+        nextCheck.consecutive_successes,
+        nextCheck.first_failure_at,
+        nextCheck.first_success_at,
+        result.checkedAt,
+        certificate.error,
+        certificate.subject,
+        certificate.issuer,
+        certificate.class,
+        certificate.validFrom,
+        certificate.validTo,
+        certificate.daysRemaining,
+        certificate.dnsNames ? JSON.stringify(certificate.dnsNames) : null,
+        nextCheck.updated_at,
+        nextCheck.id,
+      );
+  }
 
   if (nextCheck.last_state === "fail") {
     if (unresolvedIncident) {

@@ -14,6 +14,41 @@ const formatNullable = (value: string | number | null | undefined, fallback = "-
   return String(value);
 };
 
+const formatCertificateDays = (daysRemaining: number | null | undefined): string => {
+  if (daysRemaining === null || daysRemaining === undefined) return "-";
+  if (daysRemaining < 0) return `期限切れ ${Math.abs(daysRemaining)} 日前`;
+  return `残り ${daysRemaining} 日`;
+};
+
+const renderCertificateBadge = (check: ChecksPageData["checks"][number]): string => {
+  if (check.tls_last_error) {
+    return '<span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">証明書確認失敗</span>';
+  }
+  if (typeof check.tls_days_remaining === "number" && check.tls_days_remaining <= 30) {
+    return '<span class="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">証明書要確認</span>';
+  }
+  if (check.tls_valid_to) {
+    return '<span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">証明書OK</span>';
+  }
+  return '<span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">証明書未取得</span>';
+};
+
+const renderCertificateDetails = (check: ChecksPageData["checks"][number]): string => `
+  <div>
+    <dt class="text-slate-500">証明書</dt>
+    <dd class="mt-1">
+      <div class="flex flex-wrap items-center gap-2">
+        <span>${escapeHtml(formatCertificateDays(check.tls_days_remaining))}</span>
+        ${renderCertificateBadge(check)}
+      </div>
+      <div class="mt-1 text-slate-300">
+        <div>有効期限: ${escapeHtml(formatNullable(check.tls_valid_to))}</div>
+        <div>発行者: ${escapeHtml(formatNullable(check.tls_issuer))}</div>
+      </div>
+    </dd>
+  </div>
+`;
+
 const renderDocument = (body: string): string => `<!doctype html>
 <html lang="ja">
   <head>
@@ -125,6 +160,7 @@ const renderViewCard = (check: ChecksPageData["checks"][number], page: number) =
         <dt class="text-slate-500">threshold</dt>
         <dd class="mt-1">失敗 ${check.fail_threshold} / 復旧 ${check.recovery_threshold}</dd>
       </div>
+      ${renderCertificateDetails(check)}
     </dl>
   </article>
 `;
@@ -183,6 +219,20 @@ const renderEditCard = (check: ChecksPageData["checks"][number], page: number) =
           <span class="font-semibold text-slate-300">timeout ms</span>
           <input name="timeout_ms" type="number" min="1000" max="120000" value="${check.timeout_ms}" class="rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-slate-100" />
         </label>
+      </div>
+
+      <div class="rounded-2xl border border-slate-800 bg-slate-950/50 p-4 text-sm text-slate-300">
+        <div class="font-semibold text-slate-100">証明書</div>
+        <div class="mt-2 flex flex-wrap items-center gap-2">
+          <span>${escapeHtml(formatCertificateDays(check.tls_days_remaining))}</span>
+          ${renderCertificateBadge(check)}
+        </div>
+        <div class="mt-2 text-slate-400">
+          <div>有効期限: ${escapeHtml(formatNullable(check.tls_valid_to))}</div>
+          <div>発行者: ${escapeHtml(formatNullable(check.tls_issuer))}</div>
+          <div>取得時刻: ${escapeHtml(formatNullable(check.tls_last_checked_at))}</div>
+          ${check.tls_last_error ? `<div>取得エラー: ${escapeHtml(check.tls_last_error)}</div>` : ""}
+        </div>
       </div>
 
       <div class="flex flex-wrap gap-2">

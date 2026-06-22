@@ -1,0 +1,9 @@
+ALTER TABLE checks ADD COLUMN tls_last_checked_at TEXT;
+ALTER TABLE checks ADD COLUMN tls_last_error TEXT;
+ALTER TABLE checks ADD COLUMN tls_subject TEXT;
+ALTER TABLE checks ADD COLUMN tls_issuer TEXT;
+ALTER TABLE checks ADD COLUMN tls_public_key_class TEXT;
+ALTER TABLE checks ADD COLUMN tls_valid_from TEXT;
+ALTER TABLE checks ADD COLUMN tls_valid_to TEXT;
+ALTER TABLE checks ADD COLUMN tls_days_remaining INTEGER;
+ALTER TABLE checks ADD COLUMN tls_dns_names TEXT;

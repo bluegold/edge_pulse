@@ -89,6 +89,7 @@ describe("renderChecksPage", () => {
     expect(html).toContain('id="check-item-2"');
     expect(html).toContain('id="check-item-2-save"');
     expect(html).toContain('id="check-item-2-cancel"');
+    expect(html).toContain('証明書');
     expect(html).toContain('id="checks-pagination-panel"');
     expect(html).toContain('id="checks-pagination-current"');
     expect(html).toContain('id="checks-pagination-prev"');

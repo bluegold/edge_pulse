@@ -2,3 +2,5 @@ node_modules/
 .wrangler/
 .dev.vars
 *.log
+
+external/cert_probe/cert-probe

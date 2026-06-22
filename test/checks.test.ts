@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  classifyCheckFailureReason,
   evaluateTransition,
+  isCertificateExpiringSoon,
   validateCheckInput,
   validateMonitorUrl,
   type CheckInput,
@@ -85,6 +87,25 @@ describe("validateCheckInput", () => {
     };
 
     expect(validateCheckInput(input)).toEqual({ ok: true });
+  });
+});
+
+describe("classifyCheckFailureReason", () => {
+  it("classifies tls, dns, timeout, and fallback errors", () => {
+    expect(classifyCheckFailureReason(526, null)).toBe("tls_error");
+    expect(classifyCheckFailureReason(null, "certificate has expired")).toBe("tls_error");
+    expect(classifyCheckFailureReason(null, "getaddrinfo ENOTFOUND example.com")).toBe("dns_error");
+    expect(classifyCheckFailureReason(null, "request timed out")).toBe("timeout");
+    expect(classifyCheckFailureReason(null, "something else")).toBe("fetch_error");
+  });
+});
+
+describe("isCertificateExpiringSoon", () => {
+  it("treats 30 days or less as expiring soon", () => {
+    expect(isCertificateExpiringSoon(30)).toBe(true);
+    expect(isCertificateExpiringSoon(29)).toBe(true);
+    expect(isCertificateExpiringSoon(31)).toBe(false);
+    expect(isCertificateExpiringSoon(null)).toBe(false);
   });
 });
 
