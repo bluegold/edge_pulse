@@ -74,7 +74,7 @@ const renderDocument = (body: string): string => `<!doctype html>
 </html>`;
 
 const renderPageShell = (body: string): string => `
-  <main id="checks-page-shell" class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+  <main id="content" class="mx-auto max-w-7xl px-4 py-6 scroll-mt-20 sm:px-6 lg:px-8">
     ${body}
   </main>
 `;
@@ -97,14 +97,14 @@ const renderViewCard = (check: ChecksPageData["checks"][number], page: number) =
         <p class="mt-2 break-all text-sm text-slate-400">${escapeHtml(check.url)}</p>
       </div>
       <div class="flex shrink-0 flex-wrap gap-2">
-        <a
-          id="check-item-${check.id}-edit"
-          href="/checks?page=${page}&edit=${check.id}"
-          hx-get="/checks?page=${page}&edit=${check.id}"
-          hx-target="#checks-page-shell"
-          hx-swap="outerHTML"
-          class="inline-flex items-center rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm font-semibold text-slate-100"
-        >編集</a>
+          <a
+            id="check-item-${check.id}-edit"
+            href="/checks?page=${page}&edit=${check.id}"
+            hx-get="/checks?page=${page}&edit=${check.id}"
+            hx-target="#content"
+            hx-swap="outerHTML show:top"
+            class="inline-flex items-center rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm font-semibold text-slate-100"
+          >編集</a>
       </div>
     </div>
 
@@ -134,8 +134,8 @@ const renderEditCard = (check: ChecksPageData["checks"][number], page: number) =
     id="check-item-${check.id}"
     class="rounded-3xl border border-slate-800 bg-slate-900/70 p-5"
     hx-post="/checks/${check.id}?page=${page}"
-    hx-target="#checks-page-shell"
-    hx-swap="outerHTML"
+    hx-target="#content"
+    hx-swap="outerHTML show:top"
   >
     <div class="flex flex-col gap-4">
       <div class="flex flex-wrap items-center gap-2">
@@ -191,8 +191,8 @@ const renderEditCard = (check: ChecksPageData["checks"][number], page: number) =
           id="check-item-${check.id}-cancel"
           href="/checks?page=${page}"
           hx-get="/checks?page=${page}"
-          hx-target="#checks-page-shell"
-          hx-swap="outerHTML"
+          hx-target="#content"
+          hx-swap="outerHTML show:top"
           class="inline-flex items-center rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm font-semibold text-slate-100"
         >キャンセル</a>
       </div>
@@ -202,7 +202,7 @@ const renderEditCard = (check: ChecksPageData["checks"][number], page: number) =
 
 const renderCreateForm = (page: number) => `
   <div id="checks-create-form-wrap" hidden>
-    <form id="checks-create-form" class="mt-4 grid gap-3 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,2fr)_repeat(4,minmax(0,0.8fr))_minmax(0,0.8fr)]" hx-post="/checks?page=${page}" hx-target="#checks-page-shell" hx-swap="outerHTML">
+    <form id="checks-create-form" class="mt-4 grid gap-3 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,2fr)_repeat(4,minmax(0,0.8fr))_minmax(0,0.8fr)]" hx-post="/checks?page=${page}" hx-target="#content" hx-swap="outerHTML show:top">
         <label class="grid min-w-0 gap-1 text-sm">
           <span class="font-semibold text-slate-300">名称</span>
           <input name="name" required placeholder="payments.example.com" class="w-full min-w-0 rounded-xl border border-slate-700 bg-slate-950/80 px-3 py-2 text-slate-100 placeholder:text-slate-500" />
@@ -254,13 +254,13 @@ const renderPagination = (page: number, totalPages: number, totalChecks: number)
         <div class="flex flex-wrap gap-2">
           ${
             hasPrev
-              ? `<a id="checks-pagination-prev" href="/checks?page=${prevPage}" hx-get="/checks?page=${prevPage}" hx-target="#checks-page-shell" hx-swap="outerHTML" class="inline-flex items-center rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm font-semibold text-slate-100">前へ</a>`
+              ? `<a id="checks-pagination-prev" href="/checks?page=${prevPage}" hx-get="/checks?page=${prevPage}" hx-target="#content" hx-swap="outerHTML show:top" class="inline-flex items-center rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm font-semibold text-slate-100">前へ</a>`
               : `<span id="checks-pagination-prev" class="inline-flex items-center rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-2 text-sm font-semibold text-slate-600">前へ</span>`
           }
           <span id="checks-pagination-current" class="inline-flex items-center rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm font-semibold text-slate-100">${page} / ${totalPages}</span>
           ${
             hasNext
-              ? `<a id="checks-pagination-next" href="/checks?page=${nextPage}" hx-get="/checks?page=${nextPage}" hx-target="#checks-page-shell" hx-swap="outerHTML" class="inline-flex items-center rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm font-semibold text-slate-100">次へ</a>`
+              ? `<a id="checks-pagination-next" href="/checks?page=${nextPage}" hx-get="/checks?page=${nextPage}" hx-target="#content" hx-swap="outerHTML show:top" class="inline-flex items-center rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm font-semibold text-slate-100">次へ</a>`
               : `<span id="checks-pagination-next" class="inline-flex items-center rounded-xl border border-slate-800 bg-slate-950/40 px-4 py-2 text-sm font-semibold text-slate-600">次へ</span>`
           }
         </div>
@@ -270,7 +270,7 @@ const renderPagination = (page: number, totalPages: number, totalChecks: number)
 };
 
 const renderChecksMain = (data: ChecksPageData): string => `
-  <main id="checks-page-shell" class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+  <section id="checks-shell" class="w-full">
     <div class="flex flex-col gap-4 rounded-[2rem] border border-slate-800 bg-slate-950/60 p-6 shadow-2xl shadow-black/30 backdrop-blur">
       <header class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
@@ -308,7 +308,7 @@ const renderChecksMain = (data: ChecksPageData): string => `
 
       ${renderPagination(data.page, data.totalPages, data.totalChecks)}
     </div>
-  </main>
+  </section>
 `;
 
 export const renderChecksHtml = (data: ChecksPageData): string => renderDocument(renderChecksMain(data));

@@ -88,7 +88,13 @@ describe("renderDashboardPage", () => {
     expect(html).toContain("Edge Pulse");
     expect(html).toContain("api&lt;&amp;&gt;&quot;&#039;");
     expect(html).toContain("sticky top-0 z-50 w-full");
+    expect(html).toContain("flex min-h-screen flex-col");
+    expect(html).toContain('id="content"');
+    expect(html).toContain("#content {");
+    expect(html).toContain("width: min(100%, 80rem);");
+    expect(html).toContain('id="dashboard-shell" class="w-full"');
     expect(html).toContain("<footer");
+    expect(html).toContain('class="mt-auto w-full border-t border-slate-800 bg-slate-950/85"');
     expect(html).toContain("bg-slate-950/85");
     expect(html).toContain("items-center justify-center text-center");
     expect(html).toContain('id="summary-total-checks"');

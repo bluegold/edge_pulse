@@ -73,6 +73,10 @@ describe("renderChecksPage", () => {
 
     const html = await response.text();
     expect(html).toContain("監視一覧と編集");
+    expect(html).toContain('id="content"');
+    expect(html).toContain("#content {");
+    expect(html).toContain("width: min(100%, 80rem);");
+    expect(html).toContain('id="checks-shell" class="w-full"');
     expect(html).toContain('id="checks-create-toggle"');
     expect(html).toContain('id="checks-create-form"');
     expect(html).toContain('id="checks-create-form-wrap" hidden');
@@ -89,6 +93,8 @@ describe("renderChecksPage", () => {
     expect(html).toContain('id="checks-pagination-next"');
     expect(html).toContain('2 / 3');
     expect(html).toContain('hx-post="/checks/2?page=2"');
+    expect(html).toContain('hx-target="#content"');
+    expect(html).toContain('hx-swap="outerHTML show:top"');
     expect(html).toContain('hx-get="/checks?page=2&edit=1"');
   });
 });

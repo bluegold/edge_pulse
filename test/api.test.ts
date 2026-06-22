@@ -39,73 +39,82 @@ const createDb = (state: MockState) => ({
   prepare(sql: string) {
     const normalized = sql.replaceAll(/\s+/g, " ").trim();
 
-    return {
-      bind(...params: unknown[]) {
-        return {
-          async first<T>() {
-            if (normalized.includes("INSERT INTO checks") && normalized.includes("RETURNING id")) {
-              const [name, url, method, enabled, expectedStatusMin, expectedStatusMax, timeoutMs, intervalMinutes, failThreshold, recoveryThreshold, createdAt, updatedAt] = params as [
-                string,
-                string,
-                string,
-                number,
-                number,
-                number,
-                number,
-                number,
-                number,
-                number,
-                string,
-                string,
-              ];
-
-              const id = state.nextId++;
-              state.checks.push(
-                makeCheck(id, {
-                  name,
-                  url,
-                  method,
-                  enabled,
-                  expected_status_min: expectedStatusMin,
-                  expected_status_max: expectedStatusMax,
-                  timeout_ms: timeoutMs,
-                  interval_minutes: intervalMinutes,
-                  fail_threshold: failThreshold,
-                  recovery_threshold: recoveryThreshold,
-                  created_at: createdAt,
-                  updated_at: updatedAt,
-                }),
-              );
-              return { id } as T;
-            }
-
-            if (normalized === "SELECT * FROM checks WHERE id = ? LIMIT 1") {
-              const [id] = params as [number];
-              return (state.checks.find((check) => check.id === id) ?? null) as T;
-            }
-
-            if (normalized === "SELECT COUNT(*) AS count FROM checks") {
-              return { count: state.checks.length } as T;
-            }
-
-            return null as T;
-          },
-          async all<T>() {
-            if (normalized.startsWith("SELECT * FROM checks ORDER BY")) {
-              const [limit, offset] = params as [number, number];
-              return {
-                results: state.checks.slice(offset, offset + limit),
-              } as T;
-            }
-
-            return { results: [] } as T;
-          },
-          async run() {
-            return {};
-          },
-        };
+    const statement = (params: unknown[] = []) => ({
+      bind(...nextParams: unknown[]) {
+        return statement(nextParams);
       },
-    };
+      async first<T>() {
+        if (normalized.includes("INSERT INTO checks") && normalized.includes("RETURNING id")) {
+          const [name, url, method, enabled, expectedStatusMin, expectedStatusMax, timeoutMs, intervalMinutes, failThreshold, recoveryThreshold, createdAt, updatedAt] = params as [
+            string,
+            string,
+            string,
+            number,
+            number,
+            number,
+            number,
+            number,
+            number,
+            number,
+            string,
+            string,
+          ];
+
+          const id = state.nextId++;
+          state.checks.push(
+            makeCheck(id, {
+              name,
+              url,
+              method,
+              enabled,
+              expected_status_min: expectedStatusMin,
+              expected_status_max: expectedStatusMax,
+              timeout_ms: timeoutMs,
+              interval_minutes: intervalMinutes,
+              fail_threshold: failThreshold,
+              recovery_threshold: recoveryThreshold,
+              created_at: createdAt,
+              updated_at: updatedAt,
+            }),
+          );
+          return { id } as T;
+        }
+
+        if (normalized === "SELECT * FROM checks WHERE id = ? LIMIT 1") {
+          const [id] = params as [number];
+          return (state.checks.find((check) => check.id === id) ?? null) as T;
+        }
+
+        if (normalized === "SELECT COUNT(*) AS count FROM checks") {
+          return { count: state.checks.length } as T;
+        }
+
+        if (normalized.includes("FROM incidents") || normalized.includes("FROM check_results") || normalized.includes("FROM status_events")) {
+          return { count: 0 } as T;
+        }
+
+        return null as T;
+      },
+      async all<T>() {
+        if (normalized.startsWith("SELECT * FROM checks ORDER BY")) {
+          const [limit, offset] = params as [number, number];
+          return {
+            results: state.checks.slice(offset, offset + limit),
+          } as T;
+        }
+
+        if (normalized.includes("FROM incidents") || normalized.includes("FROM check_results") || normalized.includes("FROM status_events")) {
+          return { results: [] } as T;
+        }
+
+        return { results: [] } as T;
+      },
+      async run() {
+        return {};
+      },
+    });
+
+    return statement();
   },
 });
 
@@ -159,5 +168,45 @@ describe("api checks", () => {
     expect(payload.check?.id).toBe(1);
     expect(payload.check?.name).toBe("payments.example.com");
     expect(state.checks).toHaveLength(1);
+  });
+});
+
+describe("hx navigation", () => {
+  it("returns a dashboard fragment for htmx root navigation", async () => {
+    const response = await app.request(
+      "http://localhost/",
+      {
+        headers: {
+          "HX-Request": "true",
+        },
+      },
+      makeEnv({ checks: [makeCheck(1)], nextId: 2 }),
+    );
+
+    expect(response.status).toBe(200);
+
+    const html = await response.text();
+    expect(html).toContain('id="content"');
+    expect(html).not.toContain("<html");
+    expect(html).toContain('<main id="content"');
+  });
+
+  it("returns a checks fragment for htmx checks navigation", async () => {
+    const response = await app.request(
+      "http://localhost/checks?page=1",
+      {
+        headers: {
+          "HX-Request": "true",
+        },
+      },
+      makeEnv({ checks: [makeCheck(1)], nextId: 2 }),
+    );
+
+    expect(response.status).toBe(200);
+
+    const html = await response.text();
+    expect(html).toContain('id="content"');
+    expect(html).toContain('<main id="content"');
+    expect(html).not.toContain("<html");
   });
 });

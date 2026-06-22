@@ -10,7 +10,7 @@ import {
 import { loadChecksPageData } from "./lib/checks-page-data";
 import type { D1Database, ExecutionContext, MessageBatch, ScheduledController } from "./lib/cloudflare";
 import { loadDashboardData } from "./lib/dashboard-data";
-import { renderDashboardPage } from "./views/dashboard-page.tsx";
+import { renderDashboardPage, renderDashboardShell } from "./views/dashboard-page.tsx";
 import { renderChecksPage, renderChecksShell } from "./views/checks-page.tsx";
 
 type Bindings = {
@@ -187,7 +187,12 @@ const renderChecksFromDb = async (env: Bindings, page = 1, editId: number | null
 
 const renderChecksShellFromDb = async (env: Bindings, page = 1, editId: number | null = null): Promise<Response> => {
   const data = await loadChecksPageData(env["pulse-db"], page, editId);
-  return respondHtml(renderChecksShell(data));
+  return respondHtml(`<main id="content">${renderChecksShell(data)}</main>`);
+};
+
+const renderDashboardShellFromDb = async (env: Bindings): Promise<Response> => {
+  const data = await loadDashboardData(env["pulse-db"]);
+  return respondHtml(`<main id="content">${renderDashboardShell(data)}</main>`);
 };
 
 const isHxRequest = (request: Request): boolean => request.headers.get("HX-Request") === "true";
@@ -198,7 +203,7 @@ const handleCreateCheck = async (request: Request, env: Bindings): Promise<Respo
   const input = await readFormCheckInput(request);
   const validation = validateCheckInput(input);
   if (!validation.ok) {
-    return respondHtml(`<main id="checks-page-shell" class="p-6 text-sm text-rose-700">${validation.error}</main>`, 400);
+    return respondHtml(`<main id="content" class="p-6 text-sm text-rose-700">${validation.error}</main>`, 400);
   }
 
   const now = new Date().toISOString();
@@ -212,7 +217,7 @@ const handleUpdateCheck = async (request: Request, env: Bindings, id: number): P
   const input = await readFormCheckInput(request);
   const validation = validateCheckInput(input);
   if (!validation.ok) {
-    return respondHtml(`<main id="checks-page-shell" class="p-6 text-sm text-rose-700">${validation.error}</main>`, 400);
+    return respondHtml(`<main id="content" class="p-6 text-sm text-rose-700">${validation.error}</main>`, 400);
   }
 
   const now = new Date().toISOString();
@@ -488,7 +493,7 @@ app.use("/api/*", async (c, next) => {
   await next();
 });
 
-app.get("/", async (c) => renderFromDb(c.env));
+app.get("/", async (c) => (isHxRequest(c.req.raw) ? renderDashboardShellFromDb(c.env) : renderFromDb(c.env)));
 app.get("/checks", async (c) => {
   const page = Number(c.req.query("page") ?? "1");
   const editId = c.req.query("edit");

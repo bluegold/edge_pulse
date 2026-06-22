@@ -122,7 +122,7 @@ const renderDashboardMain = (data: DashboardData): string => {
   const recentChecks = data.recentChecks;
 
   return `
-    <main id="dashboard-shell" class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+    <section id="dashboard-shell" class="w-full">
       <div class="flex flex-col gap-4 rounded-[2rem] border border-slate-800 bg-slate-950/60 p-6 shadow-2xl shadow-black/30 backdrop-blur">
         <header class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -235,7 +235,7 @@ const renderDashboardMain = (data: DashboardData): string => {
 
         <p class="text-sm text-slate-400">Checked from Cloudflare edge. Check location is not fixed.</p>
       </div>
-    </main>
+    </section>
   `;
 };
 
