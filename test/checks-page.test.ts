@@ -76,7 +76,7 @@ describe("renderChecksPage", () => {
     expect(html).toContain('href="#content" class="skip-link"');
     expect(html).toContain('id="content"');
     expect(html).toContain("#content {");
-    expect(html).toContain("width: min(100%, 80rem);");
+    expect(html).toContain("width: min(100%, 92rem);");
     expect(html).toContain(":focus-visible");
     expect(html).toContain('id="checks-shell" class="w-full"');
     expect(html).toContain('id="checks-create-toggle"');

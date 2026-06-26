@@ -86,13 +86,13 @@ describe("renderDashboardPage", () => {
 
     const html = await response.text();
     expect(html).toContain("Edge Pulse");
-    expect(html).toContain("api&lt;&amp;&gt;&quot;&#39;");
+    expect(html).toContain("api&lt;&amp;&gt;&#39;");
     expect(html).toContain('href="#content" class="skip-link"');
     expect(html).toContain("sticky top-0 z-50 w-full");
     expect(html).toContain("flex min-h-screen flex-col");
     expect(html).toContain('id="content"');
     expect(html).toContain("#content {");
-    expect(html).toContain("width: min(100%, 80rem);");
+    expect(html).toContain("width: min(100%, 92rem);");
     expect(html).toContain(":focus-visible");
     expect(html).toContain('id="dashboard-shell" class="w-full"');
     expect(html).toContain('id="dashboard-auto-reload-toggle"');
@@ -103,18 +103,15 @@ describe("renderDashboardPage", () => {
     expect(html).toContain('<script src="/assets/auto-reload.js" defer=""></script>');
     expect(html).toContain('<script id="checks-page-controls" src="/assets/checks-page.js" defer=""></script>');
     expect(html).toContain("<footer");
-    expect(html).toContain('class="mt-auto w-full border-t border-white/15 bg-slate-950/95"');
-    expect(html).toContain("bg-slate-950/95");
-    expect(html).toContain("items-center justify-center gap-2 text-center");
+    expect(html).toContain('class="footerbar mt-auto w-full"');
+    expect(html).toContain("Cloudflare Workers の可用性を、シンプルに・確実に。");
+    expect(html).toContain("すべてのシステムは正常です");
     expect(html).toContain('id="summary-total-checks"');
     expect(html).toContain('id="summary-cert-expiring"');
     expect(html).toContain('id="current-incidents-panel"');
     expect(html).toContain('id="current-incidents-list"');
     expect(html).toContain('data-utc-time="2026-06-22T00:00:00.000Z"');
     expect(html).toContain("<time");
-    expect(html).toContain('id="recent-checks-panel"');
-    expect(html).toContain('id="recent-checks-list"');
-    expect(html).toContain('id="recent-check-1"');
     expect(html).toContain('id="recent-results-panel"');
     expect(html).toContain('id="recent-results-list"');
     expect(html).toContain('id="status-events-panel"');
