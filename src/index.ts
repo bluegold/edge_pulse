@@ -9,7 +9,7 @@ import {
   validateCheckInput,
   validateMonitorUrl,
 } from "./lib/checks";
-import { fetchCertificateSnapshot, type CertProbeResponse } from "./lib/cert-probe";
+import { fetchCertificateSnapshot, shouldProbeCertificateSnapshot, type CertProbeResponse } from "./lib/cert-probe";
 import { loadChecksPageData } from "./lib/checks-page-data";
 import type { D1Database, ExecutionContext, Fetcher, MessageBatch, ScheduledController } from "./lib/cloudflare";
 import { loadDashboardData } from "./lib/dashboard-data";
@@ -329,7 +329,7 @@ const runCheck = async (env: Bindings, job: CheckJob): Promise<void> => {
     return;
   }
 
-  const certificatePromise = probeCertificateSnapshot(env, check);
+  const certificatePromise = shouldProbeCertificateSnapshot(check, checkedAt) ? probeCertificateSnapshot(env, check) : Promise.resolve(null);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort("timeout"), check.timeout_ms);
   const started = performance.now();

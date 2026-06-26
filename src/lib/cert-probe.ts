@@ -1,3 +1,5 @@
+import type { CheckRow } from "./checks";
+
 export type CertProbeResponse = {
   host: string;
   port: number;
@@ -26,12 +28,40 @@ type CertProbeApiResponse = {
   error?: string;
 };
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+const DAILY_REFRESH_MS = DAY_MS;
+const WEEKLY_REFRESH_MS = 7 * DAY_MS;
+
 export const buildCertProbeUrl = (baseUrl: string, host: string, port: number, serverName: string): URL => {
   const url = new URL("/probe", baseUrl);
   url.searchParams.set("host", host);
   url.searchParams.set("port", String(port));
   url.searchParams.set("servername", serverName);
   return url;
+};
+
+export const shouldProbeCertificateSnapshot = (
+  check: Pick<CheckRow, "tls_last_checked_at" | "tls_last_error" | "tls_days_remaining">,
+  checkedAt: string,
+): boolean => {
+  if (!check.tls_last_checked_at) return true;
+
+  const lastCheckedAt = Date.parse(check.tls_last_checked_at);
+  const now = Date.parse(checkedAt);
+  if (!Number.isFinite(lastCheckedAt) || !Number.isFinite(now)) return true;
+
+  const elapsed = now - lastCheckedAt;
+  if (elapsed < 0) return true;
+
+  if (check.tls_last_error || check.tls_days_remaining === null || check.tls_days_remaining === undefined) {
+    return elapsed >= DAILY_REFRESH_MS;
+  }
+
+  if (check.tls_days_remaining <= 30) {
+    return elapsed >= DAILY_REFRESH_MS;
+  }
+
+  return elapsed >= WEEKLY_REFRESH_MS;
 };
 
 export const fetchCertificateSnapshot = async (

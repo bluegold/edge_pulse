@@ -9,6 +9,7 @@ import {
   type CheckRow,
   type CheckResult,
 } from "../src/lib/checks";
+import { shouldProbeCertificateSnapshot } from "../src/lib/cert-probe";
 
 const baseCheck: CheckRow = {
   id: 1,
@@ -106,6 +107,69 @@ describe("isCertificateExpiringSoon", () => {
     expect(isCertificateExpiringSoon(29)).toBe(true);
     expect(isCertificateExpiringSoon(31)).toBe(false);
     expect(isCertificateExpiringSoon(null)).toBe(false);
+  });
+});
+
+describe("shouldProbeCertificateSnapshot", () => {
+  it("probes immediately when there is no prior snapshot", () => {
+    expect(
+      shouldProbeCertificateSnapshot(
+        {
+          tls_last_checked_at: null,
+          tls_last_error: null,
+          tls_days_remaining: null,
+        },
+        "2026-06-22T00:00:00.000Z",
+      ),
+    ).toBe(true);
+  });
+
+  it("refreshes slowly when the certificate is far from expiry", () => {
+    expect(
+      shouldProbeCertificateSnapshot(
+        {
+          tls_last_checked_at: "2026-06-15T00:00:00.000Z",
+          tls_last_error: null,
+          tls_days_remaining: 90,
+        },
+        "2026-06-22T00:00:00.000Z",
+      ),
+    ).toBe(true);
+
+    expect(
+      shouldProbeCertificateSnapshot(
+        {
+          tls_last_checked_at: "2026-06-16T00:00:00.000Z",
+          tls_last_error: null,
+          tls_days_remaining: 90,
+        },
+        "2026-06-22T00:00:00.000Z",
+      ),
+    ).toBe(false);
+  });
+
+  it("refreshes daily when the certificate is within 30 days", () => {
+    expect(
+      shouldProbeCertificateSnapshot(
+        {
+          tls_last_checked_at: "2026-06-21T01:00:00.000Z",
+          tls_last_error: null,
+          tls_days_remaining: 10,
+        },
+        "2026-06-22T00:00:00.000Z",
+      ),
+    ).toBe(false);
+
+    expect(
+      shouldProbeCertificateSnapshot(
+        {
+          tls_last_checked_at: "2026-06-20T00:59:59.000Z",
+          tls_last_error: null,
+          tls_days_remaining: 10,
+        },
+        "2026-06-22T00:00:00.000Z",
+      ),
+    ).toBe(true);
   });
 });
 

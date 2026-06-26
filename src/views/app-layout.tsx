@@ -18,8 +18,12 @@ export const AppLayout = ({ title, activeHref, children }: AppLayoutProps) => (
         :root { color-scheme: dark; }
         body {
           background:
-            radial-gradient(circle at top, rgba(56, 189, 248, 0.16), transparent 32%),
-            linear-gradient(180deg, #020617 0%, #0f172a 100%);
+            radial-gradient(circle at 15% 20%, rgba(255, 255, 255, 0.08), transparent 0, transparent 26%),
+            radial-gradient(circle at 80% 12%, rgba(219, 39, 119, 0.16), transparent 0, transparent 18%),
+            radial-gradient(circle at 70% 78%, rgba(37, 99, 235, 0.16), transparent 0, transparent 22%),
+            radial-gradient(circle at 8% 88%, rgba(168, 85, 247, 0.12), transparent 0, transparent 18%),
+            linear-gradient(180deg, #0b1326 0%, #060e20 100%);
+          font-family: Inter, "Segoe UI", system-ui, sans-serif;
           font-size: 16px;
           line-height: 1.6;
         }
@@ -45,7 +49,7 @@ export const AppLayout = ({ title, activeHref, children }: AppLayoutProps) => (
         #content {
           width: min(100%, 80rem);
           margin-inline: auto;
-          padding: 1.5rem 1rem;
+          padding: 1.5rem 1rem 2rem;
           scroll-margin-top: 5rem;
         }
         @media (min-width: 640px) {
@@ -57,6 +61,9 @@ export const AppLayout = ({ title, activeHref, children }: AppLayoutProps) => (
         #content .text-slate-500,
         #content .text-slate-600 {
           color: #e2e8f0 !important;
+        }
+        #content .text-slate-300 {
+          color: #f8fafc !important;
         }
         #content .text-xs,
         #content .text-sm {
@@ -71,6 +78,27 @@ export const AppLayout = ({ title, activeHref, children }: AppLayoutProps) => (
           outline-offset: 4px;
           box-shadow: 0 0 0 4px rgba(56, 189, 248, 0.45);
         }
+        #content .glass-surface {
+          border: 1px solid rgba(255, 255, 255, 0.16);
+          background: #131b2e;
+          box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+        }
+        #content .glass-surface-elevated {
+          border: 1px solid rgba(255, 255, 255, 0.18);
+          background: #171f33;
+          box-shadow: 0 14px 40px rgba(0, 0, 0, 0.32);
+        }
+        #content .glass-button {
+          border: 1px solid rgba(255, 255, 255, 0.18);
+          background: #1b2438;
+        }
+        #content .glass-button:hover {
+          background: #24304a;
+        }
+        #content .glass-input {
+          border: 1px solid rgba(255, 255, 255, 0.18);
+          background: #0f172a;
+        }
         #content .auto-reload-ring {
           background: conic-gradient(#38bdf8 calc(var(--auto-progress, 0) * 1%), rgba(148, 163, 184, 0.2) 0);
         }
@@ -78,7 +106,7 @@ export const AppLayout = ({ title, activeHref, children }: AppLayoutProps) => (
     </head>
     <body class="flex min-h-screen flex-col text-slate-100" hx-boost="true" hx-target="#content" hx-swap="outerHTML show:top">
       <a href="#content" class="skip-link">メインコンテンツへスキップ</a>
-      <header class="sticky top-0 z-50 w-full border-b border-slate-800/80 bg-slate-950/85 backdrop-blur">
+      <header class="sticky top-0 z-50 w-full border-b border-white/15 bg-slate-950/95">
         <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
           <div>
             <p class="text-xs font-semibold uppercase tracking-[0.28em] text-slate-200">Cloudflare Workers uptime monitor</p>
@@ -88,20 +116,20 @@ export const AppLayout = ({ title, activeHref, children }: AppLayoutProps) => (
             <a
               href="/"
               aria-current={activeHref === "/" ? "page" : undefined}
-              class="inline-flex items-center rounded-xl border border-slate-700 bg-slate-900/80 px-4 py-2 text-sm font-semibold text-slate-100"
+              class="glass-button inline-flex items-center rounded-xl px-4 py-2 text-sm font-semibold text-slate-100"
             >概要</a>
             <a
               href="/checks"
               aria-current={activeHref === "/checks" ? "page" : undefined}
-              class="inline-flex items-center rounded-xl border border-slate-700 bg-slate-900/80 px-4 py-2 text-sm font-semibold text-slate-100"
+              class="glass-button inline-flex items-center rounded-xl px-4 py-2 text-sm font-semibold text-slate-100"
             >監視一覧</a>
           </div>
         </div>
       </header>
       <main id="content">{children}</main>
       <script src="/assets/auto-reload.js" defer></script>
-      <footer class="mt-auto w-full border-t border-slate-800 bg-slate-950/85">
-        <div class="mx-auto max-w-7xl px-4 py-4 text-sm text-slate-200 sm:px-6 lg:px-8">Edge Pulse</div>
+      <footer class="mt-auto w-full border-t border-white/15 bg-slate-950/95">
+        <div class="mx-auto max-w-7xl px-4 py-4 text-sm text-slate-100 sm:px-6 lg:px-8">Edge Pulse</div>
       </footer>
     </body>
   </html>

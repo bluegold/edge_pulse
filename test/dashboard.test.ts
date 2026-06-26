@@ -102,8 +102,8 @@ describe("renderDashboardPage", () => {
     expect(html).toContain('data-role="center"');
     expect(html).toContain('<script src="/assets/auto-reload.js" defer=""></script>');
     expect(html).toContain("<footer");
-    expect(html).toContain('class="mt-auto w-full border-t border-slate-800 bg-slate-950/85"');
-    expect(html).toContain("bg-slate-950/85");
+    expect(html).toContain('class="mt-auto w-full border-t border-white/15 bg-slate-950/95"');
+    expect(html).toContain("bg-slate-950/95");
     expect(html).toContain("items-center justify-center text-center");
     expect(html).toContain('id="summary-total-checks"');
     expect(html).toContain('id="summary-cert-expiring"');
