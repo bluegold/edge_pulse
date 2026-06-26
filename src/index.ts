@@ -78,6 +78,23 @@ const readJsonCheckInput = async (request: Request): Promise<CheckInput> => {
   return readCheckInput(body);
 };
 
+const readCheckInputFromRequest = async (request: Request): Promise<CheckInput | null> => {
+  const contentType = request.headers.get("content-type")?.toLowerCase() ?? "";
+  if (contentType.includes("application/json")) {
+    return readJsonCheckInput(request);
+  }
+
+  if (contentType.includes("application/x-www-form-urlencoded") || contentType.includes("multipart/form-data")) {
+    return readFormCheckInput(request);
+  }
+
+  if (!contentType) {
+    return readJsonCheckInput(request);
+  }
+
+  return null;
+};
+
 const CERT_EXPIRY_THRESHOLD_DAYS = 30;
 
 const probeCertificateSnapshot = async (env: Bindings, check: CheckRow): Promise<CertProbeResponse | null> => {
@@ -236,7 +253,13 @@ const isHxRequest = (request: Request): boolean => request.headers.get("HX-Reque
 const handleCreateCheck = async (request: Request, env: Bindings): Promise<Response> => {
   const url = new URL(request.url);
   const page = Number(url.searchParams.get("page") ?? "1");
-  const input = await readFormCheckInput(request);
+  const input = await readCheckInputFromRequest(request);
+  if (!input) {
+    return respondHtml(
+      `<main id="content" class="p-6 text-sm text-rose-200" role="alert" aria-live="assertive">Unsupported content type</main>`,
+      415,
+    );
+  }
   const validation = validateCheckInput(input);
   if (!validation.ok) {
     return respondHtml(
@@ -253,7 +276,13 @@ const handleCreateCheck = async (request: Request, env: Bindings): Promise<Respo
 const handleUpdateCheck = async (request: Request, env: Bindings, id: number): Promise<Response> => {
   const url = new URL(request.url);
   const page = Number(url.searchParams.get("page") ?? "1");
-  const input = await readFormCheckInput(request);
+  const input = await readCheckInputFromRequest(request);
+  if (!input) {
+    return respondHtml(
+      `<main id="content" class="p-6 text-sm text-rose-200" role="alert" aria-live="assertive">Unsupported content type</main>`,
+      415,
+    );
+  }
   const validation = validateCheckInput(input);
   if (!validation.ok) {
     return respondHtml(
@@ -280,7 +309,10 @@ const handleApiListChecks = async (env: Bindings, request: Request): Promise<Res
 };
 
 const handleApiCreateCheck = async (env: Bindings, request: Request): Promise<Response> => {
-  const input = await readJsonCheckInput(request);
+  const input = await readCheckInputFromRequest(request);
+  if (!input) {
+    return respondJson({ error: "unsupported_media_type" }, 415);
+  }
   const validation = validateCheckInput(input);
   if (!validation.ok) {
     return respondJson({ error: validation.error }, 400);
@@ -293,7 +325,10 @@ const handleApiCreateCheck = async (env: Bindings, request: Request): Promise<Re
 };
 
 const handleApiUpdateCheck = async (env: Bindings, id: number, request: Request): Promise<Response> => {
-  const input = await readJsonCheckInput(request);
+  const input = await readCheckInputFromRequest(request);
+  if (!input) {
+    return respondJson({ error: "unsupported_media_type" }, 415);
+  }
   const validation = validateCheckInput(input);
   if (!validation.ok) {
     return respondJson({ error: validation.error }, 400);

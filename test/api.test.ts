@@ -181,6 +181,38 @@ describe("api checks", () => {
     expect(payload.check?.name).toBe("payments.example.com");
     expect(state.checks).toHaveLength(1);
   });
+
+  it("creates a check from form data", async () => {
+    const state: MockState = { checks: [], nextId: 1 };
+
+    const body = new URLSearchParams({
+      name: "billing.example.com",
+      url: "https://billing.example.com",
+      enabled: "1",
+      interval_minutes: "15",
+      fail_threshold: "3",
+      recovery_threshold: "2",
+    });
+
+    const response = await app.request(
+      "http://localhost/api/checks",
+      {
+        method: "POST",
+        headers: {
+          authorization: "Bearer secret-token",
+        },
+        body,
+      },
+      makeEnv(state),
+    );
+
+    expect(response.status).toBe(201);
+
+    const payload = (await response.json()) as { check: CheckRow | null };
+    expect(payload.check?.id).toBe(1);
+    expect(payload.check?.name).toBe("billing.example.com");
+    expect(state.checks).toHaveLength(1);
+  });
 });
 
 describe("hx navigation", () => {
