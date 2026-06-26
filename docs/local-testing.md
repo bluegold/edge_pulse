@@ -36,7 +36,7 @@ npm run dev:scheduled
 npm run scheduled:fire
 ```
 
-これは `wrangler dev --test-scheduled` で起動した dev server に対して、`/cdn-cgi/handler/scheduled` を叩きます。
+これは `wrangler dev --test-scheduled` で起動した dev server に対して、`/cdn-cgi/handler/scheduled` を叩きます。必要なら `SCHEDULED_FIRE_URL` で送信先を上書きできます。
 
 ## テスト
 
