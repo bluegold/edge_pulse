@@ -98,6 +98,6 @@ describe("renderChecksPage", () => {
     expect(html).toContain('hx-post="/checks/2?page=2"');
     expect(html).toContain('hx-target="#content"');
     expect(html).toContain('hx-swap="outerHTML show:top"');
-    expect(html).toContain('hx-get="/checks?page=2&edit=1"');
+    expect(html).toContain('hx-get="/checks?page=2&amp;edit=1"');
   });
 });

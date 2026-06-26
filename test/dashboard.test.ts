@@ -86,7 +86,7 @@ describe("renderDashboardPage", () => {
 
     const html = await response.text();
     expect(html).toContain("Edge Pulse");
-    expect(html).toContain("api&lt;&amp;&gt;&quot;&#039;");
+    expect(html).toContain("api&lt;&amp;&gt;&quot;&#39;");
     expect(html).toContain('href="#content" class="skip-link"');
     expect(html).toContain("sticky top-0 z-50 w-full");
     expect(html).toContain("flex min-h-screen flex-col");
@@ -104,7 +104,7 @@ describe("renderDashboardPage", () => {
     expect(html).toContain("<footer");
     expect(html).toContain('class="mt-auto w-full border-t border-white/15 bg-slate-950/95"');
     expect(html).toContain("bg-slate-950/95");
-    expect(html).toContain("items-center justify-center text-center");
+    expect(html).toContain("items-center justify-center gap-2 text-center");
     expect(html).toContain('id="summary-total-checks"');
     expect(html).toContain('id="summary-cert-expiring"');
     expect(html).toContain('id="current-incidents-panel"');
