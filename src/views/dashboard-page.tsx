@@ -53,14 +53,14 @@ const SummaryCard = ({
   icon: Child;
 }) => (
   <div id={id} class={`metric-card ${tone === "danger" ? "danger" : ""} p-5`}>
-    <div class="flex h-full flex-col justify-between gap-4">
-      <div class="flex items-start justify-between gap-3">
-        <div>
-          <p class="text-sm font-bold tracking-wide text-slate-200">{label}</p>
-          <p class="mt-2 text-4xl font-black tracking-tight text-slate-50">{formatNullable(value)}</p>
+      <div class="flex h-full flex-col justify-between gap-4">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <p class="text-sm font-bold tracking-wide text-slate-200">{label}</p>
+            <p class="mt-2 text-right text-4xl font-black tracking-tight text-slate-50">{formatNullable(value)}</p>
+          </div>
+          <span class="metric-icon grid h-12 w-12 place-items-center rounded-md border border-white/10 bg-white/5 text-sky-200">{icon}</span>
         </div>
-        <span class="metric-icon grid h-12 w-12 place-items-center rounded-md border border-white/10 bg-white/5 text-sky-200">{icon}</span>
-      </div>
       {tone === "danger" ? <div class="flatline" aria-hidden="true" /> : <div class="sparkline" aria-hidden="true" />}
     </div>
   </div>
