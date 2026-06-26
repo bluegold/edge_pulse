@@ -188,7 +188,7 @@ const DashboardShell = ({ data }: { data: DashboardData }) => {
                 </span>
               </span>
             </button>
-            <a href="/checks" class="glass-button inline-flex items-center rounded-xl px-4 py-2 text-sm font-semibold text-slate-100">
+            <a id="dashboard-checks-link" href="/checks" class="glass-button inline-flex items-center rounded-xl px-4 py-2 text-sm font-semibold text-slate-100">
               監視一覧へ
             </a>
           </div>

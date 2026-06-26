@@ -82,6 +82,7 @@ describe("renderChecksPage", () => {
     expect(html).toContain('id="checks-create-toggle"');
     expect(html).toContain('id="checks-create-form"');
     expect(html).toContain('id="checks-create-form-wrap" hidden');
+    expect(html).toContain('<script id="checks-page-controls" src="/assets/checks-page.js" defer=""></script>');
     expect(html).toContain('id="checks-list-panel"');
     expect(html).toContain('id="checks-list"');
     expect(html).toContain('data-utc-time="2026-06-22T00:00:00.000Z"');

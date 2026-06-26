@@ -101,6 +101,7 @@ describe("renderDashboardPage", () => {
     expect(html).toContain('id="dashboard-auto-reload-ring"');
     expect(html).toContain('data-role="center"');
     expect(html).toContain('<script src="/assets/auto-reload.js" defer=""></script>');
+    expect(html).toContain('<script id="checks-page-controls" src="/assets/checks-page.js" defer=""></script>');
     expect(html).toContain("<footer");
     expect(html).toContain('class="mt-auto w-full border-t border-white/15 bg-slate-950/95"');
     expect(html).toContain("bg-slate-950/95");

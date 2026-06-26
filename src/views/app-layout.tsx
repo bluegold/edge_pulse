@@ -105,7 +105,7 @@ export const AppLayout = ({ title, activeHref, children }: AppLayoutProps) => (
       `}</style>
     </head>
     <body class="flex min-h-screen flex-col text-slate-100" hx-boost="true" hx-target="#content" hx-swap="outerHTML show:top">
-      <a href="#content" class="skip-link">メインコンテンツへスキップ</a>
+      <a id="skip-link" href="#content" class="skip-link">メインコンテンツへスキップ</a>
       <header class="sticky top-0 z-50 w-full border-b border-white/15 bg-slate-950/95">
         <div class="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
           <div>
@@ -114,11 +114,13 @@ export const AppLayout = ({ title, activeHref, children }: AppLayoutProps) => (
           </div>
           <div class="flex items-center gap-2">
             <a
+              id="nav-home-link"
               href="/"
               aria-current={activeHref === "/" ? "page" : undefined}
               class="glass-button inline-flex items-center rounded-xl px-4 py-2 text-sm font-semibold text-slate-100"
             >概要</a>
             <a
+              id="nav-checks-link"
               href="/checks"
               aria-current={activeHref === "/checks" ? "page" : undefined}
               class="glass-button inline-flex items-center rounded-xl px-4 py-2 text-sm font-semibold text-slate-100"
@@ -128,6 +130,7 @@ export const AppLayout = ({ title, activeHref, children }: AppLayoutProps) => (
       </header>
       <main id="content">{children}</main>
       <script src="/assets/auto-reload.js" defer></script>
+      <script id="checks-page-controls" src="/assets/checks-page.js" defer></script>
       <footer class="mt-auto w-full border-t border-white/15 bg-slate-950/95">
         <div class="mx-auto max-w-7xl px-4 py-4 text-sm text-slate-100 sm:px-6 lg:px-8">Edge Pulse</div>
       </footer>
