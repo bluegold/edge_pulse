@@ -1,6 +1,7 @@
 import { renderToString } from "hono/jsx/dom/server";
 import { AppLayout } from "./app-layout.tsx";
 import type { ChecksPageData } from "../lib/checks-page-data";
+import { LocalTime } from "./time.tsx";
 
 const formatNullable = (value: string | number | null | undefined, fallback = "-"): string => {
   if (value === null || value === undefined || value === "") return fallback;
@@ -42,7 +43,9 @@ const CertificateDetails = ({ check }: { check: ChecksPageData["checks"][number]
         <CertificateBadge check={check} />
       </div>
       <div class="mt-1 text-slate-200">
-        <div>有効期限: {formatNullable(check.tls_valid_to)}</div>
+        <div>
+          有効期限: <LocalTime iso={check.tls_valid_to} class="whitespace-nowrap" />
+        </div>
         <div>発行者: {formatNullable(check.tls_issuer)}</div>
       </div>
     </dd>
@@ -76,7 +79,7 @@ const ViewCard = ({ check, page }: { check: ChecksPageData["checks"][number]; pa
     <dl class="mt-5 grid gap-3 text-sm text-slate-300 sm:grid-cols-2 xl:grid-cols-4">
       <div>
         <dt class="text-slate-300">最終確認</dt>
-        <dd class="mt-1">{formatNullable(check.last_checked_at)}</dd>
+        <dd class="mt-1"><LocalTime iso={check.last_checked_at} class="whitespace-nowrap" /></dd>
       </div>
       <div>
         <dt class="text-slate-300">HTTP / 遅延</dt>
@@ -166,9 +169,13 @@ const EditCard = ({ check, page }: { check: ChecksPageData["checks"][number]; pa
           <CertificateBadge check={check} />
         </div>
         <div class="mt-2 text-slate-400">
-          <div>有効期限: {formatNullable(check.tls_valid_to)}</div>
+          <div>
+            有効期限: <LocalTime iso={check.tls_valid_to} class="whitespace-nowrap" />
+          </div>
           <div>発行者: {formatNullable(check.tls_issuer)}</div>
-          <div>取得時刻: {formatNullable(check.tls_last_checked_at)}</div>
+          <div>
+            取得時刻: <LocalTime iso={check.tls_last_checked_at} class="whitespace-nowrap" />
+          </div>
           {check.tls_last_error ? <div>取得エラー: {check.tls_last_error}</div> : null}
         </div>
       </div>

@@ -109,6 +109,8 @@ describe("renderDashboardPage", () => {
     expect(html).toContain('id="summary-cert-expiring"');
     expect(html).toContain('id="current-incidents-panel"');
     expect(html).toContain('id="current-incidents-list"');
+    expect(html).toContain('data-utc-time="2026-06-22T00:00:00.000Z"');
+    expect(html).toContain("<time");
     expect(html).toContain('id="recent-checks-panel"');
     expect(html).toContain('id="recent-checks-list"');
     expect(html).toContain('id="recent-check-1"');

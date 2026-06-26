@@ -2,6 +2,7 @@ import { renderToString } from "hono/jsx/dom/server";
 import { AppLayout } from "./app-layout.tsx";
 import { summarizeDashboard, type DashboardData, type IncidentRow } from "../lib/dashboard-data";
 import type { CheckRow } from "../lib/checks";
+import { LocalTime } from "./time.tsx";
 
 const formatNullable = (value: string | number | null | undefined, fallback = "-"): string => {
   if (value === null || value === undefined || value === "") return fallback;
@@ -60,7 +61,7 @@ const IncidentCard = ({ incident }: { incident: IncidentRow }) => (
       <div>
         <p class="font-semibold text-rose-100">{incident.check_name}</p>
         <p class="mt-1 text-sm text-rose-200">
-          開始 {incident.started_at} / 継続 {formatDuration(incident.started_at, incident.resolved_at)}
+          開始 <LocalTime iso={incident.started_at} class="whitespace-nowrap" /> / 継続 {formatDuration(incident.started_at, incident.resolved_at)}
         </p>
       </div>
       <span class="rounded-full bg-rose-200 px-3 py-1 text-xs font-semibold text-rose-950">障害中</span>
@@ -87,10 +88,10 @@ const RecentCheckCard = ({ check }: { check: CheckRow }) => {
         </div>
       </div>
       <dl class="mt-4 grid gap-2 text-sm text-slate-300 sm:grid-cols-2">
-        <div>
-          <dt class="text-slate-500">最終確認</dt>
-          <dd class="mt-1">{formatNullable(check.last_checked_at)}</dd>
-        </div>
+      <div>
+        <dt class="text-slate-500">最終確認</dt>
+        <dd class="mt-1"><LocalTime iso={check.last_checked_at} class="whitespace-nowrap" /></dd>
+      </div>
         <div>
           <dt class="text-slate-500">HTTP / 遅延</dt>
           <dd class="mt-1">
@@ -101,10 +102,10 @@ const RecentCheckCard = ({ check }: { check: CheckRow }) => {
           <dt class="text-slate-500">間隔</dt>
           <dd class="mt-1">{check.interval_minutes} 分</dd>
         </div>
-        <div>
-          <dt class="text-slate-500">追加</dt>
-          <dd class="mt-1">{check.created_at}</dd>
-        </div>
+      <div>
+        <dt class="text-slate-500">追加</dt>
+        <dd class="mt-1"><LocalTime iso={check.created_at} class="whitespace-nowrap" /></dd>
+      </div>
         <div>
           <dt class="text-slate-500">証明書</dt>
           <dd class="mt-1">{formatCertificateDays(check.tls_days_remaining)}</dd>
@@ -121,7 +122,7 @@ const ResultRow = ({ result }: { result: DashboardData["recentResults"][number] 
     <td>{formatNullable(result.status_code)}</td>
     <td>{formatNullable(result.latency_ms)}</td>
     <td class="max-w-[16rem] truncate">{formatNullable(result.error)}</td>
-    <td>{result.checked_at}</td>
+    <td><LocalTime iso={result.checked_at} class="whitespace-nowrap" /></td>
   </tr>
 );
 
@@ -134,15 +135,15 @@ const EventRow = ({ event }: { event: DashboardData["recentEvents"][number] }) =
     <td>{formatNullable(event.reason)}</td>
     <td>{formatNullable(event.status_code)}</td>
     <td class="max-w-[16rem] truncate">{formatNullable(event.error)}</td>
-    <td>{event.occurred_at}</td>
+    <td><LocalTime iso={event.occurred_at} class="whitespace-nowrap" /></td>
   </tr>
 );
 
 const IncidentHistoryRow = ({ incident }: { incident: DashboardData["recentIncidents"][number] }) => (
   <tr id={`incident-history-${incident.id}`}>
     <td class="pr-4 font-medium text-slate-50">{incident.check_name}</td>
-    <td class="pr-4">{incident.started_at}</td>
-    <td class="pr-4">{formatNullable(incident.resolved_at)}</td>
+    <td class="pr-4"><LocalTime iso={incident.started_at} class="whitespace-nowrap" /></td>
+    <td class="pr-4"><LocalTime iso={incident.resolved_at} class="whitespace-nowrap" /></td>
     <td class="pr-4">{formatDuration(incident.started_at, incident.resolved_at)}</td>
     <td class="pr-4">{formatNullable(incident.start_reason)}</td>
     <td class="pr-4">
