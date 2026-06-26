@@ -35,7 +35,7 @@ const CertificateBadge = ({ check }: { check: ChecksPageData["checks"][number] }
 const StateBadge = ({ enabled, state }: { enabled: number; state: string }) => {
   if (!enabled) return <span class="status off"><span class="dot"></span>停止中</span>;
   if (state === "ok") return <span class="status ok"><span class="dot"></span>OK</span>;
-  if (state === "fail") return <span class="status off"><span class="dot"></span>障害中</span>;
+  if (state === "fail") return <span class="status off status-fail"><span class="dot"></span>障害中</span>;
   return <span class="status off"><span class="dot"></span>未確認</span>;
 };
 
@@ -418,7 +418,11 @@ const ChecksShell = ({ data }: { data: ChecksPageData }) => (
 );
 
 const ChecksDocument = ({ data }: { data: ChecksPageData }) => (
-  <AppLayout title="Edge Pulse / 監視一覧" activeHref="/checks">
+  <AppLayout
+    title="Edge Pulse / 監視一覧"
+    activeHref="/checks"
+    footerStatus={data.checks.some((check) => check.enabled === 1 && check.last_state === "fail") ? "degraded" : "healthy"}
+  >
     <ChecksShell data={data} />
   </AppLayout>
 );

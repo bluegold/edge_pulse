@@ -350,7 +350,6 @@ const runCheck = async (env: Bindings, job: CheckJob): Promise<void> => {
 
   const validation = validateMonitorUrl(check.url);
   const checkedAt = new Date().toISOString();
-
   if (!validation.ok) {
     const result = buildCheckResult({
       state: "fail",
@@ -364,7 +363,27 @@ const runCheck = async (env: Bindings, job: CheckJob): Promise<void> => {
     return;
   }
 
-  const certificatePromise = shouldProbeCertificateSnapshot(check, checkedAt) ? probeCertificateSnapshot(env, check) : Promise.resolve(null);
+  const latestRecovery =
+    check.last_state === "ok" && check.tls_last_error
+      ? await env["pulse-db"]
+          .prepare(
+            `
+            SELECT occurred_at
+            FROM status_events
+            WHERE check_id = ?
+              AND from_state = 'fail'
+              AND to_state = 'ok'
+            ORDER BY occurred_at DESC, id DESC
+            LIMIT 1
+          `,
+          )
+          .bind(check.id)
+          .first<{ occurred_at: string }>()
+      : null;
+
+  const certificatePromise = shouldProbeCertificateSnapshot(check, checkedAt, latestRecovery?.occurred_at ?? null)
+    ? probeCertificateSnapshot(env, check)
+    : Promise.resolve(null);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort("timeout"), check.timeout_ms);
   const started = performance.now();

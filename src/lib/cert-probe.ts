@@ -41,9 +41,26 @@ export const buildCertProbeUrl = (baseUrl: string, host: string, port: number, s
 };
 
 export const shouldProbeCertificateSnapshot = (
-  check: Pick<CheckRow, "tls_last_checked_at" | "tls_last_error" | "tls_days_remaining">,
+  check: Pick<CheckRow, "last_state" | "tls_last_checked_at" | "tls_last_error" | "tls_days_remaining">,
   checkedAt: string,
+  latestRecoveryAt: string | null = null,
 ): boolean => {
+  if (check.tls_last_error) {
+    if (check.last_state !== "ok" || !latestRecoveryAt) {
+      return false;
+    }
+
+    const recoveryAt = Date.parse(latestRecoveryAt);
+    const lastCheckedAt = check.tls_last_checked_at ? Date.parse(check.tls_last_checked_at) : Number.NaN;
+    const now = Date.parse(checkedAt);
+    if (!Number.isFinite(recoveryAt) || !Number.isFinite(now)) return false;
+    if (check.tls_last_checked_at && Number.isFinite(lastCheckedAt) && recoveryAt <= lastCheckedAt) {
+      return false;
+    }
+    if (recoveryAt > now) return false;
+    return true;
+  }
+
   if (!check.tls_last_checked_at) return true;
 
   const lastCheckedAt = Date.parse(check.tls_last_checked_at);
@@ -52,10 +69,6 @@ export const shouldProbeCertificateSnapshot = (
 
   const elapsed = now - lastCheckedAt;
   if (elapsed < 0) return true;
-
-  if (check.tls_last_error || check.tls_days_remaining === null || check.tls_days_remaining === undefined) {
-    return elapsed >= DAILY_REFRESH_MS;
-  }
 
   if (check.tls_days_remaining <= 30) {
     return elapsed >= DAILY_REFRESH_MS;

@@ -3,10 +3,11 @@ import type { Child } from "hono/jsx";
 type AppLayoutProps = {
   title: string;
   activeHref: "/" | "/checks";
+  footerStatus: "healthy" | "degraded";
   children: Child;
 };
 
-export const AppLayout = ({ title, activeHref, children }: AppLayoutProps) => (
+export const AppLayout = ({ title, activeHref, footerStatus, children }: AppLayoutProps) => (
   <html lang="ja">
     <head>
       <meta charSet="utf-8" />
@@ -434,6 +435,15 @@ export const AppLayout = ({ title, activeHref, children }: AppLayoutProps) => (
           background: rgba(148, 163, 184, 0.08);
           color: #e2e8f0;
         }
+        .status.off.status-fail {
+          border-color: rgba(251, 113, 133, 0.78);
+          background: linear-gradient(180deg, rgba(127, 29, 29, 0.98), rgba(83, 7, 37, 0.98));
+          color: #fff1f2;
+          box-shadow:
+            0 0 0 1px rgba(251, 113, 133, 0.12),
+            0 10px 24px rgba(127, 29, 29, 0.35),
+            inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
         .dot {
           width: 0.48rem;
           height: 0.48rem;
@@ -651,6 +661,40 @@ export const AppLayout = ({ title, activeHref, children }: AppLayoutProps) => (
           background: var(--green);
           box-shadow: 0 0 12px rgba(52, 211, 153, 0.58);
         }
+        .status-mark,
+        .result-mark,
+        .state-mark {
+          display: inline-grid;
+          place-items: center;
+          width: 1rem;
+          height: 1rem;
+          border-radius: 0.15rem;
+          font-size: 0.78rem;
+          line-height: 1;
+          font-weight: 900;
+          flex: 0 0 auto;
+        }
+        .result-mark,
+        .state-mark {
+          border: 1px solid rgba(52, 211, 153, 0.35);
+          background: rgba(16, 185, 129, 0.12);
+          color: #86efac;
+        }
+        .result-mark.fail {
+          border-color: rgba(251, 113, 133, 0.72);
+          background: rgba(127, 29, 29, 0.96);
+          color: #fff1f2;
+        }
+        .state-mark {
+          border-color: rgba(56, 189, 248, 0.32);
+          background: rgba(14, 165, 233, 0.12);
+          color: #e0f2fe;
+        }
+        .state-mark.fail {
+          border-color: rgba(251, 113, 133, 0.72);
+          background: rgba(127, 29, 29, 0.96);
+          color: #fff1f2;
+        }
         .empty-state {
           min-height: 10.5rem;
           display: grid;
@@ -670,9 +714,46 @@ export const AppLayout = ({ title, activeHref, children }: AppLayoutProps) => (
           color: #dbeafe;
         }
         .status-badge {
-          border: 1px solid rgba(52, 211, 153, 0.4);
-          background: rgba(16, 185, 129, 0.09);
-          color: #6ee7b7;
+          display: inline-flex;
+          align-items: center;
+          gap: 0.45rem;
+          border: 1px solid rgba(52, 211, 153, 0.45);
+          border-radius: 999px;
+          padding: 0.45rem 0.85rem;
+          background: rgba(6, 95, 70, 0.18);
+          color: #bbf7d0;
+          font-weight: 800;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
+        .status-badge.degraded {
+          border-color: rgba(251, 113, 133, 0.78);
+          background: linear-gradient(180deg, rgba(127, 29, 29, 0.98), rgba(83, 7, 37, 0.98));
+          color: #fff1f2;
+          box-shadow:
+            0 0 0 1px rgba(251, 113, 133, 0.12),
+            0 10px 24px rgba(127, 29, 29, 0.35),
+            inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
+        .current-incident-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.45rem;
+          border: 1px solid rgba(251, 113, 133, 0.78);
+          background: linear-gradient(180deg, rgba(127, 29, 29, 0.98), rgba(83, 7, 37, 0.98));
+          color: #fff1f2;
+          box-shadow:
+            0 0 0 1px rgba(251, 113, 133, 0.12),
+            0 10px 24px rgba(127, 29, 29, 0.35),
+            inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
+        .current-incident-badge .state-mark.fail {
+          border-color: rgba(255, 255, 255, 0.18);
+          background: rgba(255, 255, 255, 0.08);
+        }
+        .status-badge .dot {
+          width: 0.56rem;
+          height: 0.56rem;
+          box-shadow: 0 0 10px currentColor;
         }
         .footerbar {
           border-top: 1px solid rgba(56, 189, 248, 0.16);
@@ -730,7 +811,16 @@ export const AppLayout = ({ title, activeHref, children }: AppLayoutProps) => (
             <span>Cloudflare Workers の可用性を、シンプルに・確実に。</span>
           </div>
           <div class="flex flex-wrap items-center gap-5">
-            <span class="inline-flex items-center gap-2"><span class="ok-dot"></span>すべてのシステムは正常です</span>
+            {footerStatus === "healthy" ? (
+              <span class="status-badge">
+                <span class="ok-dot"></span>
+                すべてのシステムは正常です
+              </span>
+            ) : (
+              <span class="status-badge degraded">
+                <span class="dot"></span>一部のシステムで障害を検知しています
+              </span>
+            )}
           </div>
         </div>
       </footer>

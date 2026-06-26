@@ -115,6 +115,7 @@ describe("shouldProbeCertificateSnapshot", () => {
     expect(
       shouldProbeCertificateSnapshot(
         {
+          last_state: "unknown",
           tls_last_checked_at: null,
           tls_last_error: null,
           tls_days_remaining: null,
@@ -128,6 +129,7 @@ describe("shouldProbeCertificateSnapshot", () => {
     expect(
       shouldProbeCertificateSnapshot(
         {
+          last_state: "ok",
           tls_last_checked_at: "2026-06-15T00:00:00.000Z",
           tls_last_error: null,
           tls_days_remaining: 90,
@@ -139,6 +141,7 @@ describe("shouldProbeCertificateSnapshot", () => {
     expect(
       shouldProbeCertificateSnapshot(
         {
+          last_state: "ok",
           tls_last_checked_at: "2026-06-16T00:00:00.000Z",
           tls_last_error: null,
           tls_days_remaining: 90,
@@ -152,6 +155,7 @@ describe("shouldProbeCertificateSnapshot", () => {
     expect(
       shouldProbeCertificateSnapshot(
         {
+          last_state: "ok",
           tls_last_checked_at: "2026-06-21T01:00:00.000Z",
           tls_last_error: null,
           tls_days_remaining: 10,
@@ -163,6 +167,7 @@ describe("shouldProbeCertificateSnapshot", () => {
     expect(
       shouldProbeCertificateSnapshot(
         {
+          last_state: "ok",
           tls_last_checked_at: "2026-06-20T00:59:59.000Z",
           tls_last_error: null,
           tls_days_remaining: 10,
@@ -170,6 +175,36 @@ describe("shouldProbeCertificateSnapshot", () => {
         "2026-06-22T00:00:00.000Z",
       ),
     ).toBe(true);
+  });
+
+  it("retries once after recovery when the previous snapshot failed", () => {
+    expect(
+      shouldProbeCertificateSnapshot(
+        {
+          last_state: "ok",
+          tls_last_checked_at: "2026-06-22T00:10:00.000Z",
+          tls_last_error: "dial tcp: lookup example.com: no such host",
+          tls_days_remaining: null,
+        },
+        "2026-06-22T01:00:00.000Z",
+        "2026-06-22T00:30:00.000Z",
+      ),
+    ).toBe(true);
+  });
+
+  it("does not retry while the host is still down", () => {
+    expect(
+      shouldProbeCertificateSnapshot(
+        {
+          last_state: "fail",
+          tls_last_checked_at: "2026-06-22T00:10:00.000Z",
+          tls_last_error: "dial tcp: lookup example.com: no such host",
+          tls_days_remaining: null,
+        },
+        "2026-06-22T01:00:00.000Z",
+        "2026-06-22T00:30:00.000Z",
+      ),
+    ).toBe(false);
   });
 });
 

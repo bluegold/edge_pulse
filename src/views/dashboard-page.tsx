@@ -75,7 +75,10 @@ const IncidentCard = ({ incident }: { incident: IncidentRow }) => (
           開始 <LocalTime iso={incident.started_at} class="whitespace-nowrap" /> / 継続 {formatDuration(incident.started_at, incident.resolved_at)}
         </p>
       </div>
-      <span class="rounded-full border border-rose-400/30 bg-rose-500/10 px-3 py-1 text-xs font-semibold text-rose-100">障害中</span>
+      <span class="current-incident-badge rounded-full px-3 py-1 text-xs font-semibold">
+        <span class="state-mark fail">×</span>
+        障害中
+      </span>
     </div>
     <p class="mt-3 text-sm text-rose-200">理由: {incident.start_reason ?? "unknown"}</p>
   </div>
@@ -143,10 +146,10 @@ const ResultRow = ({ result }: { result: DashboardData["recentResults"][number] 
             ? "inline-flex items-center gap-2 text-emerald-300"
             : result.state === "fail"
               ? "inline-flex items-center gap-2 text-rose-300"
-              : "inline-flex items-center gap-2 text-slate-300"
+            : "inline-flex items-center gap-2 text-slate-300"
         }
       >
-        <span class="ok-dot"></span>
+        <span class={`result-mark ${result.state === "fail" ? "fail" : ""}`}>{result.state === "fail" ? "×" : "✓"}</span>
         {result.state}
       </span>
     </td>
@@ -161,10 +164,14 @@ const EventRow = ({ event }: { event: DashboardData["recentEvents"][number] }) =
   <tr id={`status-event-${event.id}`} class="transition hover:bg-white/5">
     <td class="font-medium text-slate-50">{event.check_name ?? event.check_id}</td>
     <td>
-      {event.from_state} → {event.to_state}
+      <span class="inline-flex items-center gap-2">
+        <span class={`state-mark ${event.from_state === "fail" ? "fail" : ""}`}>{event.from_state === "fail" ? "×" : "✓"}</span>
+        →
+        <span class={`state-mark ${event.to_state === "fail" ? "fail" : ""}`}>{event.to_state === "fail" ? "×" : "✓"}</span>
+      </span>
     </td>
     <td>{formatNullable(event.reason)}</td>
-    <td>{formatNullable(event.status_code)}</td>
+    <td class="text-right">{formatNullable(event.status_code)}</td>
     <td class="max-w-[16rem] truncate">{formatNullable(event.error)}</td>
     <td><LocalTime iso={event.occurred_at} class="whitespace-nowrap" /></td>
   </tr>
@@ -186,6 +193,21 @@ const IncidentHistoryRow = ({ incident }: { incident: DashboardData["recentIncid
 const DashboardShell = ({ data }: { data: DashboardData }) => {
   const summary = summarizeDashboard(data.checks, data.recentIncidents);
   const recentChecks = data.recentChecks;
+  const hasCurrentIncidents = data.currentIncidents.length > 0;
+  const currentIncidentTone = hasCurrentIncidents
+    ? "border-rose-400/40 text-rose-300"
+    : "border-emerald-400/40 text-emerald-300";
+  const currentIncidentIcon = hasCurrentIncidents ? (
+    <svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M12 9v4" />
+      <path d="M12 17h.01" />
+      <path d="M10.3 4.5h3.4L21 18H3z" />
+    </svg>
+  ) : (
+    <svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="m20 6-11 11-5-5" />
+    </svg>
+  );
 
   return (
     <section id="dashboard-shell" class="w-full">
@@ -243,7 +265,7 @@ const DashboardShell = ({ data }: { data: DashboardData }) => {
             label="障害中"
             value={summary.failedChecks}
             tone="danger"
-            icon={<svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>}
+            icon={<svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12"/><path d="M18 6 6 18"/></svg>}
           />
           <SummaryCard
             id="summary-cert-expiring"
@@ -269,12 +291,16 @@ const DashboardShell = ({ data }: { data: DashboardData }) => {
         <section id="current-incidents-panel" class="status-strip px-6 py-5">
           <div class="flex items-center justify-between gap-4">
             <div class="flex items-center gap-4">
-              <span class="grid h-10 w-10 place-items-center rounded-full border border-emerald-400/40 text-emerald-300">
-                <svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2"><path d="m20 6-11 11-5-5"/></svg>
+              <span class={`grid h-10 w-10 place-items-center rounded-full ${currentIncidentTone}`}>
+                {currentIncidentIcon}
               </span>
               <div>
                 <h2 class="text-lg font-black tracking-tight text-slate-50">現在の障害</h2>
-                <p class="text-sm text-slate-300">現在アクティブな incident はありません。</p>
+                <p class="text-sm text-slate-300">
+                  {hasCurrentIncidents
+                    ? `現在アクティブな incident が ${data.currentIncidents.length} 件あります。`
+                    : "現在アクティブな incident はありません。"}
+                </p>
               </div>
             </div>
             <span class="rounded-md border border-white/15 bg-white/8 px-5 py-2 text-sm font-black text-slate-100">{data.currentIncidents.length} 件</span>
@@ -300,7 +326,7 @@ const DashboardShell = ({ data }: { data: DashboardData }) => {
                   <tr>
                     <th class="px-4 py-3 font-bold">対象</th>
                     <th class="px-4 py-3 font-bold">状態</th>
-                    <th class="px-4 py-3 font-bold">HTTP</th>
+                    <th class="px-4 py-3 font-bold text-right">HTTP</th>
                     <th class="px-4 py-3 font-bold">遅延</th>
                     <th class="px-4 py-3 font-bold">エラー</th>
                     <th class="px-4 py-3 font-bold">時刻</th>
@@ -417,7 +443,11 @@ const DashboardShell = ({ data }: { data: DashboardData }) => {
 };
 
 const DashboardDocument = ({ data }: { data: DashboardData }) => (
-  <AppLayout title="Edge Pulse" activeHref="/">
+  <AppLayout
+    title="Edge Pulse"
+    activeHref="/"
+    footerStatus={data.currentIncidents.length > 0 || data.checks.some((check) => check.enabled === 1 && check.last_state === "fail") ? "degraded" : "healthy"}
+  >
     <DashboardShell data={data} />
   </AppLayout>
 );
