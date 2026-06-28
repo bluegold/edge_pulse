@@ -119,6 +119,7 @@
       const nextContent = template.content.querySelector("#content");
       const currentContent = document.getElementById("content");
       if (nextContent && currentContent) {
+        renderLocalTimes(nextContent);
         currentContent.replaceWith(nextContent);
         window.scrollTo({ top: scrollY, left: 0, behavior: "auto" });
       }
