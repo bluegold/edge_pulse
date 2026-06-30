@@ -301,7 +301,10 @@ export const evaluateTransition = (
 };
 
 export const scheduleNextCheckAt = (nowIso: string, intervalMinutes: number): string => {
-  return new Date(new Date(nowIso).getTime() + intervalMinutes * 60_000).toISOString();
+  const baseMs = intervalMinutes * 60_000;
+  // Jitter of ±10% to prevent thundering herds and scatter execution times
+  const jitterMs = Math.floor((Math.random() - 0.5) * 0.2 * baseMs);
+  return new Date(new Date(nowIso).getTime() + baseMs + jitterMs).toISOString();
 };
 
 export const formatCheckUrlForDisplay = (value: string): string => value;
