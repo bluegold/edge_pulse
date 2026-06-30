@@ -1,12 +1,12 @@
 # Cloudflare Workers Uptime Monitor
 
-Cloudflare Workers で作る、ciao 風の簡易死活監視ダッシュボードです。
+Cloudflare Workers で作る簡易死活監視ダッシュボードです。
 
 URL を登録し、定期的に HTTP チェックを実行し、現在状態・履歴・障害イベント・復旧イベントを D1 に保存します。チェック実行は Cron Trigger から Queue に投入し、Queue consumer が実際の URL fetch と D1 更新を行います。
 
 ## 目的
 
-このアプリは、Rails 製の ciao のような「登録 URL の死活監視とダッシュボード表示」を Cloudflare Workers 上で実装することを目的とします。
+このアプリは、「登録 URL の死活監視とダッシュボード表示」を Cloudflare Workers 上で実装することを目的とします。
 
 主な機能は次の通りです。
 
@@ -460,7 +460,7 @@ const response = await fetch(check.url, {
   signal: controller.signal,
   redirect: "manual",
   headers: {
-    "User-Agent": "cf-worker-ciao/1.0",
+    "User-Agent": "edge-pulse/1.0",
   },
 });
 ```

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-このプロジェクトは Cloudflare Workers で実装する ciao 風の死活監視ダッシュボードです。
+このプロジェクトは Cloudflare Workers で実装する死活監視ダッシュボードです。
 
 Coding agent は、この文書の制約を優先して実装してください。
 
