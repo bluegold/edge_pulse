@@ -17,6 +17,10 @@ docker run --rm -p 8080:8080 cert-probe
 
 ## API
 
+`GET /ping`
+
+Cloudflare Containers の起動確認に使う簡易ヘルスチェックです。
+
 `GET /probe`
 
 ### Query

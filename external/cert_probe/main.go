@@ -114,6 +114,10 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, status, result)
 }
 
+func pingHandler(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+}
+
 func logProbe(r *http.Request, status int, duration time.Duration, result CertResult) {
 	entry := ProbeLog{
 		Timestamp: time.Now().UTC().Format(time.RFC3339Nano),
@@ -141,6 +145,7 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 }
 
 func main() {
+	http.HandleFunc("/ping", pingHandler)
 	http.HandleFunc("/probe", handler)
 	http.ListenAndServe(":8080", nil)
 }

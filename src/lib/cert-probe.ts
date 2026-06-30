@@ -32,8 +32,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const DAILY_REFRESH_MS = DAY_MS;
 const WEEKLY_REFRESH_MS = 7 * DAY_MS;
 
-export const buildCertProbeUrl = (baseUrl: string, host: string, port: number, serverName: string): URL => {
-  const url = new URL("/probe", baseUrl);
+export const buildCertProbeUrl = (host: string, port: number, serverName: string): URL => {
+  const url = new URL("http://cert-probe/probe");
   url.searchParams.set("host", host);
   url.searchParams.set("port", String(port));
   url.searchParams.set("servername", serverName);
@@ -70,7 +70,8 @@ export const shouldProbeCertificateSnapshot = (
   const elapsed = now - lastCheckedAt;
   if (elapsed < 0) return true;
 
-  if (check.tls_days_remaining <= 30) {
+  const daysRemaining = check.tls_days_remaining ?? Number.POSITIVE_INFINITY;
+  if (daysRemaining <= 30) {
     return elapsed >= DAILY_REFRESH_MS;
   }
 
@@ -78,19 +79,19 @@ export const shouldProbeCertificateSnapshot = (
 };
 
 export const fetchCertificateSnapshot = async (
-  baseUrl: string,
+  fetcher: Pick<typeof globalThis, "fetch">,
   host: string,
   port: number,
   serverName: string,
   timeoutMs = 8_000,
 ): Promise<CertProbeResponse> => {
   try {
-    const url = buildCertProbeUrl(baseUrl, host, port, serverName);
+    const url = buildCertProbeUrl(host, port, serverName);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort("cert_probe_timeout"), timeoutMs);
 
     try {
-      const response = await fetch(url, {
+      const response = await fetcher.fetch(url, {
         method: "GET",
         headers: {
           accept: "application/json",

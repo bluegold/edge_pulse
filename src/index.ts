@@ -10,8 +10,17 @@ import {
   validateMonitorUrl,
 } from "./lib/checks";
 import { fetchCertificateSnapshot, shouldProbeCertificateSnapshot, type CertProbeResponse } from "./lib/cert-probe";
+import { CertProbeContainer } from "./lib/cert-probe-container";
 import { loadChecksPageData } from "./lib/checks-page-data";
-import type { D1Database, ExecutionContext, Fetcher, MessageBatch, ScheduledController } from "./lib/cloudflare";
+import { getContainer } from "@cloudflare/containers";
+import type {
+  D1Database,
+  DurableObjectNamespace,
+  ExecutionContext,
+  Fetcher,
+  MessageBatch,
+  ScheduledController,
+} from "./lib/cloudflare";
 import { loadDashboardData } from "./lib/dashboard-data";
 import { renderDashboardPage, renderDashboardShell } from "./views/dashboard-page.tsx";
 import { renderChecksPage, renderChecksShell } from "./views/checks-page.tsx";
@@ -19,9 +28,10 @@ import { renderChecksPage, renderChecksShell } from "./views/checks-page.tsx";
 type Bindings = {
   "pulse-db": D1Database;
   "pulse-queue": { send(message: CheckJob): Promise<void> };
+  CertProbeContainer?: DurableObjectNamespace<CertProbeContainer>;
+  CERT_PROBE_CONTAINER?: DurableObjectNamespace<CertProbeContainer>;
   ASSETS: Fetcher;
   ADMIN_API_TOKEN: string;
-  CERT_PROBE_URL?: string;
 };
 
 const respondHtml = (body: string, status = 200) =>
@@ -98,15 +108,16 @@ const readCheckInputFromRequest = async (request: Request): Promise<CheckInput |
 const CERT_EXPIRY_THRESHOLD_DAYS = 30;
 
 const probeCertificateSnapshot = async (env: Bindings, check: CheckRow): Promise<CertProbeResponse | null> => {
-  const probeBaseUrl = env.CERT_PROBE_URL?.trim();
-  if (!probeBaseUrl) return null;
-
   const parsed = new URL(check.url);
   if (parsed.protocol !== "https:") return null;
 
   const port = parsed.port ? Number(parsed.port) : 443;
   const serverName = parsed.hostname;
-  return fetchCertificateSnapshot(probeBaseUrl, parsed.hostname, port, serverName);
+  const containerBinding = env.CertProbeContainer ?? env.CERT_PROBE_CONTAINER;
+  if (!containerBinding) return null;
+
+  const container = getContainer(containerBinding);
+  return fetchCertificateSnapshot(container, parsed.hostname, port, serverName);
 };
 
 const describeCertificateAlert = (certificate: CertProbeResponse): { reason: string; error: string } | null => {
@@ -679,6 +690,7 @@ app.get("/api/checks/:id", async (c) => {
 app.patch("/api/checks/:id", async (c) => handleApiUpdateCheck(c.env, Number(c.req.param("id")), c.req.raw));
 
 export { app };
+export { CertProbeContainer };
 
 export default {
   fetch: app.fetch.bind(app),

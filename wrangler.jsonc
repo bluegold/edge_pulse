@@ -10,6 +10,29 @@
 		"directory": "./public",
 		"binding": "ASSETS"
 	},
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "CertProbeContainer",
+				"class_name": "CertProbeContainer"
+			}
+		]
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": [
+				"CertProbeContainer"
+			]
+		}
+	],
+	"containers": [
+		{
+			"name": "cert-probe",
+			"class_name": "CertProbeContainer",
+			"image": "./external/cert_probe/Dockerfile"
+		}
+	],
 	"d1_databases": [
 		{
 			"binding": "pulse-db",

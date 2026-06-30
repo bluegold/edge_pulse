@@ -104,9 +104,11 @@ API は次を提供します。
 
 TLS 証明書の有効期限と発行者情報は、Worker の `fetch()` / `node:https` だけでは取り切れないため、外部プローブに切り出します。
 
-Worker は `CERT_PROBE_URL` を使って `external/cert_probe` の `/probe` を呼び出し、戻ってきた最新の証明書情報を `checks` のスナップショットとして保存します。
+Worker は Cloudflare Containers 上の `external/cert_probe` の `/probe` を呼び出し、戻ってきた最新の証明書情報を `checks` のスナップショットとして保存します。
 
-- `CERT_PROBE_URL` はローカル開発では `.dev.vars`、本番では環境変数で設定します
+- `external/cert_probe` は Cloudflare Containers で動かします
+- `wrangler.jsonc` の `containers` で `external/cert_probe/Dockerfile` を指定しています
+- `cert-probe` イメージを GHCR から直接参照するのではなく、Cloudflare Containers のビルド・配置経路を使います
 - `days_remaining <= 30` は証明書警告として `fail` 扱いにします
 - プローブ失敗時は直前の証明書スナップショットを残しつつ、`tls_last_error` を更新します
 

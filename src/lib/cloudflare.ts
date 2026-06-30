@@ -14,6 +14,12 @@ export interface Queue<T = unknown> {
   send(message: T): Promise<void>;
 }
 
+export interface DurableObjectNamespace<T = unknown> {
+  idFromName(name: string): unknown;
+  idFromString(id: string): unknown;
+  get(id: unknown): T;
+}
+
 export interface Fetcher {
   fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response>;
 }
