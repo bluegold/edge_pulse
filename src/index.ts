@@ -466,6 +466,9 @@ const persistCheckResult = async (
     )
     .bind(check.id)
     .first<{ id: number }>();
+  const incidentStartedAt =
+    evaluated.transition.kind === "incident-opened" ? evaluated.transition.startedAt : nextCheck.first_failure_at ?? result.checkedAt;
+  const shouldOpenIncident = nextCheck.last_state === "fail" && !unresolvedIncident;
 
   const statements = [
     db
@@ -544,7 +547,20 @@ const persistCheckResult = async (
       );
   }
 
-  if (nextCheck.last_state === "fail") {
+  if (shouldOpenIncident) {
+    statements.push(
+      db
+        .prepare(
+          `
+          INSERT INTO incidents (
+            check_id, started_at, resolved_at, start_reason, end_reason, start_status_code, end_status_code,
+            failure_count, created_at, updated_at
+          ) VALUES (?, ?, NULL, ?, NULL, ?, NULL, 1, ?, ?)
+        `,
+        )
+        .bind(check.id, incidentStartedAt, result.reason, result.statusCode, result.checkedAt, result.checkedAt),
+    );
+  } else if (nextCheck.last_state === "fail") {
     if (unresolvedIncident) {
       statements.push(
         db
@@ -556,26 +572,6 @@ const persistCheckResult = async (
           `,
           )
           .bind(result.checkedAt, unresolvedIncident.id),
-      );
-    } else {
-      statements.push(
-        db
-          .prepare(
-            `
-            INSERT INTO incidents (
-              check_id, started_at, resolved_at, start_reason, end_reason, start_status_code, end_status_code,
-              failure_count, created_at, updated_at
-            ) VALUES (?, ?, NULL, ?, NULL, ?, NULL, 1, ?, ?)
-          `,
-          )
-          .bind(
-            check.id,
-            evaluated.transition.kind === "incident-opened" ? evaluated.transition.startedAt : result.checkedAt,
-            result.reason,
-            result.statusCode,
-            result.checkedAt,
-            result.checkedAt,
-          ),
       );
     }
   }
@@ -698,8 +694,9 @@ export default {
     await handleScheduled(controller, env);
   },
   async queue(batch: MessageBatch<CheckJob>, env: Bindings, _ctx: ExecutionContext): Promise<void> {
-    const message = batch.messages[0];
-    if (!message?.body) return;
-    await runCheck(env, message.body);
+    for (const message of batch.messages) {
+      if (!message?.body) continue;
+      await runCheck(env, message.body);
+    }
   },
 };
