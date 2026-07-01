@@ -1,5 +1,5 @@
 import type { Bindings } from "../lib/bindings";
-import { loadDashboardData } from "../lib/dashboard-data";
+import { loadDashboardData } from "../store/dashboard";
 import { renderDashboardPage, renderDashboardShell } from "../views/dashboard-page.tsx";
 import { isHxRequest, respondHtml } from "../http/shared";
 

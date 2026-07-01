@@ -1,9 +1,11 @@
 import { renderToString } from "hono/jsx/dom/server";
 import { AppLayout } from "./app-layout.tsx";
-import type { ChecksPageData } from "../lib/checks-page-data";
+import type { ChecksPageData as ChecksPageDataType } from "../store/checks";
 import { LocalTime } from "./time.tsx";
 import { formatNullable } from "../presenters/common";
 import { describeCertificateBadge, describeCheckState } from "../presenters/checks";
+
+export type ChecksPageData = ChecksPageDataType;
 
 const CertificateBadge = ({ check }: { check: ChecksPageData["checks"][number] }) => {
   const badge = describeCertificateBadge(check);
@@ -435,5 +437,3 @@ export const renderChecksPage = (data: ChecksPageData): Response =>
       "cache-control": "no-store",
     },
   });
-
-export type { ChecksPageData };

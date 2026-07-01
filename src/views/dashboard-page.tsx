@@ -1,11 +1,13 @@
 import type { Child } from "hono/jsx";
 import { renderToString } from "hono/jsx/dom/server";
 import { AppLayout } from "./app-layout.tsx";
-import { summarizeDashboard, type DashboardData, type IncidentRow } from "../lib/dashboard-data";
+import { summarizeDashboard, type DashboardData as DashboardDataType, type IncidentRow } from "../store/dashboard";
 import type { CheckRow } from "../lib/checks";
 import { LocalTime } from "./time.tsx";
 import { formatNullable } from "../presenters/common";
 import { describeRecentCheckState, formatCertificateDays, formatDuration } from "../presenters/dashboard";
+
+export type DashboardData = DashboardDataType;
 
 const CertificateBadge = ({ check }: { check: CheckRow }) => {
   if (check.tls_last_error) {
@@ -434,5 +436,3 @@ export const renderDashboardPage = (data: DashboardData): Response =>
       "cache-control": "no-store",
     },
   });
-
-export type { DashboardData };

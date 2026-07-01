@@ -1,84 +1,8 @@
 import type { Bindings } from "../lib/bindings";
-import { validateCheckInput, type CheckInput, type CheckRow } from "../lib/checks";
-import { loadChecksPageData } from "../lib/checks-page-data";
+import { validateCheckInput, type CheckInput } from "../lib/checks";
+import { getCheckById, insertCheck, loadChecksPageData, updateCheck } from "../store/checks";
 import { renderChecksPage, renderChecksShell } from "../views/checks-page.tsx";
 import { isHxRequest, readCheckInputFromRequest, respondHtml, respondJson } from "../http/shared";
-
-const getCheckById = async (db: Bindings["pulse-db"], id: number): Promise<CheckRow | null> => {
-  return db.prepare(`SELECT * FROM checks WHERE id = ? LIMIT 1`).bind(id).first<CheckRow>();
-};
-
-const insertCheck = async (db: Bindings["pulse-db"], input: CheckInput, now: string): Promise<number> => {
-  const inserted = await db
-    .prepare(
-      `
-      INSERT INTO checks (
-        name, url, method, enabled,
-        expected_status_min, expected_status_max, timeout_ms, interval_minutes,
-        next_check_at, last_enqueued_at, last_checked_at,
-        last_state, last_status_code, last_latency_ms, last_error,
-        fail_threshold, recovery_threshold, consecutive_failures, consecutive_successes,
-        first_failure_at, first_success_at, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, 'unknown', NULL, NULL, NULL, ?, ?, 0, 0, NULL, NULL, ?, ?)
-      RETURNING id
-    `,
-    )
-    .bind(
-      input.name.trim(),
-      input.url.trim(),
-      input.method,
-      input.enabled ? 1 : 0,
-      input.expectedStatusMin,
-      input.expectedStatusMax,
-      input.timeoutMs,
-      input.intervalMinutes,
-      input.failThreshold,
-      input.recoveryThreshold,
-      now,
-      now,
-    )
-    .first<{ id: number }>();
-
-  return inserted?.id ?? 0;
-};
-
-const updateCheck = async (db: Bindings["pulse-db"], id: number, input: CheckInput, now: string): Promise<void> => {
-  await db
-    .prepare(
-      `
-      UPDATE checks
-      SET name = ?, url = ?, method = ?, enabled = ?,
-          expected_status_min = ?, expected_status_max = ?, timeout_ms = ?, interval_minutes = ?,
-          fail_threshold = ?, recovery_threshold = ?, updated_at = ?
-      WHERE id = ?
-    `,
-    )
-    .bind(
-      input.name.trim(),
-      input.url.trim(),
-      input.method,
-      input.enabled ? 1 : 0,
-      input.expectedStatusMin,
-      input.expectedStatusMax,
-      input.timeoutMs,
-      input.intervalMinutes,
-      input.failThreshold,
-      input.recoveryThreshold,
-      now,
-      id,
-    )
-    .run();
-};
-
-const renderChecksData = async (env: Bindings, page: number, editId: number | null, highlightId: number | null): Promise<Response> => {
-  const data = await loadChecksPageData(env["pulse-db"], page, editId, highlightId);
-  return renderChecksPage(data);
-};
-
-const renderChecksShellData = async (env: Bindings, page: number, editId: number | null, highlightId: number | null): Promise<Response> => {
-  const data = await loadChecksPageData(env["pulse-db"], page, editId, highlightId);
-  return respondHtml(`<main id="content">${renderChecksShell(data)}</main>`);
-};
 
 export const handleChecksRequest = async (
   request: Request,
@@ -87,9 +11,10 @@ export const handleChecksRequest = async (
   editId: number | null = null,
   highlightId: number | null = null,
 ): Promise<Response> => {
+  const data = await loadChecksPageData(env["pulse-db"], page, editId, highlightId);
   return isHxRequest(request)
-    ? renderChecksShellData(env, page, editId, highlightId)
-    : renderChecksData(env, page, editId, highlightId);
+    ? respondHtml(`<main id="content">${renderChecksShell(data)}</main>`)
+    : renderChecksPage(data);
 };
 
 export const handleCreateCheck = async (request: Request, env: Bindings): Promise<Response> => {
@@ -112,7 +37,8 @@ export const handleCreateCheck = async (request: Request, env: Bindings): Promis
 
   const now = new Date().toISOString();
   await insertCheck(env["pulse-db"], input, now);
-  return isHxRequest(request) ? renderChecksShellData(env, page, null, null) : renderChecksData(env, page, null, null);
+  const data = await loadChecksPageData(env["pulse-db"], page, null, null);
+  return isHxRequest(request) ? respondHtml(`<main id="content">${renderChecksShell(data)}</main>`) : renderChecksPage(data);
 };
 
 export const handleUpdateCheck = async (request: Request, env: Bindings, id: number): Promise<Response> => {
@@ -135,9 +61,8 @@ export const handleUpdateCheck = async (request: Request, env: Bindings, id: num
 
   const now = new Date().toISOString();
   await updateCheck(env["pulse-db"], id, input, now);
-  return isHxRequest(request)
-    ? renderChecksShellData(env, page, null, id)
-    : renderChecksData(env, page, null, id);
+  const data = await loadChecksPageData(env["pulse-db"], page, null, id);
+  return isHxRequest(request) ? respondHtml(`<main id="content">${renderChecksShell(data)}</main>`) : renderChecksPage(data);
 };
 
 export const handleApiListChecks = async (env: Bindings, request: Request): Promise<Response> => {

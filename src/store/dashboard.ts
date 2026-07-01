@@ -1,5 +1,5 @@
-import type { D1Database } from "./cloudflare";
-import type { CheckRow, CheckState } from "./checks";
+import type { D1Database } from "../lib/cloudflare";
+import type { CheckRow, CheckState } from "../lib/checks";
 
 export type IncidentRow = {
   id: number;
