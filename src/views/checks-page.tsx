@@ -48,8 +48,16 @@ const CertificateDetails = ({ check }: { check: ChecksPageData["checks"][number]
   </div>
 );
 
-const ViewCard = ({ check, page }: { check: ChecksPageData["checks"][number]; page: number }) => (
-  <tr id={`check-item-${check.id}`} class={`check-row ${check.enabled ? "" : "off"}`}>
+const ViewCard = ({
+  check,
+  page,
+  highlighted,
+}: {
+  check: ChecksPageData["checks"][number];
+  page: number;
+  highlighted: boolean;
+}) => (
+  <tr id={`check-item-${check.id}`} class={`check-row ${check.enabled ? "" : "off"} ${highlighted ? "check-row-highlight" : ""}`}>
     <th scope="row" class="check-main-cell">
       <div class="flex flex-wrap items-center gap-2">
         <h3 class="check-name truncate">{check.name}</h3>
@@ -98,7 +106,7 @@ const ViewCard = ({ check, page }: { check: ChecksPageData["checks"][number]; pa
         href={`/checks?page=${page}&edit=${check.id}`}
         hx-get={`/checks?page=${page}&edit=${check.id}`}
         hx-target="#content"
-        hx-swap="outerHTML show:top"
+        hx-swap="outerHTML"
         class="glass-button inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-semibold text-slate-100"
       >
         編集
@@ -115,7 +123,7 @@ const EditCard = ({ check, page }: { check: ChecksPageData["checks"][number]; pa
         class="check-edit-form"
         hx-post={`/checks/${check.id}?page=${page}`}
         hx-target="#content"
-        hx-swap="outerHTML show:top"
+        hx-swap="outerHTML"
       >
         <div class="check-edit-card">
           <div class="flex flex-wrap items-center justify-between gap-3">
@@ -127,16 +135,16 @@ const EditCard = ({ check, page }: { check: ChecksPageData["checks"][number]; pa
               <button id={`check-item-${check.id}-save`} class="glass-button inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-semibold text-slate-100">
                 保存
               </button>
-              <a
-                id={`check-item-${check.id}-cancel`}
-                href={`/checks?page=${page}`}
-                hx-get={`/checks?page=${page}`}
-                hx-target="#content"
-                hx-swap="outerHTML show:top"
-                class="glass-button inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-semibold text-slate-100"
-              >
-                キャンセル
-              </a>
+                <a
+                  id={`check-item-${check.id}-cancel`}
+                  href={`/checks?page=${page}`}
+                  hx-get={`/checks?page=${page}`}
+                  hx-target="#content"
+                  hx-swap="outerHTML"
+                  class="glass-button inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-semibold text-slate-100"
+                >
+                  キャンセル
+                </a>
             </div>
           </div>
 
@@ -393,7 +401,13 @@ const ChecksShell = ({ data }: { data: ChecksPageData }) => (
                   </tr>
                 </thead>
                 <tbody>
-                  {data.checks.map((check) => (data.editId === check.id ? <EditCard check={check} page={data.page} /> : <ViewCard check={check} page={data.page} />))}
+                  {data.checks.map((check) =>
+                    data.editId === check.id ? (
+                      <EditCard check={check} page={data.page} />
+                    ) : (
+                      <ViewCard check={check} page={data.page} highlighted={data.highlightId === check.id} />
+                    ),
+                  )}
                 </tbody>
               </table>
             ) : (

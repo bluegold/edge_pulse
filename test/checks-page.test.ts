@@ -61,6 +61,7 @@ const checksPageData: ChecksPageData = {
   totalChecks: 42,
   totalPages: 3,
   editId: 2,
+  highlightId: 1,
   generatedAt: "2026-06-22T00:00:00.000Z",
 };
 
@@ -92,6 +93,7 @@ describe("renderChecksPage", () => {
     expect(html).toContain('id="check-item-2"');
     expect(html).toContain('id="check-item-2-save"');
     expect(html).toContain('id="check-item-2-cancel"');
+    expect(html).toContain('check-row-highlight');
     expect(html).toContain('証明書');
     expect(html).toContain('id="checks-pagination-panel"');
     expect(html).toContain('id="checks-pagination-current"');

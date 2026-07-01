@@ -272,6 +272,14 @@ export const AppLayout = ({ title, activeHref, footerStatus, children }: AppLayo
         .checks-table .check-row.off {
           opacity: 0.86;
         }
+        .checks-table .check-row-highlight .check-main-cell,
+        .checks-table .check-row-highlight .check-meta-cell,
+        .checks-table .check-row-highlight .check-actions-cell {
+          border-color: rgba(250, 204, 21, 0.42);
+          background: linear-gradient(180deg, rgba(71, 54, 10, 0.68), rgba(12, 19, 24, 0.84));
+          box-shadow: inset 0 0 0 1px rgba(250, 204, 21, 0.08);
+          animation: check-row-highlight 1800ms ease-out;
+        }
         .check-main-cell,
         .check-meta-cell,
         .check-actions-cell {
@@ -317,6 +325,14 @@ export const AppLayout = ({ title, activeHref, footerStatus, children }: AppLayo
           color: #f8fafc;
           font-weight: 800;
           white-space: normal;
+        }
+        @keyframes check-row-highlight {
+          0% {
+            background: linear-gradient(180deg, rgba(250, 204, 21, 0.34), rgba(12, 19, 24, 0.84));
+          }
+          100% {
+            background: linear-gradient(180deg, rgba(8, 19, 38, 0.78), rgba(4, 11, 24, 0.78));
+          }
         }
         .metric-stack {
           display: grid;

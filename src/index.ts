@@ -244,13 +244,23 @@ const renderFromDb = async (env: Bindings): Promise<Response> => {
   return renderDashboardPage(data);
 };
 
-const renderChecksFromDb = async (env: Bindings, page = 1, editId: number | null = null): Promise<Response> => {
-  const data = await loadChecksPageData(env["pulse-db"], page, editId);
+const renderChecksFromDb = async (
+  env: Bindings,
+  page = 1,
+  editId: number | null = null,
+  highlightId: number | null = null,
+): Promise<Response> => {
+  const data = await loadChecksPageData(env["pulse-db"], page, editId, highlightId);
   return renderChecksPage(data);
 };
 
-const renderChecksShellFromDb = async (env: Bindings, page = 1, editId: number | null = null): Promise<Response> => {
-  const data = await loadChecksPageData(env["pulse-db"], page, editId);
+const renderChecksShellFromDb = async (
+  env: Bindings,
+  page = 1,
+  editId: number | null = null,
+  highlightId: number | null = null,
+): Promise<Response> => {
+  const data = await loadChecksPageData(env["pulse-db"], page, editId, highlightId);
   return respondHtml(`<main id="content">${renderChecksShell(data)}</main>`);
 };
 
@@ -304,7 +314,9 @@ const handleUpdateCheck = async (request: Request, env: Bindings, id: number): P
 
   const now = new Date().toISOString();
   await updateCheck(env["pulse-db"], id, input, now);
-  return isHxRequest(request) ? renderChecksShellFromDb(env, page) : renderChecksFromDb(env, page);
+  return isHxRequest(request)
+    ? renderChecksShellFromDb(env, page, null, id)
+    : renderChecksFromDb(env, page, null, id);
 };
 
 const handleApiListChecks = async (env: Bindings, request: Request): Promise<Response> => {

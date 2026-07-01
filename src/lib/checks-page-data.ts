@@ -8,6 +8,7 @@ export type ChecksPageData = {
   totalChecks: number;
   totalPages: number;
   editId: number | null;
+  highlightId: number | null;
   generatedAt: string;
 };
 
@@ -20,6 +21,7 @@ export const loadChecksPageData = async (
   db: D1Database,
   page: number,
   editId: number | null = null,
+  highlightId: number | null = null,
 ): Promise<ChecksPageData> => {
   const pageSize = 20;
   const totalRow = await db.prepare(`SELECT COUNT(*) AS count FROM checks`).first<{ count: number }>();
@@ -47,6 +49,7 @@ export const loadChecksPageData = async (
     totalChecks,
     totalPages,
     editId,
+    highlightId,
     generatedAt: new Date().toISOString(),
   };
 };
