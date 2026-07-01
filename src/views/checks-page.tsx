@@ -2,41 +2,22 @@ import { renderToString } from "hono/jsx/dom/server";
 import { AppLayout } from "./app-layout.tsx";
 import type { ChecksPageData } from "../lib/checks-page-data";
 import { LocalTime } from "./time.tsx";
-
-const formatNullable = (value: string | number | null | undefined, fallback = "-"): string => {
-  if (value === null || value === undefined || value === "") return fallback;
-  return String(value);
-};
-
-const formatCertificateDays = (daysRemaining: number | null | undefined): string => {
-  if (daysRemaining === null || daysRemaining === undefined) return "-";
-  if (daysRemaining < 0) return `期限切れ ${Math.abs(daysRemaining)} 日前`;
-  return `残り ${daysRemaining} 日`;
-};
-
-const formatCertificateDaysCompact = (daysRemaining: number | null | undefined): string => {
-  if (daysRemaining === null || daysRemaining === undefined) return "-";
-  return `${Math.abs(daysRemaining)}日`;
-};
+import { formatNullable } from "../presenters/common";
+import { describeCertificateBadge, describeCheckState } from "../presenters/checks";
 
 const CertificateBadge = ({ check }: { check: ChecksPageData["checks"][number] }) => {
-  if (check.tls_last_error) {
-    return <span class="cert-chip warn">未取得</span>;
-  }
-  if (typeof check.tls_days_remaining === "number" && check.tls_days_remaining <= 30) {
-    return <span class="cert-chip warn">要確認・{formatCertificateDaysCompact(check.tls_days_remaining)}</span>;
-  }
-  if (check.tls_valid_to) {
-    return <span class="cert-chip">OK・{formatCertificateDaysCompact(check.tls_days_remaining)}</span>;
-  }
-  return <span class="cert-chip warn">未取得</span>;
+  const badge = describeCertificateBadge(check);
+  return <span class={badge.className}>{badge.label}</span>;
 };
 
-const StateBadge = ({ enabled, state }: { enabled: number; state: string }) => {
-  if (!enabled) return <span class="status off"><span class="dot"></span>停止中</span>;
-  if (state === "ok") return <span class="status ok"><span class="dot"></span>OK</span>;
-  if (state === "fail") return <span class="status off status-fail"><span class="dot"></span>障害中</span>;
-  return <span class="status off"><span class="dot"></span>未確認</span>;
+const StateBadge = ({ enabled, state }: { enabled: number; state: ChecksPageData["checks"][number]["last_state"] }) => {
+  const badge = describeCheckState(enabled, state);
+  return (
+    <span class={badge.className}>
+      <span class="dot"></span>
+      {badge.label}
+    </span>
+  );
 };
 
 const CertificateDetails = ({ check }: { check: ChecksPageData["checks"][number] }) => (
@@ -97,9 +78,9 @@ const ViewCard = ({
     </td>
     <td class="check-meta-cell">
       <div class="check-meta-value">
-        <CertificateBadge check={check} />
-      </div>
-    </td>
+            <CertificateBadge check={check} />
+          </div>
+        </td>
     <td class="check-actions-cell">
       <a
         id={`check-item-${check.id}-edit`}

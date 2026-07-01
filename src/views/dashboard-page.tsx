@@ -4,27 +4,8 @@ import { AppLayout } from "./app-layout.tsx";
 import { summarizeDashboard, type DashboardData, type IncidentRow } from "../lib/dashboard-data";
 import type { CheckRow } from "../lib/checks";
 import { LocalTime } from "./time.tsx";
-
-const formatNullable = (value: string | number | null | undefined, fallback = "-"): string => {
-  if (value === null || value === undefined || value === "") return fallback;
-  return String(value);
-};
-
-const formatCertificateDays = (daysRemaining: number | null | undefined): string => {
-  if (daysRemaining === null || daysRemaining === undefined) return "-";
-  if (daysRemaining < 0) return `期限切れ ${Math.abs(daysRemaining)} 日前`;
-  return `残り ${daysRemaining} 日`;
-};
-
-const formatDuration = (startedAt: string, resolvedAt: string | null): string => {
-  const start = new Date(startedAt).getTime();
-  const end = resolvedAt ? new Date(resolvedAt).getTime() : Date.now();
-  const minutes = Math.max(0, Math.round((end - start) / 60_000));
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  const remainder = minutes % 60;
-  return remainder === 0 ? `${hours}h` : `${hours}h ${remainder}m`;
-};
+import { formatNullable } from "../presenters/common";
+import { describeRecentCheckState, formatCertificateDays, formatDuration } from "../presenters/dashboard";
 
 const CertificateBadge = ({ check }: { check: CheckRow }) => {
   if (check.tls_last_error) {
@@ -85,15 +66,7 @@ const IncidentCard = ({ incident }: { incident: IncidentRow }) => (
 );
 
 const RecentCheckCard = ({ check }: { check: CheckRow }) => {
-  const stateLabel = !check.enabled ? "停止中" : check.last_state === "ok" ? "OK" : check.last_state === "fail" ? "障害中" : "未確認";
-  const badgeClass =
-    !check.enabled
-      ? "border-white/15 bg-white/8 text-slate-100"
-      : check.last_state === "ok"
-        ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-100"
-        : check.last_state === "fail"
-          ? "border-rose-400/30 bg-rose-500/10 text-rose-100"
-          : "border-white/15 bg-white/8 text-slate-100";
+  const badge = describeRecentCheckState(check);
 
   return (
     <article id={`recent-check-${check.id}`} class="subpanel p-4">
@@ -103,7 +76,7 @@ const RecentCheckCard = ({ check }: { check: CheckRow }) => {
           <p class="mt-1 truncate text-sm text-slate-300">{check.url}</p>
         </div>
         <div class="flex shrink-0 flex-col items-end gap-2">
-          <span class={`rounded-full border px-3 py-1 text-xs font-semibold ${badgeClass}`}>{stateLabel}</span>
+          <span class={`rounded-full border px-3 py-1 text-xs font-semibold ${badge.className}`}>{badge.label}</span>
           <CertificateBadge check={check} />
         </div>
       </div>
