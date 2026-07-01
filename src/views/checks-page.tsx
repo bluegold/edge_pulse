@@ -103,8 +103,8 @@ const ViewCard = ({
     <td class="check-actions-cell">
       <a
         id={`check-item-${check.id}-edit`}
-        href={`/checks?page=${page}&edit=${check.id}`}
-        hx-get={`/checks?page=${page}&edit=${check.id}`}
+        href={`/checks?page=${page}&edit=${check.id}&focus=${check.id}`}
+        hx-get={`/checks?page=${page}&edit=${check.id}&focus=${check.id}`}
         hx-target="#content"
         hx-swap="outerHTML"
         class="glass-button inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-semibold text-slate-100"
@@ -137,8 +137,8 @@ const EditCard = ({ check, page }: { check: ChecksPageData["checks"][number]; pa
               </button>
                 <a
                   id={`check-item-${check.id}-cancel`}
-                  href={`/checks?page=${page}`}
-                  hx-get={`/checks?page=${page}`}
+                href={`/checks?page=${page}&focus=${check.id}`}
+                hx-get={`/checks?page=${page}&focus=${check.id}`}
                   hx-target="#content"
                   hx-swap="outerHTML"
                   class="glass-button inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-semibold text-slate-100"
@@ -333,7 +333,11 @@ const Pagination = ({ page, totalPages, totalChecks }: { page: number; totalPage
 };
 
 const ChecksShell = ({ data }: { data: ChecksPageData }) => (
-  <section id="checks-shell" class="w-full">
+  <section
+    id="checks-shell"
+    class="w-full"
+    data-focus-check-id={String(data.editId ?? data.highlightId ?? "")}
+  >
     <div class="shell">
       <header class="section-head flex flex-col gap-5 px-6 py-6 lg:flex-row lg:items-center lg:justify-between">
         <div>

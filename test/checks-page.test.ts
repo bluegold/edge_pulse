@@ -80,6 +80,7 @@ describe("renderChecksPage", () => {
     expect(html).toContain("width: min(100%, 92rem);");
     expect(html).toContain(":focus-visible");
     expect(html).toContain('id="checks-shell" class="w-full"');
+    expect(html).toContain('data-focus-check-id="2"');
     expect(html).toContain('id="checks-create-toggle"');
     expect(html).toContain('id="checks-create-form"');
     expect(html).toContain('id="checks-create-form-wrap" hidden');
@@ -103,7 +104,7 @@ describe("renderChecksPage", () => {
     expect(html).toContain('hx-post="/checks/2?page=2"');
     expect(html).toContain('hx-target="#content"');
     expect(html).toContain('hx-swap="outerHTML show:top"');
-    expect(html).toContain('hx-get="/checks?page=2&amp;edit=1"');
+    expect(html).toContain('hx-get="/checks?page=2&amp;edit=1&amp;focus=1"');
     expect(html).toContain("一部のシステムで障害を検知しています");
     expect(html).toContain("status-fail");
   });

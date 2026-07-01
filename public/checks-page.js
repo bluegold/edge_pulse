@@ -1,9 +1,41 @@
 (() => {
+  let pendingRow = null;
+
   const getControls = () => ({
     toggle: document.getElementById("checks-create-toggle"),
     panel: document.getElementById("checks-create-form-wrap"),
     close: document.getElementById("checks-create-close"),
   });
+
+  const rememberRowPosition = (target) => {
+    if (!(target instanceof Element)) return;
+    const row = target.closest('tr[id^="check-item-"]');
+    if (!row) return;
+
+    const rect = row.getBoundingClientRect();
+    pendingRow = {
+      id: row.id,
+      top: rect.top,
+    };
+  };
+
+  const restoreRowPosition = () => {
+    if (!pendingRow) return;
+    const row = document.getElementById(pendingRow.id);
+    if (!row) {
+      pendingRow = null;
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      const nextTop = row.getBoundingClientRect().top;
+      const delta = nextTop - pendingRow.top;
+      if (delta !== 0) {
+        window.scrollBy({ top: delta, left: 0 });
+      }
+      pendingRow = null;
+    });
+  };
 
   const syncState = () => {
     const { toggle, panel } = getControls();
@@ -29,6 +61,8 @@
     const target = event.target;
     if (!(target instanceof Element)) return;
 
+    rememberRowPosition(target);
+
     if (target.closest("#checks-create-toggle")) {
       event.preventDefault();
       const { panel } = getControls();
@@ -44,5 +78,6 @@
   });
 
   document.addEventListener("htmx:afterSwap", syncState);
+  document.addEventListener("htmx:afterSwap", restoreRowPosition);
   syncState();
 })();

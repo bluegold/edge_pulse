@@ -682,9 +682,10 @@ app.get("/assets/*", async (c) => {
 app.get("/checks", async (c) => {
   const page = Number(c.req.query("page") ?? "1");
   const editId = c.req.query("edit");
+  const focusId = c.req.query("focus");
   return isHxRequest(c.req.raw)
-    ? renderChecksShellFromDb(c.env, page, editId ? Number(editId) : null)
-    : renderChecksFromDb(c.env, page, editId ? Number(editId) : null);
+    ? renderChecksShellFromDb(c.env, page, editId ? Number(editId) : null, focusId ? Number(focusId) : null)
+    : renderChecksFromDb(c.env, page, editId ? Number(editId) : null, focusId ? Number(focusId) : null);
 });
 app.post("/checks", async (c) => handleCreateCheck(c.req.raw, c.env));
 app.post("/checks/:id", async (c) => handleUpdateCheck(c.req.raw, c.env, Number(c.req.param("id"))));
