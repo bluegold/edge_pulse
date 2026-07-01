@@ -4,6 +4,52 @@ import { getCheckById, insertCheck, loadChecksPageData, updateCheck } from "../s
 import { renderChecksPage, renderChecksShell } from "../views/checks-page.tsx";
 import { isHxRequest, readCheckInputFromRequest, respondHtml, respondJson } from "../http/shared";
 
+const unsupportedContentTypeResponse = () =>
+  respondHtml(
+    `<main id="content" class="p-6 text-sm text-rose-200" role="alert" aria-live="assertive">Unsupported content type</main>`,
+    415,
+  );
+
+const invalidInputResponse = (error: string) =>
+  respondHtml(
+    `<main id="content" class="p-6 text-sm text-rose-200" role="alert" aria-live="assertive">${error}</main>`,
+    400,
+  );
+
+const getPageFromRequest = (request: Request): number => {
+  return Number(new URL(request.url).searchParams.get("page") ?? "1");
+};
+
+const readValidatedCheckInput = async (
+  request: Request,
+): Promise<
+  | { ok: true; input: CheckInput }
+  | { ok: false; response: Response; error: string; status: number }
+> => {
+  const input = await readCheckInputFromRequest(request);
+  if (!input) {
+    return { ok: false, response: unsupportedContentTypeResponse(), error: "unsupported_media_type", status: 415 };
+  }
+
+  const validation = validateCheckInput(input);
+  if (!validation.ok) {
+    return { ok: false, response: invalidInputResponse(validation.error), error: validation.error, status: 400 };
+  }
+
+  return { ok: true, input };
+};
+
+const renderChecksPageResponse = async (
+  request: Request,
+  env: Bindings,
+  page: number,
+  editId: number | null = null,
+  highlightId: number | null = null,
+): Promise<Response> => {
+  const data = await loadChecksPageData(env["pulse-db"], page, editId, highlightId);
+  return isHxRequest(request) ? respondHtml(`<main id="content">${renderChecksShell(data)}</main>`) : renderChecksPage(data);
+};
+
 export const handleChecksRequest = async (
   request: Request,
   env: Bindings,
@@ -11,62 +57,37 @@ export const handleChecksRequest = async (
   editId: number | null = null,
   highlightId: number | null = null,
 ): Promise<Response> => {
-  const data = await loadChecksPageData(env["pulse-db"], page, editId, highlightId);
-  return isHxRequest(request)
-    ? respondHtml(`<main id="content">${renderChecksShell(data)}</main>`)
-    : renderChecksPage(data);
+  return renderChecksPageResponse(request, env, page, editId, highlightId);
 };
 
 export const handleCreateCheck = async (request: Request, env: Bindings): Promise<Response> => {
-  const url = new URL(request.url);
-  const page = Number(url.searchParams.get("page") ?? "1");
-  const input = await readCheckInputFromRequest(request);
-  if (!input) {
-    return respondHtml(
-      `<main id="content" class="p-6 text-sm text-rose-200" role="alert" aria-live="assertive">Unsupported content type</main>`,
-      415,
-    );
+  const page = getPageFromRequest(request);
+  const inputResult = await readValidatedCheckInput(request);
+  if (!inputResult.ok) {
+    return inputResult.response;
   }
-  const validation = validateCheckInput(input);
-  if (!validation.ok) {
-    return respondHtml(
-      `<main id="content" class="p-6 text-sm text-rose-200" role="alert" aria-live="assertive">${validation.error}</main>`,
-      400,
-    );
-  }
+  const input = inputResult.input;
 
   const now = new Date().toISOString();
   await insertCheck(env["pulse-db"], input, now);
-  const data = await loadChecksPageData(env["pulse-db"], page, null, null);
-  return isHxRequest(request) ? respondHtml(`<main id="content">${renderChecksShell(data)}</main>`) : renderChecksPage(data);
+  return renderChecksPageResponse(request, env, page);
 };
 
 export const handleUpdateCheck = async (request: Request, env: Bindings, id: number): Promise<Response> => {
-  const url = new URL(request.url);
-  const page = Number(url.searchParams.get("page") ?? "1");
-  const input = await readCheckInputFromRequest(request);
-  if (!input) {
-    return respondHtml(
-      `<main id="content" class="p-6 text-sm text-rose-200" role="alert" aria-live="assertive">Unsupported content type</main>`,
-      415,
-    );
+  const page = getPageFromRequest(request);
+  const inputResult = await readValidatedCheckInput(request);
+  if (!inputResult.ok) {
+    return inputResult.response;
   }
-  const validation = validateCheckInput(input);
-  if (!validation.ok) {
-    return respondHtml(
-      `<main id="content" class="p-6 text-sm text-rose-200" role="alert" aria-live="assertive">${validation.error}</main>`,
-      400,
-    );
-  }
+  const input = inputResult.input;
 
   const now = new Date().toISOString();
   await updateCheck(env["pulse-db"], id, input, now);
-  const data = await loadChecksPageData(env["pulse-db"], page, null, id);
-  return isHxRequest(request) ? respondHtml(`<main id="content">${renderChecksShell(data)}</main>`) : renderChecksPage(data);
+  return renderChecksPageResponse(request, env, page, null, id);
 };
 
 export const handleApiListChecks = async (env: Bindings, request: Request): Promise<Response> => {
-  const page = Number(new URL(request.url).searchParams.get("page") ?? "1");
+  const page = getPageFromRequest(request);
   const data = await loadChecksPageData(env["pulse-db"], page);
   return respondJson({
     checks: data.checks,
@@ -78,14 +99,11 @@ export const handleApiListChecks = async (env: Bindings, request: Request): Prom
 };
 
 export const handleApiCreateCheck = async (env: Bindings, request: Request): Promise<Response> => {
-  const input = await readCheckInputFromRequest(request);
-  if (!input) {
-    return respondJson({ error: "unsupported_media_type" }, 415);
+  const inputResult = await readValidatedCheckInput(request);
+  if (!inputResult.ok) {
+    return respondJson({ error: inputResult.error }, inputResult.status);
   }
-  const validation = validateCheckInput(input);
-  if (!validation.ok) {
-    return respondJson({ error: validation.error }, 400);
-  }
+  const input = inputResult.input;
 
   const now = new Date().toISOString();
   const id = await insertCheck(env["pulse-db"], input, now);
@@ -94,14 +112,11 @@ export const handleApiCreateCheck = async (env: Bindings, request: Request): Pro
 };
 
 export const handleApiUpdateCheck = async (env: Bindings, id: number, request: Request): Promise<Response> => {
-  const input = await readCheckInputFromRequest(request);
-  if (!input) {
-    return respondJson({ error: "unsupported_media_type" }, 415);
+  const inputResult = await readValidatedCheckInput(request);
+  if (!inputResult.ok) {
+    return respondJson({ error: inputResult.error }, inputResult.status);
   }
-  const validation = validateCheckInput(input);
-  if (!validation.ok) {
-    return respondJson({ error: validation.error }, 400);
-  }
+  const input = inputResult.input;
 
   const now = new Date().toISOString();
   await updateCheck(env["pulse-db"], id, input, now);
