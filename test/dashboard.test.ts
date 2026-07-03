@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { renderDashboardPage, type DashboardData } from "../src/views/dashboard-page.tsx";
+import type { CloudflareAccessIdentity } from "../src/http/shared";
 
 const dashboardData: DashboardData = {
   checks: [
@@ -148,6 +149,24 @@ describe("renderDashboardPage", () => {
     expect(html).toContain('id="incident-history-panel"');
     expect(html).toContain('id="incident-history-list"');
     expect(html).not.toContain('id="checks-create-form"');
+  });
+
+  it("renders access identity in the topbar when provided", async () => {
+    const accessIdentity: CloudflareAccessIdentity = {
+      displayName: "Kaneko",
+      email: "kaneko@example.com",
+      audience: "edge-pulse-dashboard",
+      subject: "user-123",
+    };
+
+    const response = await renderDashboardPage(dashboardData, accessIdentity);
+    const html = await response.text();
+
+    expect(html).toContain('id="topbar-theme-button"');
+    expect(html).toContain("USER");
+    expect(html).toContain("Kaneko / kaneko@example.com");
+    expect(html).toContain("AUD");
+    expect(html).toContain("edge-pulse-dashboard");
   });
 
   it("renders the active incident count when incidents are present", async () => {

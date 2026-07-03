@@ -68,21 +68,6 @@ const IncidentCard = ({ incident }: { incident: IncidentRow }) => (
   </div>
 );
 
-const AccessIdentityChip = ({
-  label,
-  value,
-  monospace = false,
-}: {
-  label: string;
-  value: string;
-  monospace?: boolean;
-}) => (
-  <div class="glass-button min-w-0 rounded-md px-4 py-3 text-left text-slate-100">
-    <p class="text-[11px] font-bold uppercase tracking-[0.24em] text-sky-300">{label}</p>
-    <p class={`mt-1 truncate text-sm font-semibold ${monospace ? "font-mono" : ""}`}>{value}</p>
-  </div>
-);
-
 const RecentCheckCard = ({ check }: { check: CheckRow }) => {
   const badge = describeRecentCheckState(check);
 
@@ -181,7 +166,7 @@ const IncidentHistoryRow = ({ incident }: { incident: DashboardData["recentIncid
   </tr>
 );
 
-const DashboardShell = ({ data, accessIdentity }: { data: DashboardData; accessIdentity: CloudflareAccessIdentity | null }) => {
+const DashboardShell = ({ data }: { data: DashboardData }) => {
   const summary = summarizeDashboard(data.checks, data.recentIncidents);
   const recentChecks = data.recentChecks;
   const hasCurrentIncidents = data.currentIncidents.length > 0;
@@ -199,9 +184,6 @@ const DashboardShell = ({ data, accessIdentity }: { data: DashboardData; accessI
       <path d="m20 6-11 11-5-5" />
     </svg>
   );
-  const accessUserLabel = accessIdentity ? accessIdentity.displayName : "local dev";
-  const accessUserValue = accessIdentity?.email ?? accessIdentity?.subject ?? "no access token";
-  const accessAudienceValue = accessIdentity?.audience ?? "-";
 
   return (
     <section id="dashboard-shell" class="w-full">
@@ -213,10 +195,6 @@ const DashboardShell = ({ data, accessIdentity }: { data: DashboardData; accessI
             <p class="mt-3 max-w-2xl text-sm text-slate-300">D1 を唯一の状態保存先として、現在状態・障害・直近の追加情報だけを表示します。</p>
           </div>
           <div class="flex flex-wrap items-center gap-3">
-            <div class="grid gap-2 sm:grid-cols-2">
-              <AccessIdentityChip label="USER" value={`${accessUserLabel} / ${accessUserValue}`} />
-              <AccessIdentityChip label="AUD" value={accessAudienceValue} monospace />
-            </div>
             <button
               id="dashboard-auto-reload-toggle"
               type="button"
@@ -445,13 +423,13 @@ const DashboardDocument = ({ data, accessIdentity }: { data: DashboardData; acce
     title="Edge Pulse"
     activeHref="/"
     footerStatus={data.currentIncidents.length > 0 || data.checks.some((check) => check.enabled === 1 && check.last_state === "fail") ? "degraded" : "healthy"}
+    accessIdentity={accessIdentity}
   >
-    <DashboardShell data={data} accessIdentity={accessIdentity} />
+    <DashboardShell data={data} />
   </AppLayout>
 );
 
-export const renderDashboardShell = (data: DashboardData, accessIdentity: CloudflareAccessIdentity | null = null): string =>
-  renderToString(<DashboardShell data={data} accessIdentity={accessIdentity} />);
+export const renderDashboardShell = (data: DashboardData): string => renderToString(<DashboardShell data={data} />);
 
 export const renderDashboardPage = (data: DashboardData, accessIdentity: CloudflareAccessIdentity | null = null): Response =>
   new Response(renderToString(<DashboardDocument data={data} accessIdentity={accessIdentity} />), {

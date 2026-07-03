@@ -1,13 +1,22 @@
 import type { Child } from "hono/jsx";
+import type { CloudflareAccessIdentity } from "../http/shared";
 
 type AppLayoutProps = {
   title: string;
   activeHref: "/" | "/checks";
   footerStatus: "healthy" | "degraded";
+  accessIdentity?: CloudflareAccessIdentity | null;
   children: Child;
 };
 
-export const AppLayout = ({ title, activeHref, footerStatus, children }: AppLayoutProps) => (
+const AccessBadge = ({ label, value }: { label: string; value: string }) => (
+  <div class="hidden min-w-0 rounded-md border border-slate-700/70 bg-slate-950/60 px-3 py-2 text-left sm:block">
+    <p class="text-[10px] font-black uppercase tracking-[0.28em] text-sky-300">{label}</p>
+    <p class="mt-0.5 truncate text-xs font-semibold text-slate-100">{value}</p>
+  </div>
+);
+
+export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, children }: AppLayoutProps) => (
   <html lang="ja">
     <head>
       <meta charSet="utf-8" />
@@ -807,6 +816,12 @@ export const AppLayout = ({ title, activeHref, footerStatus, children }: AppLayo
               >監視一覧</a>
             </nav>
             <span class="hidden h-8 w-px bg-slate-700/70 sm:block"></span>
+            {accessIdentity ? (
+              <div class="hidden items-center gap-3 lg:flex">
+                <AccessBadge label="USER" value={`${accessIdentity.displayName} / ${accessIdentity.email ?? accessIdentity.subject ?? "unknown"}`} />
+                <AccessBadge label="AUD" value={accessIdentity.audience ?? "-"} />
+              </div>
+            ) : null}
             <button id="topbar-notify-button" class="icon-button" aria-label="通知">
               <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
             </button>
