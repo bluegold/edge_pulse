@@ -819,7 +819,6 @@ export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, chi
             {accessIdentity ? (
               <div class="hidden items-center gap-3 lg:flex">
                 <AccessBadge label="USER" value={`${accessIdentity.displayName} / ${accessIdentity.email ?? accessIdentity.subject ?? "unknown"}`} />
-                <AccessBadge label="AUD" value={accessIdentity.audience ?? "-"} />
               </div>
             ) : null}
             <button id="topbar-notify-button" class="icon-button" aria-label="通知">

@@ -290,7 +290,7 @@ describe("cloudflare access gate", () => {
     expect(response.status).toBe(200);
   });
 
-  it("renders the access user info and audience on the dashboard", async () => {
+  it("renders the access user info on the dashboard", async () => {
     const { token, jwk } = await createAccessToken();
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(JSON.stringify({ keys: [jwk] }), {
@@ -315,8 +315,6 @@ describe("cloudflare access gate", () => {
     const html = await response.text();
     expect(html).toContain("USER");
     expect(html).toContain("Kaneko / kaneko@example.com");
-    expect(html).toContain("AUD");
-    expect(html).toContain("edge-pulse-dashboard");
   });
 });
 
