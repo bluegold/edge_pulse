@@ -132,6 +132,11 @@ describe("renderDashboardPage", () => {
     expect(html).toContain("Cloudflare Workers の可用性を、シンプルに・確実に。");
     expect(html).toContain("すべてのシステムは正常です");
     expect(html).toContain('id="summary-total-checks"');
+    expect(html).toContain('href="/checks"');
+    expect(html).toContain('href="/checks?filter=%28%26%28enabled%3D1%29%28last_state%3Dok%29%29"');
+    expect(html).toContain('href="/checks?filter=%28%26%28enabled%3D1%29%28last_state%3Dfail%29%29"');
+    expect(html).toContain('href="/checks?filter=%28%26%28enabled%3D1%29%28cert_expiring_soon%3D1%29%29"');
+    expect(html).toContain('href="/checks?filter=%28recent_incident_24h%3D1%29"');
     expect(html).toContain('id="summary-cert-expiring"');
     expect(html).toContain('id="current-incidents-panel"');
     expect(html).toContain('id="current-incidents-list"');

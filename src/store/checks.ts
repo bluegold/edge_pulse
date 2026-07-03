@@ -1,5 +1,11 @@
 import type { D1Database } from "../lib/cloudflare";
 import type { CheckInput, CheckRow } from "../lib/checks";
+import {
+  buildCheckSearchAttributes,
+  evaluateCheckSearchFilter,
+  matchesCheckTextQuery,
+  parseCheckSearchFilter,
+} from "../lib/checks-search";
 
 export type ChecksPageData = {
   checks: CheckRow[];
@@ -9,6 +15,9 @@ export type ChecksPageData = {
   totalPages: number;
   editId: number | null;
   highlightId: number | null;
+  q: string;
+  filter: string;
+  searchError: string | null;
   generatedAt: string;
 };
 
@@ -83,34 +92,79 @@ export const loadChecksPageData = async (
   page: number,
   editId: number | null = null,
   highlightId: number | null = null,
+  q = "",
+  filter = "",
 ): Promise<ChecksPageData> => {
   const pageSize = 20;
-  const totalRow = await db.prepare(`SELECT COUNT(*) AS count FROM checks`).first<{ count: number }>();
-  const totalChecks = totalRow?.count ?? 0;
+  const normalizedQuery = q.trim();
+  const normalizedFilter = filter.trim();
+  const dayAgo = new Date(Date.now() - 24 * 60 * 60_000).toISOString();
+
+  const [checksResult, recentIncidentResult] = await Promise.all([
+    db
+      .prepare(
+        `
+        SELECT *
+        FROM checks
+        ORDER BY created_at DESC, id DESC
+      `,
+      )
+      .all<CheckRow>(),
+    db
+      .prepare(
+        `
+        SELECT check_id
+        FROM incidents
+        WHERE started_at >= ?
+      `,
+      )
+      .bind(dayAgo)
+      .all<{ check_id: number }>(),
+  ]);
+
+  const recentIncidentCheckIds = new Set(recentIncidentResult.results.map((row) => row.check_id));
+  let filterAst = null;
+  let searchError: string | null = null;
+
+  if (normalizedFilter) {
+    try {
+      filterAst = parseCheckSearchFilter(normalizedFilter);
+    } catch (error) {
+      searchError = error instanceof Error ? error.message : "filter の形式が不正です";
+    }
+  }
+
+  const filteredChecks = searchError
+    ? []
+    : checksResult.results.filter((check) => {
+        if (!matchesCheckTextQuery(check, normalizedQuery)) {
+          return false;
+        }
+
+        if (!filterAst) {
+          return true;
+        }
+
+        return evaluateCheckSearchFilter(filterAst, buildCheckSearchAttributes(check, recentIncidentCheckIds.has(check.id)));
+      });
+
+  const totalChecks = filteredChecks.length;
   const totalPages = Math.max(1, Math.ceil(totalChecks / pageSize));
   const currentPage = Math.min(normalizePage(page), totalPages);
   const offset = (currentPage - 1) * pageSize;
-
-  const checks = await db
-    .prepare(
-      `
-      SELECT *
-      FROM checks
-      ORDER BY created_at DESC, id DESC
-      LIMIT ? OFFSET ?
-    `,
-    )
-    .bind(pageSize, offset)
-    .all<CheckRow>();
+  const checks = filteredChecks.slice(offset, offset + pageSize);
 
   return {
-    checks: checks.results,
+    checks,
     page: currentPage,
     pageSize,
     totalChecks,
     totalPages,
     editId,
     highlightId,
+    q: normalizedQuery,
+    filter: normalizedFilter,
+    searchError,
     generatedAt: new Date().toISOString(),
   };
 };

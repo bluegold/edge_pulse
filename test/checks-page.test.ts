@@ -62,6 +62,9 @@ const checksPageData: ChecksPageData = {
   totalPages: 3,
   editId: 2,
   highlightId: 1,
+  q: "",
+  filter: "",
+  searchError: null,
   generatedAt: "2026-06-22T00:00:00.000Z",
 };
 
@@ -83,6 +86,16 @@ describe("renderChecksPage", () => {
     expect(html).toContain('id="checks-shell" class="w-full"');
     expect(html).toContain('data-focus-check-id="2"');
     expect(html).toContain('id="checks-create-toggle"');
+    expect(html).toContain('id="checks-search-form"');
+    expect(html).toContain('name="q"');
+    expect(html).toContain('name="filter"');
+    expect(html).toContain('checks-search-cell');
+    expect(html).toContain('>稼働中<');
+    expect(html).toContain('>障害中<');
+    expect(html).toContain('>証明書30日以内<');
+    expect(html).toContain('>24h障害件数<');
+    expect(html).not.toContain('id="checks-search-submit"');
+    expect(html).not.toContain('id="checks-search-reset"');
     expect(html).toContain('id="checks-create-form"');
     expect(html).toContain('id="checks-create-form-wrap" hidden');
     expect(html).toContain('<script id="checks-page-controls" src="/assets/checks-page.js" defer=""></script>');
@@ -103,9 +116,11 @@ describe("renderChecksPage", () => {
     expect(html).toContain('id="checks-pagination-next"');
     expect(html).toContain('2 / 3');
     expect(html).toContain('hx-post="/checks/2?page=2"');
+    expect(html).toContain('hx-post="/checks/2?page=2"');
     expect(html).toContain('hx-target="#content"');
     expect(html).toContain('hx-swap="outerHTML show:top"');
     expect(html).toContain('hx-get="/checks?page=2&amp;edit=1&amp;focus=1"');
+    expect(html).toContain('href="/checks?page=1"');
     expect(html).toContain("一部のシステムで障害を検知しています");
     expect(html).toContain("status-fail");
   });

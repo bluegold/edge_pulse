@@ -222,12 +222,32 @@ export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, chi
           border-bottom: 1px solid rgba(148, 163, 184, 0.12);
           background: rgba(148, 163, 184, 0.08);
         }
+        .checks-summary-strip {
+          grid-template-columns: repeat(5, minmax(0, 1fr));
+        }
+        .checks-search-cell {
+          grid-column: span 2;
+        }
+        @media (max-width: 1024px) {
+          .checks-summary-strip {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+          }
+          .checks-search-cell {
+            grid-column: 1 / -1;
+          }
+        }
         @media (max-width: 760px) {
           .summary-strip { grid-template-columns: 1fr; }
         }
         .summary-cell {
           background: rgba(2, 8, 23, 0.28);
           padding: 1rem 1.4rem;
+        }
+        .summary-metric {
+          display: flex;
+          min-height: 100%;
+          flex-direction: column;
+          justify-content: space-between;
         }
         .summary-cell dt {
           font-size: 0.78rem;
@@ -238,6 +258,7 @@ export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, chi
           margin: 0.25rem 0 0;
           font-size: 1.35rem;
           font-weight: 900;
+          text-align: right;
         }
         .panel {
           position: relative;
@@ -792,7 +813,7 @@ export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, chi
       <a id="skip-link" href="#content" class="skip-link">メインコンテンツへスキップ</a>
       <header class="topbar sticky top-0 z-50 w-full">
         <div class="mx-auto flex max-w-[92rem] items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-          <div class="flex items-center gap-4">
+          <a href="/" aria-label="Edge Pulse ホーム" class="flex items-center gap-4 text-inherit no-underline">
             <div class="brand-mark" aria-hidden="true">
               <svg viewBox="0 0 48 48" class="h-8 w-8" fill="none"><path d="M5 25h8l4-13 9 25 6-17h11" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </div>
@@ -800,15 +821,9 @@ export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, chi
               <p class="text-xs font-bold uppercase tracking-[0.32em] text-sky-300">Cloudflare Workers uptime monitor</p>
               <h1 class="mt-0.5 text-3xl font-black tracking-tight text-slate-50">Edge Pulse</h1>
             </div>
-          </div>
+          </a>
           <div class="flex items-center gap-3">
             <nav class="hidden items-center gap-2 sm:flex" aria-label="Primary">
-              <a
-                id="nav-home-link"
-                href="/"
-                aria-current={activeHref === "/" ? "page" : undefined}
-                class="nav-link text-sm"
-              >概要</a>
               <a
                 id="nav-checks-link"
                 href="/checks"

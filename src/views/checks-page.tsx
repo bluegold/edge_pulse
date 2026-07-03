@@ -1,6 +1,7 @@
 import { renderToString } from "hono/jsx/dom/server";
 import { AppLayout } from "./app-layout.tsx";
 import type { ChecksPageData as ChecksPageDataType } from "../store/checks";
+import { buildChecksUrl } from "../lib/checks-search";
 import { LocalTime } from "./time.tsx";
 import { formatNullable } from "../presenters/common";
 import { describeCertificateBadge, describeCheckState } from "../presenters/checks";
@@ -31,13 +32,64 @@ const CertificateDetails = ({ check }: { check: ChecksPageData["checks"][number]
   </div>
 );
 
+const SearchPanel = ({ q, filter, searchError }: { q: string; filter: string; searchError: string | null }) => (
+  <div class="summary-cell checks-search-cell min-w-0">
+    <form
+      id="checks-search-form"
+      class="grid gap-3"
+      action="/checks"
+      method="get"
+      hx-get="/checks"
+      hx-trigger="submit, change from:select"
+      hx-target="#content"
+      hx-swap="outerHTML show:top"
+    >
+      <p class="text-sm font-bold tracking-wide text-slate-200">検索</p>
+      <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <input
+          name="q"
+          value={q}
+          placeholder="name, url, state..."
+          class="glass-input w-full rounded-md px-3 py-2 text-slate-100 placeholder:text-slate-400"
+        />
+        <select name="filter" class="glass-input min-w-0 rounded-md px-3 py-2 text-slate-100">
+          <option value="" selected={filter === ""}>
+            すべて
+          </option>
+          <option value="(&(enabled=1)(last_state=ok))" selected={filter === "(&(enabled=1)(last_state=ok))"}>
+            稼働中
+          </option>
+          <option value="(&(enabled=1)(last_state=fail))" selected={filter === "(&(enabled=1)(last_state=fail))"}>
+            障害中
+          </option>
+          <option value="(&(enabled=1)(cert_expiring_soon=1))" selected={filter === "(&(enabled=1)(cert_expiring_soon=1))"}>
+            証明書30日以内
+          </option>
+          <option value="(recent_incident_24h=1)" selected={filter === "(recent_incident_24h=1)"}>
+            24h障害件数
+          </option>
+        </select>
+      </div>
+      {searchError ? (
+        <p id="checks-search-error" class="rounded-md border border-amber-400/20 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+          {searchError}
+        </p>
+      ) : null}
+    </form>
+  </div>
+);
+
 const ViewCard = ({
   check,
   page,
+  q,
+  filter,
   highlighted,
 }: {
   check: ChecksPageData["checks"][number];
   page: number;
+  q: string;
+  filter: string;
   highlighted: boolean;
 }) => (
   <tr id={`check-item-${check.id}`} class={`check-row ${check.enabled ? "" : "off"} ${highlighted ? "check-row-highlight" : ""}`}>
@@ -86,8 +138,8 @@ const ViewCard = ({
     <td class="check-actions-cell">
       <a
         id={`check-item-${check.id}-edit`}
-        href={`/checks?page=${page}&edit=${check.id}&focus=${check.id}`}
-        hx-get={`/checks?page=${page}&edit=${check.id}&focus=${check.id}`}
+        href={buildChecksUrl({ page, edit: check.id, focus: check.id, q, filter })}
+        hx-get={buildChecksUrl({ page, edit: check.id, focus: check.id, q, filter })}
         hx-target="#content"
         hx-swap="outerHTML"
         class="glass-button inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-semibold text-slate-100"
@@ -98,13 +150,23 @@ const ViewCard = ({
   </tr>
 );
 
-const EditCard = ({ check, page }: { check: ChecksPageData["checks"][number]; page: number }) => (
+const EditCard = ({
+  check,
+  page,
+  q,
+  filter,
+}: {
+  check: ChecksPageData["checks"][number];
+  page: number;
+  q: string;
+  filter: string;
+}) => (
   <tr id={`check-item-${check.id}`} class="check-row check-row-edit">
     <td colSpan={7} class="check-edit-cell">
       <form
         id={`check-item-${check.id}-form`}
         class="check-edit-form"
-        hx-post={`/checks/${check.id}?page=${page}`}
+        hx-post={buildChecksUrl({ page, q, filter }).replace("/checks", `/checks/${check.id}`)}
         hx-target="#content"
         hx-swap="outerHTML"
       >
@@ -118,16 +180,16 @@ const EditCard = ({ check, page }: { check: ChecksPageData["checks"][number]; pa
               <button id={`check-item-${check.id}-save`} class="glass-button inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-semibold text-slate-100">
                 保存
               </button>
-                <a
-                  id={`check-item-${check.id}-cancel`}
-                href={`/checks?page=${page}&focus=${check.id}`}
-                hx-get={`/checks?page=${page}&focus=${check.id}`}
-                  hx-target="#content"
-                  hx-swap="outerHTML"
-                  class="glass-button inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-semibold text-slate-100"
-                >
-                  キャンセル
-                </a>
+              <a
+                id={`check-item-${check.id}-cancel`}
+                href={buildChecksUrl({ page, focus: check.id, q, filter })}
+                hx-get={buildChecksUrl({ page, focus: check.id, q, filter })}
+                hx-target="#content"
+                hx-swap="outerHTML"
+                class="glass-button inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-semibold text-slate-100"
+              >
+                キャンセル
+              </a>
             </div>
           </div>
 
@@ -203,12 +265,12 @@ const EditCard = ({ check, page }: { check: ChecksPageData["checks"][number]; pa
   </tr>
 );
 
-const CreateForm = ({ page }: { page: number }) => (
+const CreateForm = ({ page, q, filter }: { page: number; q: string; filter: string }) => (
   <div id="checks-create-form-wrap" hidden>
     <form
       id="checks-create-form"
       class="table-wrap mt-4 grid gap-3 p-4"
-      hx-post={`/checks?page=${page}`}
+      hx-post={buildChecksUrl({ page, q, filter })}
       hx-target="#content"
       hx-swap="outerHTML show:top"
     >
@@ -259,7 +321,19 @@ const CreateForm = ({ page }: { page: number }) => (
   </div>
 );
 
-const Pagination = ({ page, totalPages, totalChecks }: { page: number; totalPages: number; totalChecks: number }) => {
+const Pagination = ({
+  page,
+  totalPages,
+  totalChecks,
+  q,
+  filter,
+}: {
+  page: number;
+  totalPages: number;
+  totalChecks: number;
+  q: string;
+  filter: string;
+}) => {
   const prevPage = Math.max(1, page - 1);
   const nextPage = Math.min(totalPages, page + 1);
   const hasPrev = page > 1;
@@ -277,8 +351,8 @@ const Pagination = ({ page, totalPages, totalChecks }: { page: number; totalPage
           {hasPrev ? (
             <a
               id="checks-pagination-prev"
-              href={`/checks?page=${prevPage}`}
-              hx-get={`/checks?page=${prevPage}`}
+              href={buildChecksUrl({ page: prevPage, q, filter })}
+              hx-get={buildChecksUrl({ page: prevPage, q, filter })}
               hx-target="#content"
               hx-swap="outerHTML show:top"
               class="glass-button inline-flex items-center rounded-md px-4 py-3 text-sm font-semibold text-slate-100"
@@ -296,8 +370,8 @@ const Pagination = ({ page, totalPages, totalChecks }: { page: number; totalPage
           {hasNext ? (
             <a
               id="checks-pagination-next"
-              href={`/checks?page=${nextPage}`}
-              hx-get={`/checks?page=${nextPage}`}
+              href={buildChecksUrl({ page: nextPage, q, filter })}
+              hx-get={buildChecksUrl({ page: nextPage, q, filter })}
               hx-target="#content"
               hx-swap="outerHTML show:top"
               class="glass-button inline-flex items-center rounded-md px-4 py-3 text-sm font-semibold text-slate-100"
@@ -339,19 +413,26 @@ const ChecksShell = ({ data }: { data: ChecksPageData }) => (
         </button>
       </header>
 
-      <div class="summary-strip" aria-label="監視対象の概要">
+      <div class="summary-strip checks-summary-strip" aria-label="監視対象の概要">
         <div class="summary-cell">
-          <dt>登録数</dt>
-          <dd>{data.totalChecks} 件</dd>
+          <div class="summary-metric">
+            <dt>登録数</dt>
+            <dd>{data.totalChecks} 件</dd>
+          </div>
         </div>
         <div class="summary-cell">
-          <dt>稼働中</dt>
-          <dd><span class="text-emerald-300">{data.checks.filter((check) => check.enabled && check.last_state === "ok").length}</span> / {data.totalChecks}</dd>
+          <div class="summary-metric">
+            <dt>稼働中</dt>
+            <dd><span class="text-emerald-300">{data.checks.filter((check) => check.enabled && check.last_state === "ok").length}</span> / {data.totalChecks}</dd>
+          </div>
         </div>
         <div class="summary-cell">
-          <dt>停止中</dt>
-          <dd>{data.checks.filter((check) => !check.enabled).length}</dd>
+          <div class="summary-metric">
+            <dt>停止中</dt>
+            <dd>{data.checks.filter((check) => !check.enabled).length}</dd>
+          </div>
         </div>
+        <SearchPanel q={data.q} filter={data.filter} searchError={data.searchError} />
       </div>
 
       <section id="checks-list-panel" class="panel m-2">
@@ -363,7 +444,7 @@ const ChecksShell = ({ data }: { data: ChecksPageData }) => (
             </div>
             <span class="count-badge">{data.totalChecks} 件</span>
           </div>
-          <CreateForm page={data.page} />
+          <CreateForm page={data.page} q={data.q} filter={data.filter} />
           <div id="checks-list" class="mt-4 overflow-x-auto">
             {data.checks.length > 0 ? (
               <table class="checks-table">
@@ -390,9 +471,9 @@ const ChecksShell = ({ data }: { data: ChecksPageData }) => (
                 <tbody>
                   {data.checks.map((check) =>
                     data.editId === check.id ? (
-                      <EditCard check={check} page={data.page} />
+                      <EditCard check={check} page={data.page} q={data.q} filter={data.filter} />
                     ) : (
-                      <ViewCard check={check} page={data.page} highlighted={data.highlightId === check.id} />
+                      <ViewCard check={check} page={data.page} q={data.q} filter={data.filter} highlighted={data.highlightId === check.id} />
                     ),
                   )}
                 </tbody>
@@ -412,7 +493,7 @@ const ChecksShell = ({ data }: { data: ChecksPageData }) => (
         </div>
       </section>
       <div class="px-2 pb-2">
-        <Pagination page={data.page} totalPages={data.totalPages} totalChecks={data.totalChecks} />
+        <Pagination page={data.page} totalPages={data.totalPages} totalChecks={data.totalChecks} q={data.q} filter={data.filter} />
       </div>
     </div>
   </section>

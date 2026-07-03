@@ -3,6 +3,7 @@ import { renderToString } from "hono/jsx/dom/server";
 import { AppLayout } from "./app-layout.tsx";
 import { summarizeDashboard, type DashboardData as DashboardDataType, type IncidentRow } from "../store/dashboard";
 import type { CheckRow } from "../lib/checks";
+import { buildChecksUrl } from "../lib/checks-search";
 import { LocalTime } from "./time.tsx";
 import { formatNullable } from "../presenters/common";
 import { describeRecentCheckState, formatCertificateDays, formatDuration } from "../presenters/dashboard";
@@ -29,13 +30,28 @@ const SummaryCard = ({
   value,
   tone = "default",
   icon,
+  href,
 }: {
   id: string;
   label: string;
   value: string | number | null;
   tone?: "default" | "danger";
   icon: Child;
-}) => (
+  href?: string;
+}) => (href ? (
+  <a id={id} href={href} class={`metric-card block ${tone === "danger" ? "danger" : ""} p-5`}>
+      <div class="flex h-full flex-col justify-between gap-4">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <p class="text-sm font-bold tracking-wide text-slate-200">{label}</p>
+            <p class="mt-2 text-right text-4xl font-black tracking-tight text-slate-50">{formatNullable(value)}</p>
+          </div>
+          <span class="metric-icon grid h-12 w-12 place-items-center rounded-md border border-white/10 bg-white/5 text-sky-200">{icon}</span>
+        </div>
+      {tone === "danger" ? <div class="flatline" aria-hidden="true" /> : <div class="sparkline" aria-hidden="true" />}
+    </div>
+  </a>
+) : (
   <div id={id} class={`metric-card ${tone === "danger" ? "danger" : ""} p-5`}>
       <div class="flex h-full flex-col justify-between gap-4">
         <div class="flex items-start justify-between gap-3">
@@ -48,7 +64,7 @@ const SummaryCard = ({
       {tone === "danger" ? <div class="flatline" aria-hidden="true" /> : <div class="sparkline" aria-hidden="true" />}
     </div>
   </div>
-);
+));
 
 const IncidentCard = ({ incident }: { incident: IncidentRow }) => (
   <div id={`current-incident-${incident.id}`} class="border border-rose-400/20 bg-rose-950/25 p-4">
@@ -228,12 +244,14 @@ const DashboardShell = ({ data }: { data: DashboardData }) => {
             id="summary-total-checks"
             label="監視URL"
             value={summary.totalChecks}
+            href={buildChecksUrl({})}
             icon={<svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>}
           />
           <SummaryCard
             id="summary-ok-checks"
             label="稼働中"
             value={summary.okChecks}
+            href={buildChecksUrl({ filter: "(&(enabled=1)(last_state=ok))" })}
             icon={<svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="m20 6-11 11-5-5"/></svg>}
           />
           <SummaryCard
@@ -241,12 +259,14 @@ const DashboardShell = ({ data }: { data: DashboardData }) => {
             label="障害中"
             value={summary.failedChecks}
             tone="danger"
+            href={buildChecksUrl({ filter: "(&(enabled=1)(last_state=fail))" })}
             icon={<svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12"/><path d="M18 6 6 18"/></svg>}
           />
           <SummaryCard
             id="summary-cert-expiring"
             label="証明書30日以内"
             value={summary.certExpiringSoonChecks}
+            href={buildChecksUrl({ filter: "(&(enabled=1)(cert_expiring_soon=1))" })}
             icon={<svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18"/><path d="M5 8h14"/><path d="M7 16h10"/></svg>}
           />
           <SummaryCard
@@ -254,6 +274,7 @@ const DashboardShell = ({ data }: { data: DashboardData }) => {
             label="24h障害件数"
             value={data.incidents24h}
             tone="danger"
+            href={buildChecksUrl({ filter: "(recent_incident_24h=1)" })}
             icon={<svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4"/><path d="M12 16h.01"/><path d="m10.29 3.86-8.1 14.06A2 2 0 0 0 4.03 21h15.94a2 2 0 0 0 1.84-3.08l-8.1-14.06a2 2 0 0 0-3.42 0Z"/></svg>}
           />
           <SummaryCard
