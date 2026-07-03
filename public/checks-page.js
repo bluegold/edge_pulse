@@ -12,6 +12,8 @@
     const row = target.closest('tr[id^="check-item-"]');
     if (!row) return;
 
+    if (!target.closest("[id^='check-item-']")) return;
+
     const rect = row.getBoundingClientRect();
     pendingRow = {
       id: row.id,
@@ -35,6 +37,13 @@
       }
       pendingRow = null;
     });
+  };
+
+  const resetScrollTop = () => {
+    if (pendingRow) return;
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    window.scrollTo({ top: 0, left: 0, behavior: "auto" });
   };
 
   const syncState = () => {
@@ -78,6 +87,7 @@
   });
 
   document.addEventListener("htmx:afterSwap", syncState);
+  document.addEventListener("htmx:beforeSwap", resetScrollTop);
   document.addEventListener("htmx:afterSwap", restoreRowPosition);
   syncState();
 })();

@@ -42,7 +42,7 @@ const SearchPanel = ({ q, filter, searchError }: { q: string; filter: string; se
       hx-get="/checks"
       hx-trigger="submit, change from:select"
       hx-target="#content"
-      hx-swap="outerHTML show:top"
+      hx-swap="outerHTML"
     >
       <p class="text-sm font-bold tracking-wide text-slate-200">検索</p>
       <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -272,7 +272,7 @@ const CreateForm = ({ page, q, filter }: { page: number; q: string; filter: stri
       class="table-wrap mt-4 grid gap-3 p-4"
       hx-post={buildChecksUrl({ page, q, filter })}
       hx-target="#content"
-      hx-swap="outerHTML show:top"
+      hx-swap="outerHTML"
     >
       <div class="create-form-top">
         <div class="create-block">
@@ -354,7 +354,7 @@ const Pagination = ({
               href={buildChecksUrl({ page: prevPage, q, filter })}
               hx-get={buildChecksUrl({ page: prevPage, q, filter })}
               hx-target="#content"
-              hx-swap="outerHTML show:top"
+              hx-swap="outerHTML"
               class="glass-button inline-flex items-center rounded-md px-4 py-3 text-sm font-semibold text-slate-100"
             >
               前へ
@@ -373,7 +373,7 @@ const Pagination = ({
               href={buildChecksUrl({ page: nextPage, q, filter })}
               hx-get={buildChecksUrl({ page: nextPage, q, filter })}
               hx-target="#content"
-              hx-swap="outerHTML show:top"
+              hx-swap="outerHTML"
               class="glass-button inline-flex items-center rounded-md px-4 py-3 text-sm font-semibold text-slate-100"
             >
               次へ

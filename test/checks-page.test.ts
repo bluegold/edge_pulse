@@ -118,7 +118,7 @@ describe("renderChecksPage", () => {
     expect(html).toContain('hx-post="/checks/2?page=2"');
     expect(html).toContain('hx-post="/checks/2?page=2"');
     expect(html).toContain('hx-target="#content"');
-    expect(html).toContain('hx-swap="outerHTML show:top"');
+    expect(html).toContain('hx-swap="outerHTML"');
     expect(html).toContain('hx-get="/checks?page=2&amp;edit=1&amp;focus=1"');
     expect(html).toContain('href="/checks?page=1"');
     expect(html).toContain("一部のシステムで障害を検知しています");

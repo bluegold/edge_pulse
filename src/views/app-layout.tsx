@@ -6,6 +6,7 @@ type AppLayoutProps = {
   activeHref: "/" | "/checks";
   footerStatus: "healthy" | "degraded";
   accessIdentity?: CloudflareAccessIdentity | null;
+  resetScrollOnLoad?: boolean;
   children: Child;
 };
 
@@ -16,13 +17,16 @@ const AccessBadge = ({ label, value }: { label: string; value: string }) => (
   </div>
 );
 
-export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, children }: AppLayoutProps) => (
+export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, resetScrollOnLoad = false, children }: AppLayoutProps) => (
   <html lang="ja">
     <head>
       <meta charSet="utf-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1" />
       <title>{title}</title>
       <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+      {resetScrollOnLoad ? (
+        <script>{`history.scrollRestoration = "manual"; window.scrollTo({ top: 0, left: 0, behavior: "auto" });`}</script>
+      ) : null}
       <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
       <script src="https://unpkg.com/htmx.org@1.9.12"></script>
       <style>{`
@@ -809,7 +813,7 @@ export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, chi
         }
       `}</style>
     </head>
-    <body class="flex min-h-screen flex-col text-slate-100" hx-boost="true" hx-target="#content" hx-swap="outerHTML show:top">
+    <body class="flex min-h-screen flex-col text-slate-100" hx-boost="true" hx-target="#content" hx-swap="outerHTML">
       <a id="skip-link" href="#content" class="skip-link">メインコンテンツへスキップ</a>
       <header class="topbar sticky top-0 z-50 w-full">
         <div class="mx-auto flex max-w-[92rem] items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">

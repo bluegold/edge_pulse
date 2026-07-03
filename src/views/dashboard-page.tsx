@@ -445,6 +445,7 @@ const DashboardDocument = ({ data, accessIdentity }: { data: DashboardData; acce
     activeHref="/"
     footerStatus={data.currentIncidents.length > 0 || data.checks.some((check) => check.enabled === 1 && check.last_state === "fail") ? "degraded" : "healthy"}
     accessIdentity={accessIdentity}
+    resetScrollOnLoad={true}
   >
     <DashboardShell data={data} />
   </AppLayout>
