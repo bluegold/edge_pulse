@@ -63,6 +63,10 @@
 			"* * * * *"
 		]
 	},
+  "vars": {
+    "CF_ACCESS_TEAM_DOMAIN": "tkaneko188.cloudflareaccess.com",
+    "CF_ACCESS_AUDIENCE": ""
+  },
 	"observability": {
 		"enabled": true,
 		"head_sampling_rate": 1,

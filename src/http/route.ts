@@ -9,7 +9,19 @@ import {
   handleUpdateCheck,
 } from "../controllers/checks";
 import { handleDashboardRequest } from "../controllers/dashboard";
-import { requireApiToken } from "./shared";
+import { requireApiToken, requireCloudflareAccess } from "./shared";
+
+app.use("*", async (c, next) => {
+  if (c.req.path.startsWith("/api/")) {
+    await next();
+    return;
+  }
+
+  const accessCheck = await requireCloudflareAccess(c.req.raw, c.env);
+  if (accessCheck) return accessCheck;
+
+  await next();
+});
 
 app.use("/api/*", async (c, next) => {
   const tokenCheck = await requireApiToken(c.req.raw, c.env);

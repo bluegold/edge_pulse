@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@cloudflare/containers", () => ({
   Container: class {},
@@ -142,12 +142,76 @@ const makeEnv = (state: MockState) => ({
     },
   },
   ADMIN_API_TOKEN: "secret-token",
+  CF_ACCESS_TEAM_DOMAIN: "edge-pulse.cloudflareaccess.com",
+  CF_ACCESS_AUDIENCE: "edge-pulse-dashboard",
+});
+
+const base64UrlEncode = (input: ArrayBuffer | Uint8Array | string): string => {
+  const bytes =
+    typeof input === "string" ? new TextEncoder().encode(input) : input instanceof Uint8Array ? input : new Uint8Array(input);
+
+  return Buffer.from(bytes)
+    .toString("base64")
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replaceAll("=", "");
+};
+
+const createAccessToken = async (kid = "test-key-1"): Promise<{ token: string; jwk: JsonWebKey }> => {
+  const keyPair = await crypto.subtle.generateKey(
+    {
+      name: "RSASSA-PKCS1-v1_5",
+      modulusLength: 2048,
+      publicExponent: new Uint8Array([1, 0, 1]),
+      hash: "SHA-256",
+    },
+    true,
+    ["sign", "verify"],
+  );
+
+  const jwk = await crypto.subtle.exportKey("jwk", keyPair.publicKey);
+  const header = {
+    alg: "RS256",
+    typ: "JWT",
+    kid,
+  };
+  const payload = {
+    aud: "edge-pulse-dashboard",
+    iss: "https://edge-pulse.cloudflareaccess.com",
+    exp: Math.floor(Date.now() / 1000) + 300,
+    nbf: Math.floor(Date.now() / 1000) - 30,
+    email: "kaneko@example.com",
+    name: "Kaneko",
+  };
+
+  const encodedHeader = base64UrlEncode(JSON.stringify(header));
+  const encodedPayload = base64UrlEncode(JSON.stringify(payload));
+  const signingInput = `${encodedHeader}.${encodedPayload}`;
+  const signature = await crypto.subtle.sign(
+    "RSASSA-PKCS1-v1_5",
+    keyPair.privateKey,
+    new TextEncoder().encode(signingInput),
+  );
+
+  return {
+    token: `${signingInput}.${base64UrlEncode(signature)}`,
+    jwk: {
+      ...jwk,
+      kid,
+      alg: "RS256",
+      use: "sig",
+    },
+  };
+};
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 describe("api auth", () => {
   it("rejects requests without a bearer token", async () => {
     const response = await app.request(
-      "http://localhost/api/checks",
+      "https://edge-pulse.example.com/api/checks",
       {
         method: "GET",
       },
@@ -155,6 +219,104 @@ describe("api auth", () => {
     );
 
     expect(response.status).toBe(401);
+  });
+});
+
+describe("cloudflare access gate", () => {
+  it("blocks non-api routes on non-local hosts without access headers", async () => {
+    const response = await app.request(
+      "https://edge-pulse.example.com/assets/auto-reload.js",
+      {
+        method: "GET",
+      },
+      makeEnv({ checks: [], nextId: 1 }),
+    );
+
+    expect(response.status).toBe(403);
+  });
+
+  it("allows non-api routes when a cloudflare access assertion is valid", async () => {
+    const { token, jwk } = await createAccessToken();
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ keys: [jwk] }), {
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+        },
+      }),
+    );
+
+    const response = await app.request(
+      "https://edge-pulse.example.com/assets/auto-reload.js",
+      {
+        method: "GET",
+        headers: {
+          "cf-access-jwt-assertion": token,
+        },
+      },
+      makeEnv({ checks: [], nextId: 1 }),
+    );
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(response.status).toBe(200);
+  });
+
+  it("allows non-api routes when the access audience is empty and the signature is valid", async () => {
+    const { token, jwk } = await createAccessToken();
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ keys: [jwk] }), {
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+        },
+      }),
+    );
+
+    const response = await app.request(
+      "https://edge-pulse.example.com/assets/auto-reload.js",
+      {
+        method: "GET",
+        headers: {
+          "cf-access-jwt-assertion": token,
+        },
+      },
+      {
+        ...makeEnv({ checks: [], nextId: 1 }),
+        CF_ACCESS_AUDIENCE: "",
+      },
+    );
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(response.status).toBe(200);
+  });
+
+  it("renders the access user info and audience on the dashboard", async () => {
+    const { token, jwk } = await createAccessToken();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ keys: [jwk] }), {
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+        },
+      }),
+    );
+
+    const response = await app.request(
+      "https://edge-pulse.example.com/",
+      {
+        method: "GET",
+        headers: {
+          "cf-access-jwt-assertion": token,
+        },
+      },
+      makeEnv({ checks: [], nextId: 1 }),
+    );
+
+    const html = await response.text();
+    expect(html).toContain("USER");
+    expect(html).toContain("Kaneko / kaneko@example.com");
+    expect(html).toContain("AUD");
+    expect(html).toContain("edge-pulse-dashboard");
   });
 });
 

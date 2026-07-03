@@ -9,4 +9,6 @@ export type Bindings = {
   CERT_PROBE_CONTAINER?: DurableObjectNamespace<CertProbeContainer>;
   ASSETS: import("./cloudflare").Fetcher;
   ADMIN_API_TOKEN: string;
+  CF_ACCESS_TEAM_DOMAIN?: string;
+  CF_ACCESS_AUDIENCE?: string;
 };

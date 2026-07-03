@@ -11,5 +11,7 @@ declare global {
       import("./lib/cert-probe-container").CertProbeContainer
     >;
     ADMIN_API_TOKEN: string;
+    CF_ACCESS_TEAM_DOMAIN?: string;
+    CF_ACCESS_AUDIENCE?: string;
   }
 }
