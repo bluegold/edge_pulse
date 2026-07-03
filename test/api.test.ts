@@ -314,7 +314,7 @@ describe("cloudflare access gate", () => {
 
     const html = await response.text();
     expect(html).toContain("USER");
-    expect(html).toContain("Kaneko / kaneko@example.com");
+    expect(html).toContain("kaneko@example.com");
   });
 });
 

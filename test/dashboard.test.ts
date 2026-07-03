@@ -164,7 +164,7 @@ describe("renderDashboardPage", () => {
 
     expect(html).toContain('id="topbar-theme-button"');
     expect(html).toContain("USER");
-    expect(html).toContain("Kaneko / kaneko@example.com");
+    expect(html).toContain("kaneko@example.com");
   });
 
   it("renders the active incident count when incidents are present", async () => {
