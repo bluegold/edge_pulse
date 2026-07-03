@@ -74,6 +74,7 @@ describe("renderChecksPage", () => {
 
     const html = await response.text();
     expect(html).toContain("監視一覧と編集");
+    expect(html).toContain('rel="icon" href="/assets/favicon.svg" type="image/svg+xml"');
     expect(html).toContain('href="#content" class="skip-link"');
     expect(html).toContain('id="content"');
     expect(html).toContain("#content {");

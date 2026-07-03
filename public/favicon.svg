@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-label="Edge Pulse">
+  <defs>
+    <linearGradient id="bg" x1="6" y1="6" x2="42" y2="42" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#020617"/>
+    </linearGradient>
+  </defs>
+  <rect x="1.5" y="1.5" width="45" height="45" rx="11" fill="url(#bg)" stroke="rgba(56,189,248,0.65)" stroke-width="1.5"/>
+  <path d="M5 25h8l4-13 9 25 6-17h11" fill="none" stroke="#38bdf8" stroke-linecap="round" stroke-linejoin="round" stroke-opacity=".95" stroke-width="4"/>
+</svg>

@@ -110,6 +110,7 @@ describe("renderDashboardPage", () => {
 
     const html = await response.text();
     expect(html).toContain("Edge Pulse");
+    expect(html).toContain('rel="icon" href="/assets/favicon.svg" type="image/svg+xml"');
     expect(html).toContain("api&lt;&amp;&gt;&#39;");
     expect(html).toContain('href="#content" class="skip-link"');
     expect(html).toContain("sticky top-0 z-50 w-full");
