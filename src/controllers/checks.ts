@@ -1,7 +1,9 @@
 import type { Bindings } from "../lib/bindings";
 import { validateCheckInput, type CheckInput } from "../lib/checks";
 import { getCheckById, insertCheck, loadChecksPageData, updateCheck } from "../store/checks";
+import { loadCheckDetailData } from "../store/check-detail";
 import { renderChecksPage, renderChecksShell } from "../views/checks-page.tsx";
+import { renderCheckDetailPage, renderCheckDetailShell } from "../views/check-detail-page.tsx";
 import { isHxRequest, readCheckInputFromRequest, respondHtml, respondJson } from "../http/shared";
 
 const unsupportedContentTypeResponse = () =>
@@ -14,6 +16,12 @@ const invalidInputResponse = (error: string) =>
   respondHtml(
     `<main id="content" class="p-6 text-sm text-rose-200" role="alert" aria-live="assertive">${error}</main>`,
     400,
+  );
+
+const notFoundResponse = () =>
+  respondHtml(
+    `<main id="content" class="p-6 text-sm text-rose-200" role="alert" aria-live="assertive">not_found</main>`,
+    404,
   );
 
 const getPageFromRequest = (request: Request): number => {
@@ -69,6 +77,15 @@ export const handleChecksRequest = async (
 ): Promise<Response> => {
   const { q, filter } = getSearchParamsFromRequest(request);
   return renderChecksPageResponse(request, env, page, editId, highlightId, q, filter);
+};
+
+export const handleCheckDetailRequest = async (request: Request, env: Bindings, id: number): Promise<Response> => {
+  const data = await loadCheckDetailData(env["pulse-db"], id);
+  if (!data) {
+    return notFoundResponse();
+  }
+
+  return isHxRequest(request) ? respondHtml(`<main id="content">${renderCheckDetailShell(data)}</main>`) : renderCheckDetailPage(data);
 };
 
 export const handleCreateCheck = async (request: Request, env: Bindings): Promise<Response> => {

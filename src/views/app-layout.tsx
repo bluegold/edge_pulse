@@ -203,6 +203,105 @@ export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, res
           opacity: 0.7;
           cursor: not-allowed;
         }
+        .graph-shell {
+          position: relative;
+        }
+        .graph-frame {
+          position: relative;
+          min-height: 18rem;
+          overflow: hidden;
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          border-radius: 0.75rem;
+          background: linear-gradient(180deg, rgba(8, 19, 38, 0.82), rgba(8, 19, 38, 0.58));
+        }
+        .graph-empty {
+          display: grid;
+          place-items: center;
+          min-height: 18rem;
+          padding: 1rem;
+          text-align: center;
+        }
+        .graph-svg {
+          display: block;
+          width: 100%;
+          height: 18rem;
+          overflow: visible;
+        }
+        .graph-axis path,
+        .graph-axis line {
+          stroke: rgba(148, 163, 184, 0.24);
+        }
+        .graph-grid line {
+          stroke: rgba(148, 163, 184, 0.12);
+        }
+        .graph-series {
+          fill: none;
+          stroke-width: 2.5;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+        }
+        .graph-series.is-fail {
+          stroke: rgba(248, 113, 113, 0.95);
+        }
+        .graph-series.is-ok {
+          stroke: rgba(125, 211, 252, 0.95);
+        }
+        .graph-point {
+          cursor: pointer;
+        }
+        .graph-point.is-fail {
+          fill: rgba(248, 113, 113, 1);
+          stroke: rgba(255, 255, 255, 0.7);
+        }
+        .graph-point.is-ok {
+          fill: rgba(125, 211, 252, 1);
+          stroke: rgba(255, 255, 255, 0.65);
+        }
+        .graph-hit {
+          fill: transparent;
+          cursor: pointer;
+        }
+        .graph-tooltip {
+          position: absolute;
+          z-index: 2;
+          min-width: 14rem;
+          max-width: 18rem;
+          pointer-events: none;
+          border: 1px solid rgba(148, 163, 184, 0.22);
+          border-radius: 0.65rem;
+          background: rgba(2, 8, 23, 0.96);
+          padding: 0.65rem 0.75rem;
+          box-shadow: 0 18px 42px rgba(0, 0, 0, 0.35);
+          font-size: 0.78rem;
+          color: #e2e8f0;
+          opacity: 0;
+          transform: translateY(4px);
+          transition: opacity 120ms ease, transform 120ms ease;
+        }
+        .graph-tooltip.is-visible {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        .graph-tooltip .graph-tooltip-title {
+          display: flex;
+          justify-content: space-between;
+          gap: 0.5rem;
+          font-weight: 800;
+          margin-bottom: 0.45rem;
+        }
+        .graph-tooltip .graph-tooltip-row {
+          display: flex;
+          justify-content: space-between;
+          gap: 0.75rem;
+          margin-top: 0.25rem;
+        }
+        .graph-tooltip .graph-tooltip-key {
+          color: #94a3b8;
+        }
+        .graph-tooltip .graph-tooltip-value {
+          text-align: right;
+          font-variant-numeric: tabular-nums;
+        }
         .shell {
           position: relative;
           border: 1px solid rgba(56, 189, 248, 0.23);
@@ -853,6 +952,7 @@ export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, res
       <main id="content">{children}</main>
       <script src="/assets/auto-reload.js" defer></script>
       <script id="checks-page-controls" src="/assets/checks-page.js" defer></script>
+      <script type="module" src="/assets/check-detail-graphs.js" defer></script>
       <footer class="footerbar mt-auto w-full">
         <div class="mx-auto flex max-w-[92rem] flex-col gap-3 px-4 py-4 text-sm text-slate-300 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
           <div class="flex items-center gap-4">

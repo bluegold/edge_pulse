@@ -95,7 +95,11 @@ const ViewCard = ({
   <tr id={`check-item-${check.id}`} class={`check-row ${check.enabled ? "" : "off"} ${highlighted ? "check-row-highlight" : ""}`}>
     <th scope="row" class="check-main-cell">
       <div class="flex flex-wrap items-center gap-2">
-        <h3 class="check-name truncate">{check.name}</h3>
+        <h3 class="check-name truncate">
+          <a href={`/checks/${check.id}`} class="hover:underline">
+            {check.name}
+          </a>
+        </h3>
         <StateBadge enabled={check.enabled} state={check.last_state} />
       </div>
       <p class="check-url">{check.url}</p>
@@ -132,9 +136,9 @@ const ViewCard = ({
     </td>
     <td class="check-meta-cell">
       <div class="check-meta-value">
-            <CertificateBadge check={check} />
-          </div>
-        </td>
+        <CertificateBadge check={check} />
+      </div>
+    </td>
     <td class="check-actions-cell">
       <a
         id={`check-item-${check.id}-edit`}

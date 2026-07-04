@@ -104,6 +104,7 @@ describe("renderChecksPage", () => {
     expect(html).toContain('data-utc-time="2026-06-22T00:00:00.000Z"');
     expect(html).toContain("<time");
     expect(html).toContain('id="check-item-1"');
+    expect(html).toContain('href="/checks/1"');
     expect(html).toContain('id="check-item-1-edit"');
     expect(html).toContain('id="check-item-2"');
     expect(html).toContain('id="check-item-2-save"');
