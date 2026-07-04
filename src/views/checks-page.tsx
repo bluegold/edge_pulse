@@ -32,6 +32,8 @@ const CertificateDetails = ({ check }: { check: ChecksPageData["checks"][number]
   </div>
 );
 
+const HX_SWAP_NO_SCROLL = "outerHTML show:none";
+
 const SearchPanel = ({ q, filter, searchError }: { q: string; filter: string; searchError: string | null }) => (
   <div class="summary-cell checks-search-cell min-w-0">
     <form
@@ -42,7 +44,7 @@ const SearchPanel = ({ q, filter, searchError }: { q: string; filter: string; se
       hx-get="/checks"
       hx-trigger="submit, change from:select"
       hx-target="#content"
-      hx-swap="outerHTML"
+      hx-swap={HX_SWAP_NO_SCROLL}
     >
       <p class="text-sm font-bold tracking-wide text-slate-200">検索</p>
       <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -145,7 +147,7 @@ const ViewCard = ({
         href={buildChecksUrl({ page, edit: check.id, focus: check.id, q, filter })}
         hx-get={buildChecksUrl({ page, edit: check.id, focus: check.id, q, filter })}
         hx-target="#content"
-        hx-swap="outerHTML"
+        hx-swap={HX_SWAP_NO_SCROLL}
         class="glass-button inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-semibold text-slate-100"
       >
         編集
@@ -172,7 +174,7 @@ const EditCard = ({
         class="check-edit-form"
         hx-post={buildChecksUrl({ page, q, filter }).replace("/checks", `/checks/${check.id}`)}
         hx-target="#content"
-        hx-swap="outerHTML"
+        hx-swap={HX_SWAP_NO_SCROLL}
       >
         <div class="check-edit-card">
           <div class="flex flex-wrap items-center justify-between gap-3">
@@ -189,7 +191,7 @@ const EditCard = ({
                 href={buildChecksUrl({ page, focus: check.id, q, filter })}
                 hx-get={buildChecksUrl({ page, focus: check.id, q, filter })}
                 hx-target="#content"
-                hx-swap="outerHTML"
+                hx-swap={HX_SWAP_NO_SCROLL}
                 class="glass-button inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-semibold text-slate-100"
               >
                 キャンセル
@@ -276,7 +278,7 @@ const CreateForm = ({ page, q, filter }: { page: number; q: string; filter: stri
       class="table-wrap mt-4 grid gap-3 p-4"
       hx-post={buildChecksUrl({ page, q, filter })}
       hx-target="#content"
-      hx-swap="outerHTML"
+      hx-swap={HX_SWAP_NO_SCROLL}
     >
       <div class="create-form-top">
         <div class="create-block">
@@ -358,7 +360,7 @@ const Pagination = ({
               href={buildChecksUrl({ page: prevPage, q, filter })}
               hx-get={buildChecksUrl({ page: prevPage, q, filter })}
               hx-target="#content"
-              hx-swap="outerHTML"
+              hx-swap={HX_SWAP_NO_SCROLL}
               class="glass-button inline-flex items-center rounded-md px-4 py-3 text-sm font-semibold text-slate-100"
             >
               前へ
@@ -377,7 +379,7 @@ const Pagination = ({
               href={buildChecksUrl({ page: nextPage, q, filter })}
               hx-get={buildChecksUrl({ page: nextPage, q, filter })}
               hx-target="#content"
-              hx-swap="outerHTML"
+              hx-swap={HX_SWAP_NO_SCROLL}
               class="glass-button inline-flex items-center rounded-md px-4 py-3 text-sm font-semibold text-slate-100"
             >
               次へ

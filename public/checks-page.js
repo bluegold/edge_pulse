@@ -12,6 +12,18 @@
     const row = target.closest('tr[id^="check-item-"]');
     if (!row) return;
 
+    const detailLink = target.closest('a[href^="/checks/"]');
+    if (detailLink) {
+      try {
+        const url = new URL(detailLink.getAttribute("href") || "", window.location.href);
+        if (/^\/checks\/\d+$/.test(url.pathname) && !url.search && !url.hash) {
+          return;
+        }
+      } catch {
+        // fall through and remember the row
+      }
+    }
+
     if (!target.closest("[id^='check-item-']")) return;
 
     const rect = row.getBoundingClientRect();
@@ -86,8 +98,8 @@
     }
   });
 
-  document.addEventListener("htmx:afterSwap", syncState);
   document.addEventListener("htmx:beforeSwap", resetScrollTop);
+  document.addEventListener("htmx:afterSwap", syncState);
   document.addEventListener("htmx:afterSwap", restoreRowPosition);
   syncState();
 })();
