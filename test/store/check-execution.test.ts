@@ -92,11 +92,44 @@ describe("check execution store", () => {
       error: null,
       reason: "http_ok",
       checkedAt: "2026-06-22T00:11:00.000Z",
+      xRuntimeMs: 980,
+      serverTiming: [
+        {
+          name: "total",
+          description: "UsersController#index",
+          durationMs: 17.167,
+          parameters: {
+            desc: "UsersController#index",
+            dur: 17.167,
+          },
+        },
+      ],
     });
 
     await persistCheckResult(db, check, result, null);
 
-    expect(statements.some((entry) => entry.sql.startsWith("INSERT INTO check_results"))).toBe(true);
+    const insertStatement = statements.find((entry) => entry.sql.startsWith("INSERT INTO check_results"));
+    expect(insertStatement?.params).toEqual([
+      1,
+      "ok",
+      200,
+      20,
+      null,
+      980,
+      JSON.stringify([
+        {
+          name: "total",
+          description: "UsersController#index",
+          durationMs: 17.167,
+          parameters: {
+            desc: "UsersController#index",
+            dur: 17.167,
+          },
+        },
+      ]),
+      "2026-06-22T00:11:00.000Z",
+    ]);
+    expect(insertStatement).toBeDefined();
     expect(statements.some((entry) => entry.sql.startsWith("UPDATE checks"))).toBe(true);
     expect(statements.some((entry) => entry.sql.startsWith("INSERT INTO incidents"))).toBe(false);
     expect(statements.some((entry) => entry.sql.startsWith("INSERT INTO status_events"))).toBe(false);

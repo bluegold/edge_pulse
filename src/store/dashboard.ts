@@ -25,6 +25,8 @@ export type CheckResultRow = {
   status_code: number | null;
   latency_ms: number | null;
   error: string | null;
+  x_runtime_ms?: number | null;
+  server_timing_json?: string | null;
   checked_at: string;
 };
 

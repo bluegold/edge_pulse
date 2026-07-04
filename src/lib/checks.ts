@@ -1,3 +1,5 @@
+import type { ServerTimingEntry } from "./http-timing";
+
 export type CheckState = "unknown" | "ok" | "fail";
 
 export type CheckJob = {
@@ -13,6 +15,8 @@ export type CheckResult = {
   error: string | null;
   reason: string | null;
   checkedAt: string;
+  xRuntimeMs?: number | null;
+  serverTiming?: ServerTimingEntry[] | null;
 };
 
 export type CertificateSnapshot = {
@@ -216,6 +220,8 @@ export const buildCheckResult = (
     error: string | null;
     reason: string | null;
     checkedAt: string;
+    xRuntimeMs?: number | null;
+    serverTiming?: ServerTimingEntry[] | null;
   },
 ): CheckResult => ({
   state: params.state,
@@ -224,6 +230,8 @@ export const buildCheckResult = (
   error: params.error,
   reason: params.reason,
   checkedAt: params.checkedAt,
+  xRuntimeMs: params.xRuntimeMs ?? null,
+  serverTiming: params.serverTiming ?? null,
 });
 
 export const evaluateTransition = (

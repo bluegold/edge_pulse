@@ -58,11 +58,22 @@ export const persistCheckResult = async (
     db
       .prepare(
         `
-        INSERT INTO check_results (check_id, state, status_code, latency_ms, error, checked_at)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO check_results (
+          check_id, state, status_code, latency_ms, error, x_runtime_ms, server_timing_json, checked_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `,
       )
-      .bind(check.id, result.state, result.statusCode, result.latencyMs, result.error, result.checkedAt),
+      .bind(
+        check.id,
+        result.state,
+        result.statusCode,
+        result.latencyMs,
+        result.error,
+        result.xRuntimeMs ?? null,
+        result.serverTiming ? JSON.stringify(result.serverTiming) : null,
+        result.checkedAt,
+      ),
     db
       .prepare(
         `

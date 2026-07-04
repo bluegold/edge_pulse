@@ -6,6 +6,7 @@ import {
   validateMonitorUrl,
   type CheckJob,
 } from "../lib/checks";
+import { parseServerTimingHeader, resolveXRuntimeMs } from "../lib/http-timing";
 import { shouldProbeCertificateSnapshot } from "../lib/cert-probe";
 import type { ScheduledController } from "../lib/cloudflare";
 import {
@@ -73,6 +74,7 @@ export const runCheck = async (env: Bindings, job: CheckJob): Promise<void> => {
   const resultReason = certificateAlert?.reason ?? responseReason;
   const resultError =
     certificateAlert?.error ?? (response?.status === 526 ? "invalid SSL certificate" : response ? null : error ?? "request failed");
+  const serverTiming = parseServerTimingHeader(response?.headers.get("server-timing"));
 
   const result = buildCheckResult({
     state: shouldFail ? "fail" : "ok",
@@ -81,6 +83,8 @@ export const runCheck = async (env: Bindings, job: CheckJob): Promise<void> => {
     error: resultError,
     reason: resultReason,
     checkedAt,
+    serverTiming,
+    xRuntimeMs: resolveXRuntimeMs(response?.headers.get("x-runtime"), serverTiming),
   });
 
   await persistCheckResult(env["pulse-db"], check, result, certificate);

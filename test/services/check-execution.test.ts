@@ -132,4 +132,110 @@ describe("check execution service", () => {
     });
     expect(statements.some((entry) => entry.sql.startsWith("UPDATE checks"))).toBe(true);
   });
+
+  it("parses runtime headers into the persisted check result", async () => {
+    storeMocks.getCheckForExecution.mockResolvedValue(baseCheck);
+    storeMocks.getLatestRecoveryAt.mockResolvedValue(null);
+    storeMocks.persistCheckResult.mockResolvedValue(undefined);
+    certMocks.probeCertificateSnapshot.mockResolvedValue(null);
+    certMocks.describeCertificateAlert.mockReturnValue(null);
+
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("ok", {
+        status: 200,
+        headers: {
+          "X-Runtime": "0.98",
+          "Server-Timing": 'total;desc="UsersController#index";dur=17.167, db;dur=0.5440000677481294',
+        },
+      }),
+    );
+
+    await runCheck(
+      {
+        "pulse-db": {} as never,
+      } as never,
+      {
+        checkId: 1,
+        scheduledAt: "2026-06-22T00:00:00.000Z",
+        attemptId: "attempt-1",
+      },
+    );
+
+    expect(storeMocks.persistCheckResult).toHaveBeenCalledTimes(1);
+    const [, , resultArg] = storeMocks.persistCheckResult.mock.calls[0] ?? [];
+    expect(resultArg).toMatchObject({
+      xRuntimeMs: 980,
+      serverTiming: [
+        {
+          name: "total",
+          description: "UsersController#index",
+          durationMs: 17.167,
+          parameters: {
+            desc: "UsersController#index",
+            dur: 17.167,
+          },
+        },
+        {
+          name: "db",
+          description: null,
+          durationMs: 0.5440000677481294,
+          parameters: {
+            dur: 0.5440000677481294,
+          },
+        },
+      ],
+    });
+  });
+
+  it("falls back to server timing when x-runtime is missing", async () => {
+    storeMocks.getCheckForExecution.mockResolvedValue(baseCheck);
+    storeMocks.getLatestRecoveryAt.mockResolvedValue(null);
+    storeMocks.persistCheckResult.mockResolvedValue(undefined);
+    certMocks.probeCertificateSnapshot.mockResolvedValue(null);
+    certMocks.describeCertificateAlert.mockReturnValue(null);
+
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("ok", {
+        status: 200,
+        headers: {
+          "Server-Timing": 'total;desc="UsersController#index";dur=17.167, db;dur=0.5440000677481294',
+        },
+      }),
+    );
+
+    await runCheck(
+      {
+        "pulse-db": {} as never,
+      } as never,
+      {
+        checkId: 1,
+        scheduledAt: "2026-06-22T00:00:00.000Z",
+        attemptId: "attempt-1",
+      },
+    );
+
+    const [, , resultArg] = storeMocks.persistCheckResult.mock.calls[0] ?? [];
+    expect(resultArg).toMatchObject({
+      xRuntimeMs: 17.167,
+      serverTiming: [
+        {
+          name: "total",
+          description: "UsersController#index",
+          durationMs: 17.167,
+          parameters: {
+            desc: "UsersController#index",
+            dur: 17.167,
+          },
+        },
+        {
+          name: "db",
+          description: null,
+          durationMs: 0.5440000677481294,
+          parameters: {
+            dur: 0.5440000677481294,
+          },
+        },
+      ],
+    });
+  });
 });

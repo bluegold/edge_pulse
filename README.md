@@ -200,6 +200,8 @@ CREATE TABLE check_results (
   status_code INTEGER,
   latency_ms INTEGER,
   error TEXT,
+  x_runtime_ms REAL,
+  server_timing_json TEXT,
   checked_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
   FOREIGN KEY (check_id) REFERENCES checks(id)
