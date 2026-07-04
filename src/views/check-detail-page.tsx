@@ -31,6 +31,12 @@ const formatPercent = (value: number | null | undefined): string => {
   return `${value.toFixed(1)}%`;
 };
 
+const extractIssuerCn = (value: string | null | undefined): string => {
+  if (!value) return "-";
+  const match = value.match(/(?:^|,)\s*CN=([^,]+)/i);
+  return match?.[1]?.trim() || value;
+};
+
 const parseServerTimingSummary = (value: string | null | undefined): string => {
   if (!value) return "-";
 
@@ -140,7 +146,6 @@ const GraphCard = ({
       </div>
       <div class="graph-tooltip" data-role="graph-tooltip" hidden></div>
     </div>
-    <p class="mt-2 text-xs text-slate-400">赤い点が障害時刻です。ホバーで status, latency, runtime を確認できます。</p>
   </figure>
 );
 
@@ -224,7 +229,7 @@ const GraphSection = ({ data }: { data: CheckDetailData }) => {
   const runtimePoints = buildGraphPoints(data.recentResults);
 
   return (
-    <DetailCard id="check-graphs">
+    <DetailCard id="check-graphs" padded={false}>
       <div class="grid gap-4 xl:grid-cols-2">
         <GraphCard title="遅延の推移" metric="latency" points={latencyPoints} emptyLabel="遅延データがまだありません。" />
         <GraphCard title="X-Runtime の推移" metric="runtime" points={runtimePoints} emptyLabel="X-Runtime データがまだありません。" />
@@ -235,51 +240,42 @@ const GraphSection = ({ data }: { data: CheckDetailData }) => {
 
 const CertificateSection = ({ data }: { data: CheckDetailData }) => {
   const badge = describeCertificateBadge(data.check);
+  const issuerCn = extractIssuerCn(data.check.tls_issuer);
+  const issuerTitle = data.check.tls_issuer ?? "-";
   return (
     <DetailCard title="証明書情報" id="check-certificate">
-      <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <MetricBox label="残日数" value={formatNullable(data.check.tls_days_remaining)} />
-        <MetricBox label="証明書" value={badge.label} tone={data.check.tls_last_error ? "warn" : "ok"} />
-        <div>
-          <dt class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">最終確認</dt>
-          <dd class="mt-1 text-base font-semibold text-slate-50">
-            {data.check.tls_last_checked_at ? <LocalTime iso={data.check.tls_last_checked_at} class="whitespace-nowrap" /> : "-"}
+      <div class="grid gap-4 xl:grid-cols-3">
+        <div class="rounded-md border border-white/10 bg-white/5 p-4">
+          <dt class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">有効期限</dt>
+          <dd class="mt-1 text-right text-2xl font-black tracking-tight text-slate-50">
+            {data.check.tls_valid_to ? <LocalTime iso={data.check.tls_valid_to} class="whitespace-nowrap" /> : "-"}
           </dd>
         </div>
-        <div>
-          <dt class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">有効期間</dt>
-          <dd class="mt-1 text-base font-semibold text-slate-50">
-            {data.check.tls_valid_from && data.check.tls_valid_to ? (
-              <>
-                <LocalTime iso={data.check.tls_valid_from} class="whitespace-nowrap" /> 〜 <LocalTime iso={data.check.tls_valid_to} class="whitespace-nowrap" />
-              </>
-            ) : (
-              "-"
-            )}
+        <div class="rounded-md border border-white/10 bg-white/5 p-4">
+          <dt class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Issuer CN</dt>
+          <dd class="mt-1 text-right text-lg font-semibold text-slate-50">
+            <span title={issuerTitle} class="block truncate">
+              {issuerCn}
+            </span>
           </dd>
         </div>
-        <div>
-          <dt class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Subject</dt>
-          <dd class="mt-1 break-words text-base font-semibold text-slate-50">{data.check.tls_subject ?? "-"}</dd>
-        </div>
-        <div>
-          <dt class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Issuer</dt>
-          <dd class="mt-1 break-words text-base font-semibold text-slate-50">{data.check.tls_issuer ?? "-"}</dd>
-        </div>
-        <div>
-          <dt class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Key class</dt>
-          <dd class="mt-1 text-base font-semibold text-slate-50">{data.check.tls_public_key_class ?? "-"}</dd>
-        </div>
-        <div class="sm:col-span-2 xl:col-span-3">
-          <dt class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">DNS names</dt>
-          <dd class="mt-1 text-base font-semibold text-slate-50">
-            {data.check.tls_dns_names ?? "-"}
+        <div class="rounded-md border border-white/10 bg-white/5 p-4">
+          <dt class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">最終チェック日時・結果</dt>
+          <dd class="mt-1 text-right text-base font-semibold text-slate-50">
+            <div class="flex flex-col items-end gap-2">
+              <span class="whitespace-nowrap">
+                {data.check.tls_last_checked_at ? <LocalTime iso={data.check.tls_last_checked_at} class="whitespace-nowrap" /> : "-"}
+              </span>
+              <span class={badge.className}>{badge.label}</span>
+            </div>
           </dd>
         </div>
-        <div class="sm:col-span-2 xl:col-span-3">
-          <dt class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Error</dt>
-          <dd class="mt-1 text-base font-semibold text-slate-50">{data.check.tls_last_error ?? "-"}</dd>
-        </div>
+        {data.check.tls_last_error ? (
+          <div class="xl:col-span-3 rounded-md border border-rose-400/20 bg-rose-500/8 p-4">
+            <dt class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">エラー</dt>
+            <dd class="mt-1 break-words text-base font-semibold text-rose-100">{data.check.tls_last_error}</dd>
+          </div>
+        ) : null}
       </div>
     </DetailCard>
   );

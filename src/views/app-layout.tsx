@@ -912,7 +912,7 @@ export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, res
         }
       `}</style>
     </head>
-    <body class="flex min-h-screen flex-col text-slate-100" hx-boost="true" hx-target="#content" hx-swap="outerHTML">
+    <body class="flex min-h-screen flex-col text-slate-100" hx-boost="true" hx-target="#content" hx-swap="outerHTML show:none">
       <a id="skip-link" href="#content" class="skip-link">メインコンテンツへスキップ</a>
       <header class="topbar sticky top-0 z-50 w-full">
         <div class="mx-auto flex max-w-[92rem] items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">

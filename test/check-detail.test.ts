@@ -170,7 +170,6 @@ describe("check detail", () => {
 
     expect(html).toContain("24h 障害");
     expect(html).toContain("過去24H");
-    expect(html).toContain("赤い点が障害時刻です。");
     expect(html).toContain("証明書情報");
     expect(html).toContain("状態遷移イベント");
     expect(html).toContain("incident 履歴");

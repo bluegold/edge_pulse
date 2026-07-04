@@ -432,8 +432,6 @@ const DashboardShell = ({ data }: { data: DashboardData }) => {
             </table>
           </div>
         </section>
-
-        <p class="px-6 pb-6 text-sm text-slate-400">Checked from Cloudflare edge. Check location is not fixed.</p>
       </div>
     </section>
   );

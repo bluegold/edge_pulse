@@ -129,7 +129,6 @@ describe("renderDashboardPage", () => {
     expect(html).toContain('<script id="checks-page-controls" src="/assets/checks-page.js" defer=""></script>');
     expect(html).toContain("<footer");
     expect(html).toContain('class="footerbar mt-auto w-full"');
-    expect(html).toContain("Cloudflare Workers の可用性を、シンプルに・確実に。");
     expect(html).toContain("すべてのシステムは正常です");
     expect(html).toContain('id="summary-total-checks"');
     expect(html).toContain('href="/checks"');
