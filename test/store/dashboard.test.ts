@@ -19,9 +19,9 @@ const makeDb = (): D1Database => ({
         if (normalized === "SELECT * FROM checks ORDER BY created_at DESC, id DESC") {
           return {
             results: [
-              { id: 1, name: "api", last_state: "ok", enabled: 1, last_latency_ms: 10, tls_days_remaining: 30 },
+              { id: 1, name: "api", last_state: "ok", enabled: 1, last_latency_ms: 10, tls_days_remaining: 30, maintenance_enabled: 0 },
               { id: 2, name: "api-2", last_state: "fail", enabled: 1, last_latency_ms: null, tls_days_remaining: null },
-              { id: 3, name: "api-3", last_state: "ok", enabled: 1, last_latency_ms: 8, tls_days_remaining: 90 },
+              { id: 3, name: "api-3", last_state: "ok", enabled: 1, last_latency_ms: 8, tls_days_remaining: 90, maintenance_enabled: 1 },
             ],
           } as T;
         }
@@ -69,8 +69,8 @@ describe("loadDashboardData", () => {
     const data = await loadDashboardData(makeDb());
 
     expect(data.checks).toHaveLength(3);
-    expect(data.recentChecks).toHaveLength(2);
-    expect(data.recentChecks.map((check) => check.id)).toEqual([2, 1]);
+    expect(data.recentChecks).toHaveLength(3);
+    expect(data.recentChecks.map((check) => check.id)).toEqual([2, 3, 1]);
     expect(data.currentIncidents).toHaveLength(1);
     expect(data.incidents24h).toBe(2);
   });

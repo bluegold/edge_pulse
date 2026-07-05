@@ -1,4 +1,5 @@
 import type { CheckRow } from "../lib/checks";
+import { isMaintenanceWindowActive, isMaintenanceWindowOverdue } from "../lib/checks";
 
 export type CheckStateBadge = {
   label: string;
@@ -6,6 +7,11 @@ export type CheckStateBadge = {
 };
 
 export type CertificateBadge = {
+  label: string;
+  className: string;
+};
+
+export type MaintenanceBadge = {
   label: string;
   className: string;
 };
@@ -35,4 +41,19 @@ export const describeCertificateBadge = (
     return { label: `OK・${formatCertificateDaysCompact(check.tls_days_remaining)}`, className: "cert-chip" };
   }
   return { label: "未取得", className: "cert-chip warn" };
+};
+
+export const describeMaintenanceBadge = (
+  check: Pick<CheckRow, "maintenance_enabled" | "maintenance_until">,
+  referenceIso: string,
+): MaintenanceBadge | null => {
+  if (!isMaintenanceWindowActive(check.maintenance_enabled)) {
+    return null;
+  }
+
+  if (isMaintenanceWindowOverdue(check.maintenance_enabled, check.maintenance_until, referenceIso)) {
+    return { label: "メンテ超過", className: "status maintenance overdue" };
+  }
+
+  return { label: "メンテ中", className: "status maintenance" };
 };

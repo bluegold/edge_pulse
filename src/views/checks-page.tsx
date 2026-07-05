@@ -2,9 +2,9 @@ import { renderToString } from "hono/jsx/dom/server";
 import { AppLayout } from "./app-layout.tsx";
 import type { ChecksPageData as ChecksPageDataType } from "../store/checks";
 import { buildChecksUrl } from "../lib/checks-search";
-import { LocalTime } from "./time.tsx";
+import { LocalTime, formatLocalDateTimeInput } from "./time.tsx";
 import { formatNullable } from "../presenters/common";
-import { describeCertificateBadge, describeCheckState } from "../presenters/checks";
+import { describeCertificateBadge, describeCheckState, describeMaintenanceBadge } from "../presenters/checks";
 
 export type ChecksPageData = ChecksPageDataType;
 
@@ -15,6 +15,24 @@ const CertificateBadge = ({ check }: { check: ChecksPageData["checks"][number] }
 
 const StateBadge = ({ enabled, state }: { enabled: number; state: ChecksPageData["checks"][number]["last_state"] }) => {
   const badge = describeCheckState(enabled, state);
+  return (
+    <span class={badge.className}>
+      <span class="dot"></span>
+      {badge.label}
+    </span>
+  );
+};
+
+const MaintenanceBadge = ({
+  check,
+  referenceIso,
+}: {
+  check: ChecksPageData["checks"][number];
+  referenceIso: string;
+}) => {
+  const badge = describeMaintenanceBadge(check, referenceIso);
+  if (!badge) return null;
+
   return (
     <span class={badge.className}>
       <span class="dot"></span>
@@ -87,12 +105,14 @@ const ViewCard = ({
   q,
   filter,
   highlighted,
+  generatedAt,
 }: {
   check: ChecksPageData["checks"][number];
   page: number;
   q: string;
   filter: string;
   highlighted: boolean;
+  generatedAt: string;
 }) => (
   <tr id={`check-item-${check.id}`} class={`check-row ${check.enabled ? "" : "off"} ${highlighted ? "check-row-highlight" : ""}`}>
     <th scope="row" class="check-main-cell">
@@ -103,6 +123,7 @@ const ViewCard = ({
           </a>
         </h3>
         <StateBadge enabled={check.enabled} state={check.last_state} />
+        <MaintenanceBadge check={check} referenceIso={generatedAt} />
       </div>
       <p class="check-url">{check.url}</p>
     </th>
@@ -215,6 +236,22 @@ const EditCard = ({
                 <span class="check-meta-label">間隔 (分)</span>
                 <input name="interval_minutes" type="number" min="1" max="1440" value={check.interval_minutes} class="glass-input rounded-md px-3 py-2 text-right text-slate-100 tabular-nums" />
               </label>
+              <div class="check-edit-field">
+                <span class="check-meta-label">メンテ中</span>
+                <label class="flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100">
+                  <input name="maintenance_enabled" type="checkbox" checked={check.maintenance_enabled === 1} class="h-4 w-4 accent-sky-400" />
+                  <span>通知を止める</span>
+                </label>
+              </div>
+              <label class="check-edit-field">
+                <span class="check-meta-label">終了予定</span>
+                <input
+                  name="maintenance_until"
+                  type="datetime-local"
+                  value={formatLocalDateTimeInput(check.maintenance_until)}
+                  class="glass-input rounded-md px-3 py-2 text-slate-100 tabular-nums"
+                />
+              </label>
               <label class="check-edit-field">
                 <span class="check-meta-label">状態</span>
                 <select name="enabled" class="glass-input rounded-md px-3 py-2 text-slate-100">
@@ -302,6 +339,21 @@ const CreateForm = ({ page, q, filter }: { page: number; q: string; filter: stri
           <label class="grid min-w-0 gap-1 text-sm">
             <span class="font-semibold text-slate-200">間隔</span>
             <input name="interval_minutes" type="number" min="1" max="1440" value="5" class="glass-input w-full min-w-0 rounded-md px-3 py-2 text-right text-slate-100 tabular-nums" />
+          </label>
+          <div class="grid min-w-0 gap-1 text-sm">
+            <span class="font-semibold text-slate-200">メンテ中</span>
+            <label class="flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100">
+              <input name="maintenance_enabled" type="checkbox" class="h-4 w-4 accent-sky-400" />
+              <span>通知を止める</span>
+            </label>
+          </div>
+          <label class="grid min-w-0 gap-1 text-sm">
+            <span class="font-semibold text-slate-200">終了予定</span>
+            <input
+              name="maintenance_until"
+              type="datetime-local"
+              class="glass-input w-full min-w-0 rounded-md px-3 py-2 text-slate-100 tabular-nums"
+            />
           </label>
         </div>
         <div class="create-block">
@@ -479,7 +531,14 @@ const ChecksShell = ({ data }: { data: ChecksPageData }) => (
                     data.editId === check.id ? (
                       <EditCard check={check} page={data.page} q={data.q} filter={data.filter} />
                     ) : (
-                      <ViewCard check={check} page={data.page} q={data.q} filter={data.filter} highlighted={data.highlightId === check.id} />
+                      <ViewCard
+                        check={check}
+                        page={data.page}
+                        q={data.q}
+                        filter={data.filter}
+                        highlighted={data.highlightId === check.id}
+                        generatedAt={data.generatedAt}
+                      />
                     ),
                   )}
                 </tbody>

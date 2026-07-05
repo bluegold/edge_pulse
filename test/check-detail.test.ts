@@ -47,6 +47,8 @@ const check: CheckRow = {
   tls_valid_to: "2026-09-01T00:00:00.000Z",
   tls_days_remaining: 60,
   tls_dns_names: '["api-a.example.com"]',
+  maintenance_enabled: 0,
+  maintenance_until: null,
   created_at: "2026-06-01T00:00:00.000Z",
   updated_at: "2026-07-03T11:55:00.000Z",
 };

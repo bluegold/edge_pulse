@@ -1,5 +1,5 @@
 import type { D1Database } from "../lib/cloudflare";
-import type { CheckInput, CheckRow } from "../lib/checks";
+import { normalizeMaintenanceUntil, type CheckInput, type CheckRow } from "../lib/checks";
 import {
   buildCheckSearchAttributes,
   evaluateCheckSearchFilter,
@@ -32,11 +32,13 @@ export const insertCheck = async (db: D1Database, input: CheckInput, now: string
       INSERT INTO checks (
         name, url, method, enabled,
         expected_status_min, expected_status_max, timeout_ms, interval_minutes,
+        maintenance_enabled,
+        maintenance_until,
         next_check_at, last_enqueued_at, last_checked_at,
         last_state, last_status_code, last_latency_ms, last_error,
         fail_threshold, recovery_threshold, consecutive_failures, consecutive_successes,
         first_failure_at, first_success_at, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, 'unknown', NULL, NULL, NULL, ?, ?, 0, 0, NULL, NULL, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, 'unknown', NULL, NULL, NULL, ?, ?, 0, 0, NULL, NULL, ?, ?)
       RETURNING id
     `,
     )
@@ -49,6 +51,8 @@ export const insertCheck = async (db: D1Database, input: CheckInput, now: string
       input.expectedStatusMax,
       input.timeoutMs,
       input.intervalMinutes,
+      input.maintenanceEnabled ? 1 : 0,
+      normalizeMaintenanceUntil(input.maintenanceUntil),
       input.failThreshold,
       input.recoveryThreshold,
       now,
@@ -66,6 +70,8 @@ export const updateCheck = async (db: D1Database, id: number, input: CheckInput,
       UPDATE checks
       SET name = ?, url = ?, method = ?, enabled = ?,
           expected_status_min = ?, expected_status_max = ?, timeout_ms = ?, interval_minutes = ?,
+          maintenance_enabled = ?,
+          maintenance_until = ?,
           fail_threshold = ?, recovery_threshold = ?, updated_at = ?
       WHERE id = ?
     `,
@@ -79,6 +85,8 @@ export const updateCheck = async (db: D1Database, id: number, input: CheckInput,
       input.expectedStatusMax,
       input.timeoutMs,
       input.intervalMinutes,
+      input.maintenanceEnabled ? 1 : 0,
+      normalizeMaintenanceUntil(input.maintenanceUntil),
       input.failThreshold,
       input.recoveryThreshold,
       now,

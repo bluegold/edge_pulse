@@ -34,6 +34,8 @@ const baseCheck: CheckRow = {
   consecutive_successes: 0,
   first_failure_at: null,
   first_success_at: null,
+  maintenance_enabled: 0,
+  maintenance_until: null,
   created_at: "2026-06-22T00:00:00.000Z",
   updated_at: "2026-06-22T00:00:00.000Z",
 };
@@ -85,6 +87,46 @@ describe("validateCheckInput", () => {
       intervalMinutes: 5,
       failThreshold: 2,
       recoveryThreshold: 1,
+      maintenanceEnabled: false,
+      maintenanceUntil: "2026-07-05T12:00",
+    };
+
+    expect(validateCheckInput(input)).toEqual({ ok: true });
+  });
+
+  it("rejects an invalid maintenance window", () => {
+    const input: CheckInput = {
+      name: "api",
+      url: "https://api.example.com",
+      method: "GET",
+      enabled: true,
+      expectedStatusMin: 200,
+      expectedStatusMax: 399,
+      timeoutMs: 10_000,
+      intervalMinutes: 5,
+      failThreshold: 2,
+      recoveryThreshold: 1,
+      maintenanceEnabled: true,
+      maintenanceUntil: "not-a-date",
+    };
+
+    expect(validateCheckInput(input)).toEqual({ ok: false, error: "maintenance_until の形式が不正です" });
+  });
+
+  it("allows maintenance without an end time", () => {
+    const input: CheckInput = {
+      name: "api",
+      url: "https://api.example.com",
+      method: "GET",
+      enabled: true,
+      expectedStatusMin: 200,
+      expectedStatusMax: 399,
+      timeoutMs: 10_000,
+      intervalMinutes: 5,
+      failThreshold: 2,
+      recoveryThreshold: 1,
+      maintenanceEnabled: true,
+      maintenanceUntil: null,
     };
 
     expect(validateCheckInput(input)).toEqual({ ok: true });

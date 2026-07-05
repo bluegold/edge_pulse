@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { formatNullable } from "../../src/presenters/common";
-import { describeCertificateBadge, describeCheckState } from "../../src/presenters/checks";
+import { describeCertificateBadge, describeCheckState, describeMaintenanceBadge } from "../../src/presenters/checks";
 
 describe("checks presenter", () => {
   it("describes check states", () => {
@@ -35,6 +35,18 @@ describe("checks presenter", () => {
       label: "OK・-",
       className: "cert-chip",
     });
+  });
+
+  it("describes maintenance badges", () => {
+    expect(describeMaintenanceBadge({ maintenance_enabled: 1, maintenance_until: "2026-07-05T12:00:00.000Z" }, "2026-07-05T11:00:00.000Z")).toEqual({
+      label: "メンテ中",
+      className: "status maintenance",
+    });
+    expect(describeMaintenanceBadge({ maintenance_enabled: 1, maintenance_until: "2026-07-05T10:00:00.000Z" }, "2026-07-05T11:00:00.000Z")).toEqual({
+      label: "メンテ超過",
+      className: "status maintenance overdue",
+    });
+    expect(describeMaintenanceBadge({ maintenance_enabled: 0, maintenance_until: null }, "2026-07-05T11:00:00.000Z")).toBeNull();
   });
 
   it("formats nullable values", () => {

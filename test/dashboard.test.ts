@@ -59,6 +59,34 @@ const dashboardData: DashboardData = {
       updated_at: "2026-06-21T23:55:00.000Z",
     },
     {
+      id: 4,
+      name: "maintenance",
+      url: "https://maintenance.example.com",
+      method: "GET",
+      enabled: 1,
+      expected_status_min: 200,
+      expected_status_max: 399,
+      timeout_ms: 10_000,
+      interval_minutes: 15,
+      next_check_at: null,
+      last_enqueued_at: null,
+      last_checked_at: "2026-06-21T23:40:00.000Z",
+      last_state: "ok",
+      last_status_code: 200,
+      last_latency_ms: 210,
+      last_error: null,
+      fail_threshold: 2,
+      recovery_threshold: 1,
+      consecutive_failures: 0,
+      consecutive_successes: 0,
+      first_failure_at: null,
+      first_success_at: null,
+      maintenance_enabled: 1,
+      maintenance_until: "2026-06-22T00:30:00.000Z",
+      created_at: "2026-06-21T23:20:00.000Z",
+      updated_at: "2026-06-21T23:40:00.000Z",
+    },
+    {
       id: 3,
       name: "cert-warning",
       url: "https://cert-warning.example.com",
@@ -90,6 +118,8 @@ const dashboardData: DashboardData = {
       tls_valid_to: "2026-07-10T00:00:00.000Z",
       tls_days_remaining: 5,
       tls_dns_names: "cert-warning.example.com",
+      maintenance_enabled: 0,
+      maintenance_until: null,
       created_at: "2026-06-21T23:30:00.000Z",
       updated_at: "2026-06-21T23:45:00.000Z",
     },
@@ -180,6 +210,7 @@ describe("renderDashboardPage", () => {
     expect(html).toContain('id="recent-checks-panel"');
     expect(html).toContain('id="recent-checks-list"');
     expect(html).toContain('status off status-fail');
+    expect(html).toContain("メンテ中");
     expect(html).toContain("証明書要確認");
     expect(html).toContain('id="recent-results-panel"');
     expect(html).toContain('id="recent-results-list"');

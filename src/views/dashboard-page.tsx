@@ -7,7 +7,7 @@ import { buildChecksUrl } from "../lib/checks-search";
 import { LocalTime } from "./time.tsx";
 import { formatNullable } from "../presenters/common";
 import { formatCertificateDays, formatDuration } from "../presenters/dashboard";
-import { describeCheckState } from "../presenters/checks";
+import { describeCheckState, describeMaintenanceBadge } from "../presenters/checks";
 import type { CloudflareAccessIdentity } from "../http/shared";
 
 export type DashboardData = DashboardDataType;
@@ -97,7 +97,8 @@ const IncidentCard = ({ incident }: { incident: IncidentRow }) => (
   </div>
 );
 
-const RecentCheckCard = ({ check }: { check: CheckRow }) => {
+const RecentCheckCard = ({ check, referenceIso }: { check: CheckRow; referenceIso: string }) => {
+  const maintenanceBadge = describeMaintenanceBadge(check, referenceIso);
   return (
     <article id={`recent-check-${check.id}`} class="subpanel p-4">
       <div class="flex items-start justify-between gap-3">
@@ -111,6 +112,12 @@ const RecentCheckCard = ({ check }: { check: CheckRow }) => {
         </div>
         <div class="flex shrink-0 flex-col items-end gap-2">
           <StatusBadge enabled={check.enabled} state={check.last_state} />
+          {maintenanceBadge ? (
+            <span class={maintenanceBadge.className}>
+              <span class="dot"></span>
+              {maintenanceBadge.label}
+            </span>
+          ) : null}
           <CertificateBadge check={check} />
         </div>
       </div>
@@ -349,7 +356,7 @@ const DashboardShell = ({ data }: { data: DashboardData }) => {
               最近の監視対象
             </h2>
             <div id="recent-checks-list" class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {recentChecks.map((check) => <RecentCheckCard check={check} />)}
+              {recentChecks.map((check) => <RecentCheckCard check={check} referenceIso={data.generatedAt} />)}
             </div>
           </section>
         ) : null}

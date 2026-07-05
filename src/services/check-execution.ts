@@ -4,6 +4,7 @@ import {
   classifyCheckFailureReason,
   scheduleNextCheckAt,
   validateMonitorUrl,
+  isMaintenanceWindowActive,
   type CheckJob,
 } from "../lib/checks";
 import { parseServerTimingHeader, resolveXRuntimeMs } from "../lib/http-timing";
@@ -91,6 +92,7 @@ export const runCheck = async (env: Bindings, job: CheckJob, ctx?: ExecutionCont
 
   const transition = await persistCheckResult(env["pulse-db"], check, result, certificate);
   if (!transition || transition.kind === "none") return;
+  if (isMaintenanceWindowActive(check.maintenance_enabled)) return;
 
   const notification = dispatchNotifications(env, {
     check,

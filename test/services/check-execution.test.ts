@@ -12,8 +12,13 @@ const certMocks = vi.hoisted(() => ({
   probeCertificateSnapshot: vi.fn(),
 }));
 
+const notificationMocks = vi.hoisted(() => ({
+  dispatchNotifications: vi.fn(),
+}));
+
 vi.mock("../../src/store/check-execution", () => storeMocks);
 vi.mock("../../src/services/certificate-check", () => certMocks);
+vi.mock("../../src/services/notifications", () => notificationMocks);
 
 import { runCheck, handleScheduled } from "../../src/services/check-execution";
 
@@ -40,6 +45,8 @@ const baseCheck: CheckRow = {
   consecutive_successes: 0,
   first_failure_at: null,
   first_success_at: null,
+  maintenance_enabled: 0,
+  maintenance_until: null,
   created_at: "2026-06-22T00:00:00.000Z",
   updated_at: "2026-06-22T00:00:00.000Z",
 };
@@ -86,6 +93,33 @@ describe("check execution service", () => {
     });
     expect(typeof resultArg?.checkedAt).toBe("string");
     expect(certificateArg).toBeNull();
+  });
+
+  it("suppresses notifications while maintenance is active", async () => {
+    storeMocks.getCheckForExecution.mockResolvedValue({
+      ...baseCheck,
+      maintenance_enabled: 1,
+      maintenance_until: "2030-01-01T00:00:00.000Z",
+    });
+    storeMocks.getLatestRecoveryAt.mockResolvedValue(null);
+    storeMocks.persistCheckResult.mockResolvedValue({ kind: "incident-opened", nextState: "fail", startedAt: "2026-06-22T00:00:00.000Z" });
+    certMocks.probeCertificateSnapshot.mockResolvedValue(null);
+    certMocks.describeCertificateAlert.mockReturnValue(null);
+
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok", { status: 200 }));
+
+    await runCheck(
+      {
+        "pulse-db": {} as never,
+      } as never,
+      {
+        checkId: 1,
+        scheduledAt: "2026-06-22T00:00:00.000Z",
+        attemptId: "attempt-1",
+      },
+    );
+
+    expect(notificationMocks.dispatchNotifications).not.toHaveBeenCalled();
   });
 
   it("enqueues due checks and updates next_check_at", async () => {

@@ -91,6 +91,8 @@ export type CheckRow = {
   tls_valid_to?: string | null;
   tls_days_remaining?: number | null;
   tls_dns_names?: string | null;
+  maintenance_enabled?: number | null;
+  maintenance_until?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -106,6 +108,8 @@ export type CheckInput = {
   intervalMinutes: number;
   failThreshold: number;
   recoveryThreshold: number;
+  maintenanceEnabled: boolean;
+  maintenanceUntil?: string | null;
 };
 
 export type TransitionChange =
@@ -156,6 +160,16 @@ const isPrivateIpv4 = (hostname: string): boolean => {
 const normalizeHostname = (hostname: string): string => {
   const trimmed = hostname.trim().toLowerCase();
   return trimmed.endsWith(".") ? trimmed.slice(0, -1) : trimmed;
+};
+
+export const normalizeMaintenanceUntil = (value: string | null | undefined): string | null => {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+
+  const timestamp = new Date(trimmed).getTime();
+  if (Number.isNaN(timestamp)) return null;
+
+  return new Date(timestamp).toISOString();
 };
 
 export const validateMonitorUrl = (
@@ -209,7 +223,31 @@ export const validateCheckInput = (input: CheckInput): { ok: true } | { ok: fals
   if (input.failThreshold < 1 || input.recoveryThreshold < 1) {
     return { ok: false, error: "threshold は 1 以上で設定してください" };
   }
+  if (input.maintenanceUntil?.trim() && normalizeMaintenanceUntil(input.maintenanceUntil) === null) {
+    return { ok: false, error: "maintenance_until の形式が不正です" };
+  }
   return { ok: true };
+};
+
+export const isMaintenanceWindowActive = (maintenanceEnabled: number | boolean | null | undefined): boolean => {
+  return Boolean(maintenanceEnabled);
+};
+
+export const isMaintenanceWindowOverdue = (
+  maintenanceEnabled: number | boolean | null | undefined,
+  maintenanceUntil: string | null | undefined,
+  referenceIso: string,
+): boolean => {
+  if (!isMaintenanceWindowActive(maintenanceEnabled)) return false;
+
+  const normalizedUntil = normalizeMaintenanceUntil(maintenanceUntil);
+  if (!normalizedUntil) return false;
+
+  const untilTime = new Date(normalizedUntil).getTime();
+  const referenceTime = new Date(referenceIso).getTime();
+  if (Number.isNaN(referenceTime)) return false;
+
+  return untilTime <= referenceTime;
 };
 
 export const buildCheckResult = (

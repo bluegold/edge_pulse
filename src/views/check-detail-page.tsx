@@ -3,7 +3,7 @@ import { AppLayout } from "./app-layout.tsx";
 import type { CheckDetailData as CheckDetailDataType } from "../store/check-detail";
 import { LocalTime, formatLocalDateTime } from "./time.tsx";
 import { formatNullable } from "../presenters/common";
-import { describeCheckState, describeCertificateBadge } from "../presenters/checks";
+import { describeCheckState, describeCertificateBadge, describeMaintenanceBadge } from "../presenters/checks";
 import { formatDuration } from "../presenters/dashboard";
 import type { CloudflareAccessIdentity } from "../http/shared";
 import type { Child } from "hono/jsx";
@@ -164,6 +164,12 @@ const SettingsSection = ({ data }: { data: CheckDetailData }) => (
         <dt class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">間隔</dt>
         <dd class="mt-1 text-right text-base font-semibold tabular-nums text-slate-50">{data.check.interval_minutes} 分</dd>
       </div>
+      <div class="w-full max-w-[16rem] flex-1">
+        <dt class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">メンテ終了</dt>
+        <dd class="mt-1 text-right text-base font-semibold text-slate-50">
+          <span class="whitespace-nowrap">{data.check.maintenance_until ? <LocalTime iso={data.check.maintenance_until} class="whitespace-nowrap" /> : "未設定"}</span>
+        </dd>
+      </div>
     </dl>
   </DetailCard>
 );
@@ -184,7 +190,7 @@ const ReportSection = ({ data }: { data: CheckDetailData }) => {
           id="summary-report-cert-days-remaining"
           label="証明書残日数"
           value={formatNullable(data.check.tls_days_remaining)}
-          tone={data.check.tls_days_remaining !== null && data.check.tls_days_remaining <= 30 ? "danger" : "default"}
+          tone={data.check.tls_days_remaining !== null && data.check.tls_days_remaining !== undefined && data.check.tls_days_remaining <= 30 ? "danger" : "default"}
           icon={<svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 3h10"/><path d="M7 21h10"/><path d="M9 7h6"/><path d="M9 11h6"/><path d="M9 15h2"/><path d="M12 17.5 9.5 16l2.5-1.5 2.5 1.5Z"/></svg>}
         />
         <ReportMetricCard
@@ -410,6 +416,7 @@ const ResultsSection = ({ data }: { data: CheckDetailData }) => (
 
 const CheckDetailShell = ({ data }: { data: CheckDetailData }) => {
   const stateBadge = describeCheckState(data.check.enabled, data.check.last_state);
+  const maintenanceBadge = describeMaintenanceBadge(data.check, data.generatedAt);
 
   return (
     <section id="check-detail-shell" class="w-full">
@@ -429,6 +436,12 @@ const CheckDetailShell = ({ data }: { data: CheckDetailData }) => {
               <span class="glass-button inline-flex items-center rounded-md px-3 py-2 text-xs font-semibold text-slate-100">
                 {data.check.enabled ? "有効" : "無効"}
               </span>
+              {maintenanceBadge ? (
+                <span class={maintenanceBadge.className}>
+                  <span class="dot"></span>
+                  {maintenanceBadge.label}
+                </span>
+              ) : null}
               <span class="glass-button inline-flex items-center rounded-md px-3 py-2 text-xs font-semibold text-slate-100">
                 最終更新
                 <span class="ml-2 font-mono tabular-nums">

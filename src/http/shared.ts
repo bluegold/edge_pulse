@@ -39,6 +39,8 @@ export const readCheckInput = (input: Record<string, unknown>): CheckInput => ({
   intervalMinutes: parseNumber(input.interval_minutes, 5),
   failThreshold: parseNumber(input.fail_threshold, 2),
   recoveryThreshold: parseNumber(input.recovery_threshold, 1),
+  maintenanceEnabled: parseEnabled(input.maintenance_enabled),
+  maintenanceUntil: String(input.maintenance_until ?? "").trim() || null,
 });
 
 export const readFormCheckInput = async (request: Request): Promise<CheckInput> => {

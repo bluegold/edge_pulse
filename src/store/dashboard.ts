@@ -65,6 +65,10 @@ const compareCheckAttention = (a: CheckRow, b: CheckRow): number => {
   const bCertError = Boolean(b.tls_last_error);
   if (aCertError !== bCertError) return aCertError ? -1 : 1;
 
+  const aMaintenance = Boolean(a.maintenance_enabled);
+  const bMaintenance = Boolean(b.maintenance_enabled);
+  if (aMaintenance !== bMaintenance) return aMaintenance ? -1 : 1;
+
   const aCertSoon = isCertificateExpiringSoon(a.tls_days_remaining ?? null);
   const bCertSoon = isCertificateExpiringSoon(b.tls_days_remaining ?? null);
   if (aCertSoon !== bCertSoon) return aCertSoon ? -1 : 1;
@@ -79,7 +83,8 @@ const compareCheckAttention = (a: CheckRow, b: CheckRow): number => {
 const isAttentionCheck = (check: CheckRow): boolean =>
   check.last_state === "fail" ||
   Boolean(check.tls_last_error) ||
-  isCertificateExpiringSoon(check.tls_days_remaining ?? null);
+  isCertificateExpiringSoon(check.tls_days_remaining ?? null) ||
+  Boolean(check.maintenance_enabled);
 
 export const loadDashboardData = async (db: D1Database): Promise<DashboardData> => {
   const now = new Date();

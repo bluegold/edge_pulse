@@ -601,6 +601,20 @@ export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, res
             0 10px 24px rgba(127, 29, 29, 0.35),
             inset 0 1px 0 rgba(255, 255, 255, 0.08);
         }
+        .status.maintenance {
+          border: 1px solid rgba(251, 191, 36, 0.36);
+          background: rgba(245, 158, 11, 0.12);
+          color: #fde68a;
+        }
+        .status.maintenance.overdue {
+          border-color: rgba(248, 113, 113, 0.75);
+          background: linear-gradient(180deg, rgba(127, 29, 29, 0.98), rgba(83, 7, 37, 0.98));
+          color: #fff1f2;
+          box-shadow:
+            0 0 0 1px rgba(251, 113, 133, 0.12),
+            0 10px 24px rgba(127, 29, 29, 0.35),
+            inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
         .dot {
           width: 0.48rem;
           height: 0.48rem;
