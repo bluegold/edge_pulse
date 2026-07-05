@@ -10,6 +10,7 @@ import {
   handleUpdateCheck,
 } from "../controllers/checks";
 import { handleDashboardRequest } from "../controllers/dashboard";
+import { handleApiTestNotifications } from "../controllers/notifications";
 import { requireApiToken, requireCloudflareAccess } from "./shared";
 
 app.use("*", async (c, next) => {
@@ -49,5 +50,6 @@ app.get("/api/checks", async (c) => handleApiListChecks(c.env, c.req.raw));
 app.post("/api/checks", async (c) => handleApiCreateCheck(c.env, c.req.raw));
 app.get("/api/checks/:id", async (c) => handleApiGetCheck(c.env, Number(c.req.param("id"))));
 app.patch("/api/checks/:id", async (c) => handleApiUpdateCheck(c.env, Number(c.req.param("id")), c.req.raw));
+app.post("/api/notifications/test", async (c) => handleApiTestNotifications(c.env, c.req.raw));
 
 export { app };

@@ -222,6 +222,42 @@ describe("api auth", () => {
   });
 });
 
+describe("notification test api", () => {
+  it("sends a test notification to every configured endpoint", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("", { status: 200 }));
+    const response = await app.request(
+      "https://edge-pulse.example.com/api/notifications/test",
+      {
+        method: "POST",
+        headers: {
+          authorization: "Bearer secret-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          title: "CLI test",
+          message: "hello from pulse",
+          severity: "danger",
+        }),
+      },
+      {
+        ...makeEnv({ checks: [], nextId: 1 }),
+        WEBHOOK_URLS: "https://hooks.example.com/a",
+        DISCORD_WEBHOOK_URL: "https://discord.com/api/webhooks/1/2",
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    const body = await response.json();
+    expect(body).toMatchObject({
+      ok: true,
+      sent: 2,
+      title: "CLI test",
+      severity: "danger",
+    });
+  });
+});
+
 describe("cloudflare access gate", () => {
   it("blocks non-api routes on non-local hosts without access headers", async () => {
     const response = await app.request(
