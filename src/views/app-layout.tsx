@@ -240,6 +240,13 @@ export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, res
           stroke-linecap: round;
           stroke-linejoin: round;
         }
+        .graph-series-raw {
+          opacity: 0.42;
+        }
+        .graph-series-smooth {
+          stroke-width: 4.5;
+          opacity: 1;
+        }
         .graph-series.is-fail {
           stroke: rgba(248, 113, 113, 0.95);
         }

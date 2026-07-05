@@ -64,11 +64,11 @@ export const loadCheckDetailData = async (db: D1Database, id: number): Promise<C
         SELECT *
         FROM check_results
         WHERE check_id = ?
+          AND checked_at >= ?
         ORDER BY checked_at DESC, id DESC
-        LIMIT 24
       `,
       )
-      .bind(id)
+      .bind(id, dayAgo)
       .all<CheckResultRow>(),
     db
       .prepare(

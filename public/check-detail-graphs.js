@@ -19,6 +19,28 @@ import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 
   const getMetricValue = (point, metric) => (metric === "latency" ? point.latencyMs : point.runtimeMs);
 
+  const buildMovingAveragePoints = (points, metric, windowSize = 5) => {
+    const series = [];
+    const numericValues = [];
+
+    points.forEach((point) => {
+      const value = getMetricValue(point, metric);
+      if (typeof value !== "number") return;
+
+      numericValues.push(value);
+      const start = Math.max(0, numericValues.length - windowSize);
+      const windowValues = numericValues.slice(start);
+      const average = windowValues.reduce((sum, item) => sum + item, 0) / windowValues.length;
+
+      series.push({
+        checkedAt: point.checkedAt,
+        value: average,
+      });
+    });
+
+    return series;
+  };
+
   const buildTooltipHtml = (point, metric) => {
     const status = point.state === "fail" ? "FAIL" : "OK";
     const selectedValue = formatTimingMs(getMetricValue(point, metric));
@@ -80,17 +102,30 @@ import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
     const innerWidth = width - margin.left - margin.right;
     const innerHeight = height - margin.top - margin.bottom;
     const values = numericPoints.map((point) => getMetricValue(point, metric));
+    const movingAveragePoints = buildMovingAveragePoints(points, metric);
+    const movingAverageValues = movingAveragePoints.map((point) => point.value);
     const maxValue = Math.max(1, d3.max(values) ?? 1);
+    const smoothMaxValue = d3.max(movingAverageValues) ?? 1;
 
     const xDomain = [dayAgo, now];
 
     const x = d3.scaleTime().domain(xDomain).range([margin.left, margin.left + innerWidth]);
-    const y = d3.scaleLinear().domain([0, maxValue * 1.12]).nice().range([margin.top + innerHeight, margin.top]);
+    const y = d3
+      .scaleLinear()
+      .domain([0, Math.max(maxValue, smoothMaxValue) * 1.12])
+      .nice()
+      .range([margin.top + innerHeight, margin.top]);
     const line = d3
       .line()
       .defined((point) => typeof getMetricValue(point, metric) === "number")
       .x((point) => x(new Date(point.checkedAt)))
       .y((point) => y(getMetricValue(point, metric)))
+      .curve(d3.curveMonotoneX);
+    const smoothLine = d3
+      .line()
+      .defined((point) => typeof point.value === "number")
+      .x((point) => x(new Date(point.checkedAt)))
+      .y((point) => y(point.value))
       .curve(d3.curveMonotoneX);
 
     frame.replaceChildren();
@@ -133,9 +168,23 @@ import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
       svg
         .append("path")
         .datum(numericPoints)
-        .attr("class", "graph-series")
-        .attr("stroke", metric === "runtime" ? "rgba(52, 211, 153, 0.92)" : "rgba(56, 189, 248, 0.92)")
+        .attr("class", "graph-series graph-series-raw")
+        .attr("stroke", metric === "runtime" ? "rgba(52, 211, 153, 0.36)" : "rgba(56, 189, 248, 0.34)")
         .attr("d", line);
+    }
+
+    if (movingAveragePoints.length > 1) {
+      const smoothStroke = metric === "runtime" ? "#86efac" : "#fde68a";
+      const smoothGlow = metric === "runtime" ? "rgba(52, 211, 153, 0.55)" : "rgba(253, 224, 71, 0.55)";
+
+      svg
+        .append("path")
+        .datum(movingAveragePoints)
+        .attr("class", "graph-series graph-series-smooth")
+        .attr("stroke", smoothStroke)
+        .attr("filter", `drop-shadow(0 0 6px ${smoothGlow})`)
+        .attr("stroke-width", 4.5)
+        .attr("d", smoothLine);
     }
 
     const hoverLayer = svg.append("g").attr("class", "graph-hover-layer");

@@ -362,6 +362,7 @@ const IncidentsSection = ({ data }: { data: CheckDetailData }) => (
 );
 
 const ResultsSection = ({ data }: { data: CheckDetailData }) => (
+  // 表示は最近12件だけに絞る。グラフは同じ 24h データ全体を使う。
   <DetailCard title="直近のチェック結果" id="check-results">
     <div class="overflow-x-auto">
       <table class="min-w-full text-left text-sm">
@@ -377,8 +378,8 @@ const ResultsSection = ({ data }: { data: CheckDetailData }) => (
           </tr>
         </thead>
         <tbody class="align-top text-slate-300">
-          {data.recentResults.length > 0 ? (
-            data.recentResults.map((result) => (
+          {data.recentResults.slice(0, 12).length > 0 ? (
+            data.recentResults.slice(0, 12).map((result) => (
               <tr id={`check-result-${result.id}`} class="transition hover:bg-white/5">
                 <td class="px-4 py-2.5"><LocalTime iso={result.checked_at} class="whitespace-nowrap" /></td>
                 <td class="px-4 py-2.5">

@@ -61,6 +61,24 @@ const baseResult = {
   checked_at: now,
 };
 
+const makeRecentResults = (): CheckDetailData["recentResults"] =>
+  Array.from({ length: 13 }, (_, index) => {
+    const id = 13 - index;
+    const checkedAt = new Date(Date.parse(now) - index * 5 * 60_000).toISOString();
+
+    return {
+      id,
+      ...baseResult,
+      checked_at: checkedAt,
+      status_code: id === 13 ? 500 : 200,
+      latency_ms: id === 13 ? 240 : 80 + index,
+      state: id === 13 ? "fail" : "ok",
+      error: id === 13 ? "HTTP 500" : null,
+      x_runtime_ms: id === 13 ? 7 : 12,
+      server_timing_json: null,
+    };
+  });
+
 const detailData: CheckDetailData = {
   check,
   report: {
@@ -71,26 +89,7 @@ const detailData: CheckDetailData = {
     avgLatencyMs: 110.25,
     avgRuntimeMs: 21.5,
   },
-  recentResults: [
-    {
-      id: 3,
-      ...baseResult,
-      checked_at: "2026-07-03T12:00:00.000Z",
-      status_code: 500,
-      latency_ms: 240,
-      state: "fail",
-      error: "HTTP 500",
-      x_runtime_ms: 7,
-      server_timing_json: '[{"name":"total","durationMs":17.167},{"name":"db","durationMs":0.5440000677481294},{"name":"view","durationMs":15.272999997250736}]',
-    },
-    {
-      id: 2,
-      ...baseResult,
-      checked_at: "2026-07-03T11:55:00.000Z",
-      x_runtime_ms: 12,
-      server_timing_json: null,
-    },
-  ],
+  recentResults: makeRecentResults(),
   recentEvents: [
     {
       id: 1,
@@ -176,6 +175,8 @@ describe("check detail", () => {
     expect(html).toContain("直近のチェック結果");
     expect(html).toContain("有効");
     expect(html).toContain("最終更新");
+    expect(html).toContain('id="check-result-13"');
+    expect(html).not.toContain('id="check-result-1"');
     expect(html).not.toContain("24h incident");
     expect(html).toContain('<script type="module" src="/assets/check-detail-graphs.js" defer=""></script>');
     expect(html).toContain('href="/checks"');
@@ -191,7 +192,7 @@ describe("check detail", () => {
     expect(data?.report.availability24h).toBe(75);
     expect(data?.report.avgLatencyMs).toBe(110.25);
     expect(data?.report.avgRuntimeMs).toBe(21.5);
-    expect(data?.recentResults).toHaveLength(2);
+    expect(data?.recentResults).toHaveLength(13);
     expect(data?.recentEvents).toHaveLength(1);
     expect(data?.recentIncidents).toHaveLength(1);
   });
