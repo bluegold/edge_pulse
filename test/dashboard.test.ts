@@ -33,32 +33,6 @@ const dashboardData: DashboardData = {
   ],
   recentChecks: [
     {
-      id: 1,
-      name: 'api<&>"\'',
-      url: "https://api.example.com",
-      method: "GET",
-      enabled: 1,
-      expected_status_min: 200,
-      expected_status_max: 399,
-      timeout_ms: 10_000,
-      interval_minutes: 5,
-      next_check_at: null,
-      last_enqueued_at: null,
-      last_checked_at: "2026-06-22T00:00:00.000Z",
-      last_state: "ok",
-      last_status_code: 200,
-      last_latency_ms: 123,
-      last_error: null,
-      fail_threshold: 2,
-      recovery_threshold: 1,
-      consecutive_failures: 0,
-      consecutive_successes: 0,
-      first_failure_at: null,
-      first_success_at: null,
-      created_at: "2026-06-22T00:00:00.000Z",
-      updated_at: "2026-06-22T00:00:00.000Z",
-    },
-    {
       id: 2,
       name: "api-fail",
       url: "https://api-fail.example.com",
@@ -83,6 +57,41 @@ const dashboardData: DashboardData = {
       first_success_at: null,
       created_at: "2026-06-21T23:00:00.000Z",
       updated_at: "2026-06-21T23:55:00.000Z",
+    },
+    {
+      id: 3,
+      name: "cert-warning",
+      url: "https://cert-warning.example.com",
+      method: "GET",
+      enabled: 1,
+      expected_status_min: 200,
+      expected_status_max: 399,
+      timeout_ms: 10_000,
+      interval_minutes: 10,
+      next_check_at: null,
+      last_enqueued_at: null,
+      last_checked_at: "2026-06-21T23:45:00.000Z",
+      last_state: "ok",
+      last_status_code: 200,
+      last_latency_ms: 321,
+      last_error: null,
+      fail_threshold: 2,
+      recovery_threshold: 1,
+      consecutive_failures: 0,
+      consecutive_successes: 0,
+      first_failure_at: null,
+      first_success_at: null,
+      tls_last_checked_at: "2026-06-21T23:45:00.000Z",
+      tls_last_error: null,
+      tls_subject: "CN=cert-warning.example.com",
+      tls_issuer: "CN=Example CA",
+      tls_public_key_class: "rsa",
+      tls_valid_from: "2026-03-01T00:00:00.000Z",
+      tls_valid_to: "2026-07-10T00:00:00.000Z",
+      tls_days_remaining: 5,
+      tls_dns_names: "cert-warning.example.com",
+      created_at: "2026-06-21T23:30:00.000Z",
+      updated_at: "2026-06-21T23:45:00.000Z",
     },
   ],
   currentIncidents: [],
@@ -171,6 +180,7 @@ describe("renderDashboardPage", () => {
     expect(html).toContain('id="recent-checks-panel"');
     expect(html).toContain('id="recent-checks-list"');
     expect(html).toContain('status off status-fail');
+    expect(html).toContain("証明書要確認");
     expect(html).toContain('id="recent-results-panel"');
     expect(html).toContain('id="recent-results-list"');
     expect(html).toContain('class="result-mark fail"');
@@ -182,8 +192,20 @@ describe("renderDashboardPage", () => {
     expect(html).toContain("✓");
     expect(html).toContain('id="incident-history-panel"');
     expect(html).toContain('id="incident-history-list"');
-    expect((html.match(/href="\/checks\/1"/g) ?? []).length).toBe(4);
+    expect((html.match(/href="\/checks\/1"/g) ?? []).length).toBe(3);
     expect(html).not.toContain('id="checks-create-form"');
+  });
+
+  it("hides the recent checks panel when there are no issue checks", async () => {
+    const response = await renderDashboardPage({
+      ...dashboardData,
+      recentChecks: [],
+    });
+
+    const html = await response.text();
+
+    expect(html).not.toContain('id="recent-checks-panel"');
+    expect(html).not.toContain('id="recent-checks-list"');
   });
 
   it("renders access identity in the topbar when provided", async () => {
@@ -234,7 +256,7 @@ describe("renderDashboardPage", () => {
     expect(html).toContain("api&lt;&amp;&gt;&#39;");
     expect(html).toContain("障害中");
     expect(html).toContain('status off status-fail');
-    expect((html.match(/href="\/checks\/1"/g) ?? []).length).toBe(5);
+    expect((html.match(/href="\/checks\/1"/g) ?? []).length).toBe(4);
     expect(panelHtml).toContain("M12 17h.01");
     expect(panelHtml).not.toContain("m20 6-11 11-5-5");
     expect(panelHtml).toContain('status off status-fail');

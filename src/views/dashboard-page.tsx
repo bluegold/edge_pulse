@@ -98,8 +98,6 @@ const IncidentCard = ({ incident }: { incident: IncidentRow }) => (
 );
 
 const RecentCheckCard = ({ check }: { check: CheckRow }) => {
-  const badge = describeCheckState(check.enabled, check.last_state);
-
   return (
     <article id={`recent-check-${check.id}`} class="subpanel p-4">
       <div class="flex items-start justify-between gap-3">
@@ -340,34 +338,21 @@ const DashboardShell = ({ data }: { data: DashboardData }) => {
           </div>
         </section>
 
-        <section id="recent-checks-panel" class="subpanel m-2 p-4 sm:p-5">
-          <h2 class="panel-title flex items-center gap-2 pl-3 text-lg font-black">
-            <svg viewBox="0 0 24 24" class="h-5 w-5 text-sky-300" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M4 7h16" />
-              <path d="M4 12h10" />
-              <path d="M4 17h16" />
-            </svg>
-            最近の監視対象
-          </h2>
-          <div id="recent-checks-list" class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {recentChecks.length > 0 ? (
-              recentChecks.map((check) => <RecentCheckCard check={check} />)
-            ) : (
-              <div id="recent-checks-empty" class="empty-state col-span-full border border-dashed border-white/15 px-4 py-8">
-                <div>
-                  <span class="empty-icon text-sky-200">
-                    <svg viewBox="0 0 24 24" class="h-8 w-8" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M4 12h16" />
-                      <path d="M12 4v16" />
-                    </svg>
-                  </span>
-                  <p class="mt-4 font-bold text-slate-100">まだ監視対象がありません。</p>
-                  <p class="mt-1 text-sm text-slate-400">監視対象を追加すると、ここに表示されます。</p>
-                </div>
-              </div>
-            )}
-          </div>
-        </section>
+        {recentChecks.length > 0 ? (
+          <section id="recent-checks-panel" class="subpanel m-2 p-4 sm:p-5">
+            <h2 class="panel-title flex items-center gap-2 pl-3 text-lg font-black">
+              <svg viewBox="0 0 24 24" class="h-5 w-5 text-sky-300" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 7h16" />
+                <path d="M4 12h10" />
+                <path d="M4 17h16" />
+              </svg>
+              最近の監視対象
+            </h2>
+            <div id="recent-checks-list" class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {recentChecks.map((check) => <RecentCheckCard check={check} />)}
+            </div>
+          </section>
+        ) : null}
 
         <section class="grid gap-2 bg-slate-950/20 p-2 xl:grid-cols-2">
           <section id="recent-results-panel" class="subpanel p-4 sm:p-5">

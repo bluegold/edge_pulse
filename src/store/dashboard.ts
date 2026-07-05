@@ -1,5 +1,5 @@
 import type { D1Database } from "../lib/cloudflare";
-import type { CheckRow, CheckState } from "../lib/checks";
+import { isCertificateExpiringSoon, type CheckRow, type CheckState } from "../lib/checks";
 
 export type IncidentRow = {
   id: number;
@@ -53,6 +53,33 @@ export type DashboardData = {
   incidents24h: number;
   generatedAt: string;
 };
+
+const RECENT_CHECKS_LIMIT = 5;
+
+const compareCheckAttention = (a: CheckRow, b: CheckRow): number => {
+  const aFail = a.last_state === "fail";
+  const bFail = b.last_state === "fail";
+  if (aFail !== bFail) return aFail ? -1 : 1;
+
+  const aCertError = Boolean(a.tls_last_error);
+  const bCertError = Boolean(b.tls_last_error);
+  if (aCertError !== bCertError) return aCertError ? -1 : 1;
+
+  const aCertSoon = isCertificateExpiringSoon(a.tls_days_remaining ?? null);
+  const bCertSoon = isCertificateExpiringSoon(b.tls_days_remaining ?? null);
+  if (aCertSoon !== bCertSoon) return aCertSoon ? -1 : 1;
+
+  const aCheckedAt = a.last_checked_at ? new Date(a.last_checked_at).getTime() : 0;
+  const bCheckedAt = b.last_checked_at ? new Date(b.last_checked_at).getTime() : 0;
+  if (aCheckedAt !== bCheckedAt) return bCheckedAt - aCheckedAt;
+
+  return b.id - a.id;
+};
+
+const isAttentionCheck = (check: CheckRow): boolean =>
+  check.last_state === "fail" ||
+  Boolean(check.tls_last_error) ||
+  isCertificateExpiringSoon(check.tls_days_remaining ?? null);
 
 export const loadDashboardData = async (db: D1Database): Promise<DashboardData> => {
   const now = new Date();
@@ -116,9 +143,11 @@ export const loadDashboardData = async (db: D1Database): Promise<DashboardData> 
       .first<{ count: number }>(),
   ]);
 
+  const recentChecks = checks.results.filter(isAttentionCheck).sort(compareCheckAttention).slice(0, RECENT_CHECKS_LIMIT);
+
   return {
     checks: checks.results,
-    recentChecks: checks.results.slice(0, 5),
+    recentChecks,
     currentIncidents: currentIncidents.results,
     recentIncidents: recentIncidents.results,
     recentResults: recentResults.results,
