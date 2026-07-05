@@ -16,7 +16,7 @@ export default {
   async queue(batch: MessageBatch<CheckJob>, env: Bindings, _ctx: ExecutionContext): Promise<void> {
     for (const message of batch.messages) {
       if (!message?.body) continue;
-      await runCheck(env, message.body);
+      await runCheck(env, message.body, _ctx);
     }
   },
 };

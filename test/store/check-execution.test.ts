@@ -106,7 +106,7 @@ describe("check execution store", () => {
       ],
     });
 
-    await persistCheckResult(db, check, result, null);
+    const transition = await persistCheckResult(db, check, result, null);
 
     const insertStatement = statements.find((entry) => entry.sql.startsWith("INSERT INTO check_results"));
     expect(insertStatement?.params).toEqual([
@@ -133,5 +133,6 @@ describe("check execution store", () => {
     expect(statements.some((entry) => entry.sql.startsWith("UPDATE checks"))).toBe(true);
     expect(statements.some((entry) => entry.sql.startsWith("INSERT INTO incidents"))).toBe(false);
     expect(statements.some((entry) => entry.sql.startsWith("INSERT INTO status_events"))).toBe(false);
+    expect(transition).toMatchObject({ kind: "none", nextState: "ok" });
   });
 });

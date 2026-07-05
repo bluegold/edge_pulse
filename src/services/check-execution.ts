@@ -15,8 +15,10 @@ import {
   persistCheckResult,
 } from "../store/check-execution";
 import { describeCertificateAlert, probeCertificateSnapshot } from "./certificate-check";
+import { dispatchNotifications } from "./notifications";
+import type { ExecutionContext } from "../lib/cloudflare";
 
-export const runCheck = async (env: Bindings, job: CheckJob): Promise<void> => {
+export const runCheck = async (env: Bindings, job: CheckJob, ctx?: ExecutionContext): Promise<void> => {
   const check = await getCheckForExecution(env["pulse-db"], job.checkId);
   if (!check || !check.enabled) return;
 
@@ -87,7 +89,27 @@ export const runCheck = async (env: Bindings, job: CheckJob): Promise<void> => {
     xRuntimeMs: resolveXRuntimeMs(response?.headers.get("x-runtime"), serverTiming),
   });
 
-  await persistCheckResult(env["pulse-db"], check, result, certificate);
+  const transition = await persistCheckResult(env["pulse-db"], check, result, certificate);
+  if (!transition || transition.kind === "none") return;
+
+  const notification = dispatchNotifications(env, {
+    check,
+    result,
+    transition,
+  });
+
+  if (ctx) {
+    ctx.waitUntil(
+      notification.catch((error) => {
+        console.error("notification dispatch failed", error);
+      }),
+    );
+    return;
+  }
+
+  await notification.catch((error) => {
+    console.error("notification dispatch failed", error);
+  });
 };
 
 const handleScheduled = async (controller: ScheduledController, env: Bindings): Promise<void> => {

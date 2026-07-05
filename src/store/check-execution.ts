@@ -1,5 +1,5 @@
 import type { D1Database } from "../lib/cloudflare";
-import { buildCheckResult, evaluateTransition, type CheckResult, type CheckRow } from "../lib/checks";
+import { buildCheckResult, evaluateTransition, type CheckResult, type CheckRow, type TransitionChange } from "../lib/checks";
 import type { CertProbeResponse } from "../lib/cert-probe";
 
 export const getCheckForExecution = async (db: D1Database, id: number): Promise<CheckRow | null> => {
@@ -34,7 +34,7 @@ export const persistCheckResult = async (
   check: CheckRow,
   result: ReturnType<typeof buildCheckResult>,
   certificate: CertProbeResponse | null,
-): Promise<void> => {
+): Promise<TransitionChange> => {
   const evaluated = evaluateTransition(check, result);
   const nextCheck = evaluated.nextCheck;
   const unresolvedIncident = await db
@@ -209,5 +209,6 @@ export const persistCheckResult = async (
   }
 
   await db.batch(statements);
+  return evaluated.transition;
 };
 export type { CheckResult };

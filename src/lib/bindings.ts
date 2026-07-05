@@ -11,4 +11,8 @@ export type Bindings = {
   ADMIN_API_TOKEN: string;
   CF_ACCESS_TEAM_DOMAIN?: string;
   CF_ACCESS_AUDIENCE?: string;
+  WEBHOOK_URL?: string;
+  WEBHOOK_URLS?: string;
+  DISCORD_WEBHOOK_URL?: string;
+  DISCORD_WEBHOOK_URLS?: string;
 };
