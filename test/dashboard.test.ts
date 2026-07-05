@@ -58,6 +58,32 @@ const dashboardData: DashboardData = {
       created_at: "2026-06-22T00:00:00.000Z",
       updated_at: "2026-06-22T00:00:00.000Z",
     },
+    {
+      id: 2,
+      name: "api-fail",
+      url: "https://api-fail.example.com",
+      method: "GET",
+      enabled: 1,
+      expected_status_min: 200,
+      expected_status_max: 399,
+      timeout_ms: 10_000,
+      interval_minutes: 5,
+      next_check_at: null,
+      last_enqueued_at: null,
+      last_checked_at: "2026-06-21T23:55:00.000Z",
+      last_state: "fail",
+      last_status_code: 500,
+      last_latency_ms: 456,
+      last_error: "HTTP 500",
+      fail_threshold: 2,
+      recovery_threshold: 1,
+      consecutive_failures: 2,
+      consecutive_successes: 0,
+      first_failure_at: "2026-06-21T23:50:00.000Z",
+      first_success_at: null,
+      created_at: "2026-06-21T23:00:00.000Z",
+      updated_at: "2026-06-21T23:55:00.000Z",
+    },
   ],
   currentIncidents: [],
   recentIncidents: [],
@@ -142,6 +168,9 @@ describe("renderDashboardPage", () => {
     expect(html).toContain("×");
     expect(html).toContain('data-utc-time="2026-06-22T00:00:00.000Z"');
     expect(html).toContain("<time");
+    expect(html).toContain('id="recent-checks-panel"');
+    expect(html).toContain('id="recent-checks-list"');
+    expect(html).toContain('status off status-fail');
     expect(html).toContain('id="recent-results-panel"');
     expect(html).toContain('id="recent-results-list"');
     expect(html).toContain('class="result-mark fail"');
@@ -153,6 +182,7 @@ describe("renderDashboardPage", () => {
     expect(html).toContain("✓");
     expect(html).toContain('id="incident-history-panel"');
     expect(html).toContain('id="incident-history-list"');
+    expect((html.match(/href="\/checks\/1"/g) ?? []).length).toBe(4);
     expect(html).not.toContain('id="checks-create-form"');
   });
 
@@ -203,8 +233,10 @@ describe("renderDashboardPage", () => {
     expect(html).toContain("一部のシステムで障害を検知しています");
     expect(html).toContain("api&lt;&amp;&gt;&#39;");
     expect(html).toContain("障害中");
+    expect(html).toContain('status off status-fail');
+    expect((html.match(/href="\/checks\/1"/g) ?? []).length).toBe(5);
     expect(panelHtml).toContain("M12 17h.01");
     expect(panelHtml).not.toContain("m20 6-11 11-5-5");
-    expect(panelHtml).toContain("×");
+    expect(panelHtml).toContain('status off status-fail');
   });
 });
