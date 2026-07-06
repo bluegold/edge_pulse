@@ -2,8 +2,13 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { CheckRow } from "../../src/lib/checks";
 
 const storeMocks = vi.hoisted(() => ({
+  claimScheduledCheckRun: vi.fn(),
+  ensureCheckRunForExecution: vi.fn(),
   getCheckForExecution: vi.fn(),
   getLatestRecoveryAt: vi.fn(),
+  loadUndispatchedCheckRuns: vi.fn(),
+  markCheckRunDispatched: vi.fn(),
+  markCheckRunStarted: vi.fn(),
   persistCheckResult: vi.fn(),
 }));
 
@@ -53,8 +58,13 @@ const baseCheck: CheckRow = {
 
 beforeEach(() => {
   vi.restoreAllMocks();
+  storeMocks.claimScheduledCheckRun.mockReset();
+  storeMocks.ensureCheckRunForExecution.mockReset();
   storeMocks.getCheckForExecution.mockReset();
   storeMocks.getLatestRecoveryAt.mockReset();
+  storeMocks.loadUndispatchedCheckRuns.mockReset();
+  storeMocks.markCheckRunDispatched.mockReset();
+  storeMocks.markCheckRunStarted.mockReset();
   storeMocks.persistCheckResult.mockReset();
   certMocks.describeCertificateAlert.mockReset();
   certMocks.probeCertificateSnapshot.mockReset();
@@ -62,6 +72,9 @@ beforeEach(() => {
 
 describe("check execution service", () => {
   it("persists an invalid url result without fetching", async () => {
+    storeMocks.ensureCheckRunForExecution.mockResolvedValue({ id: 1, finished_at: null });
+    storeMocks.loadUndispatchedCheckRuns.mockResolvedValue([]);
+    storeMocks.markCheckRunStarted.mockResolvedValue(undefined);
     storeMocks.getCheckForExecution.mockResolvedValue({ ...baseCheck, url: "not-a-url" });
     storeMocks.getLatestRecoveryAt.mockResolvedValue(null);
     storeMocks.persistCheckResult.mockResolvedValue(undefined);
@@ -96,6 +109,9 @@ describe("check execution service", () => {
   });
 
   it("suppresses notifications while maintenance is active", async () => {
+    storeMocks.ensureCheckRunForExecution.mockResolvedValue({ id: 1, finished_at: null });
+    storeMocks.loadUndispatchedCheckRuns.mockResolvedValue([]);
+    storeMocks.markCheckRunStarted.mockResolvedValue(undefined);
     storeMocks.getCheckForExecution.mockResolvedValue({
       ...baseCheck,
       maintenance_enabled: 1,
@@ -123,6 +139,10 @@ describe("check execution service", () => {
   });
 
   it("enqueues due checks and updates next_check_at", async () => {
+    storeMocks.claimScheduledCheckRun.mockResolvedValue(true);
+    storeMocks.loadUndispatchedCheckRuns.mockResolvedValue([]);
+    storeMocks.markCheckRunDispatched.mockResolvedValue(undefined);
+    storeMocks.markCheckRunStarted.mockResolvedValue(undefined);
     const statements: Array<{ sql: string; params: unknown[] }> = [];
     const db = {
       prepare(sql: string) {
@@ -135,11 +155,14 @@ describe("check execution service", () => {
           async all<T>() {
             return { results: [{ id: 7, interval_minutes: 15 }] } as T;
           },
+          async first<T>() {
+            if (normalized.startsWith("INSERT OR IGNORE INTO check_runs")) {
+              return { id: 1 } as T;
+            }
+            return null as T;
+          },
           async run() {
             return {};
-          },
-          async first<T>() {
-            return null as T;
           },
         };
       },
@@ -168,6 +191,9 @@ describe("check execution service", () => {
   });
 
   it("parses runtime headers into the persisted check result", async () => {
+    storeMocks.ensureCheckRunForExecution.mockResolvedValue({ id: 1, finished_at: null });
+    storeMocks.loadUndispatchedCheckRuns.mockResolvedValue([]);
+    storeMocks.markCheckRunStarted.mockResolvedValue(undefined);
     storeMocks.getCheckForExecution.mockResolvedValue(baseCheck);
     storeMocks.getLatestRecoveryAt.mockResolvedValue(null);
     storeMocks.persistCheckResult.mockResolvedValue(undefined);
@@ -230,6 +256,9 @@ describe("check execution service", () => {
   });
 
   it("falls back to server timing when x-runtime is missing", async () => {
+    storeMocks.ensureCheckRunForExecution.mockResolvedValue({ id: 1, finished_at: null });
+    storeMocks.loadUndispatchedCheckRuns.mockResolvedValue([]);
+    storeMocks.markCheckRunStarted.mockResolvedValue(undefined);
     storeMocks.getCheckForExecution.mockResolvedValue(baseCheck);
     storeMocks.getLatestRecoveryAt.mockResolvedValue(null);
     storeMocks.persistCheckResult.mockResolvedValue(undefined);
@@ -279,5 +308,130 @@ describe("check execution service", () => {
         },
       ],
     });
+  });
+
+  it("retries on D1 write failures", async () => {
+    storeMocks.ensureCheckRunForExecution.mockResolvedValue({ id: 1, finished_at: null });
+    storeMocks.loadUndispatchedCheckRuns.mockResolvedValue([]);
+    storeMocks.markCheckRunStarted.mockResolvedValue(undefined);
+    storeMocks.getCheckForExecution.mockResolvedValue(baseCheck);
+    storeMocks.getLatestRecoveryAt.mockResolvedValue(null);
+    storeMocks.persistCheckResult.mockRejectedValue(new Error("d1 failed"));
+    certMocks.probeCertificateSnapshot.mockResolvedValue(null);
+    certMocks.describeCertificateAlert.mockReturnValue(null);
+
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok", { status: 200 }));
+
+    await expect(
+      runCheck(
+        {
+          "pulse-db": {} as never,
+        } as never,
+        {
+          checkId: 1,
+          scheduledAt: "2026-06-22T00:00:00.000Z",
+          attemptId: "attempt-1",
+        },
+      ),
+    ).rejects.toThrow("d1 failed");
+  });
+
+  it("treats HTTP 500 as a monitored failure instead of throwing", async () => {
+    storeMocks.ensureCheckRunForExecution.mockResolvedValue({ id: 1, finished_at: null });
+    storeMocks.loadUndispatchedCheckRuns.mockResolvedValue([]);
+    storeMocks.markCheckRunStarted.mockResolvedValue(undefined);
+    storeMocks.getCheckForExecution.mockResolvedValue(baseCheck);
+    storeMocks.getLatestRecoveryAt.mockResolvedValue(null);
+    storeMocks.persistCheckResult.mockResolvedValue(undefined);
+    certMocks.probeCertificateSnapshot.mockResolvedValue(null);
+    certMocks.describeCertificateAlert.mockReturnValue(null);
+
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("boom", { status: 500 }));
+
+    await expect(
+      runCheck(
+        {
+          "pulse-db": {} as never,
+        } as never,
+        {
+          checkId: 1,
+          scheduledAt: "2026-06-22T00:00:00.000Z",
+          attemptId: "attempt-1",
+        },
+      ),
+    ).resolves.toBeUndefined();
+
+    expect(storeMocks.persistCheckResult).toHaveBeenCalledTimes(1);
+    const [, , resultArg] = storeMocks.persistCheckResult.mock.calls[0] ?? [];
+    expect(resultArg).toMatchObject({
+      state: "fail",
+      statusCode: 500,
+      reason: "http_status",
+    });
+  });
+
+  it("re-dispatches an undispatched run before creating new work", async () => {
+    storeMocks.loadUndispatchedCheckRuns.mockResolvedValue([
+      {
+        id: 9,
+        check_id: 7,
+        attempt_id: "attempt-pending",
+        scheduled_at: "2026-06-22T00:00:00.000Z",
+        started_at: null,
+        finished_at: null,
+        result_state: null,
+        dispatched_at: null,
+        interval_minutes: 15,
+        created_at: "2026-06-22T00:00:00.000Z",
+        updated_at: "2026-06-22T00:00:00.000Z",
+      },
+    ]);
+    storeMocks.markCheckRunDispatched.mockResolvedValue(undefined);
+    storeMocks.markCheckRunStarted.mockResolvedValue(undefined);
+    storeMocks.claimScheduledCheckRun.mockResolvedValue(false);
+
+    const statements: Array<{ sql: string; params: unknown[] }> = [];
+    const db = {
+      prepare(sql: string) {
+        const normalized = sql.replaceAll(/\s+/g, " ").trim();
+        return {
+          bind(...params: unknown[]) {
+            statements.push({ sql: normalized, params });
+            return this;
+          },
+          async all<T>() {
+            return { results: [] } as T;
+          },
+          async first<T>() {
+            return null as T;
+          },
+          async run() {
+            return {};
+          },
+        };
+      },
+    };
+    const sent: unknown[] = [];
+
+    await handleScheduled(
+      { scheduledTime: Date.parse("2026-06-22T00:00:00.000Z"), cron: "* * * * *", noRetry() {} },
+      {
+        "pulse-db": db as never,
+        "pulse-queue": {
+          send: async (message: { checkId: number; scheduledAt: string; attemptId: string }) => {
+            sent.push(message);
+          },
+        },
+      } as never,
+    );
+
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({
+      checkId: 7,
+      scheduledAt: "2026-06-22T00:00:00.000Z",
+      attemptId: "attempt-pending",
+    });
+    expect(storeMocks.markCheckRunDispatched).toHaveBeenCalledWith(db, "attempt-pending", "2026-06-22T00:00:00.000Z");
+    expect(statements.some((entry) => entry.sql.startsWith("UPDATE checks"))).toBe(true);
   });
 });

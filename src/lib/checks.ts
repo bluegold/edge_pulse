@@ -9,6 +9,23 @@ export type CheckJob = {
   attemptId: string;
 };
 
+export type CheckRunRow = {
+  id: number;
+  check_id: number;
+  attempt_id: string;
+  scheduled_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+  result_state: CheckState | null;
+  dispatched_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type UndispatchedCheckRunRow = CheckRunRow & {
+  interval_minutes: number;
+};
+
 export type CheckResult = {
   state: "ok" | "fail";
   statusCode: number | null;

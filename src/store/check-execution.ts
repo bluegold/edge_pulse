@@ -1,9 +1,113 @@
 import type { D1Database } from "../lib/cloudflare";
-import { buildCheckResult, evaluateTransition, type CheckResult, type CheckRow, type TransitionChange } from "../lib/checks";
+import {
+  buildCheckResult,
+  evaluateTransition,
+  type CheckJob,
+  type CheckResult,
+  type CheckRow,
+  type CheckRunRow,
+  type UndispatchedCheckRunRow,
+  type TransitionChange,
+} from "../lib/checks";
 import type { CertProbeResponse } from "../lib/cert-probe";
 
 export const getCheckForExecution = async (db: D1Database, id: number): Promise<CheckRow | null> => {
   return db.prepare(`SELECT * FROM checks WHERE id = ? LIMIT 1`).bind(id).first<CheckRow>();
+};
+
+export const claimScheduledCheckRun = async (db: D1Database, job: CheckJob, now: string): Promise<boolean> => {
+  const inserted = await db
+    .prepare(
+      `
+      INSERT OR IGNORE INTO check_runs (
+        check_id, attempt_id, scheduled_at, started_at, finished_at, result_state, created_at, updated_at
+      ) VALUES (?, ?, ?, NULL, NULL, NULL, ?, ?)
+      RETURNING id
+    `,
+    )
+    .bind(job.checkId, job.attemptId, job.scheduledAt, now, now)
+    .first<{ id: number }>();
+
+  return Boolean(inserted);
+};
+
+export const ensureCheckRunForExecution = async (db: D1Database, job: CheckJob, now: string): Promise<CheckRunRow | null> => {
+  await db
+    .prepare(
+      `
+      INSERT OR IGNORE INTO check_runs (
+        check_id, attempt_id, scheduled_at, started_at, finished_at, result_state, created_at, updated_at
+      ) VALUES (?, ?, ?, NULL, NULL, NULL, ?, ?)
+    `,
+    )
+    .bind(job.checkId, job.attemptId, job.scheduledAt, now, now)
+    .run();
+
+  const run = await db
+    .prepare(
+      `
+      SELECT *
+      FROM check_runs
+      WHERE attempt_id = ?
+      LIMIT 1
+    `,
+    )
+    .bind(job.attemptId)
+    .first<CheckRunRow>();
+
+  if (!run || run.finished_at) {
+    return null;
+  }
+
+  return run;
+};
+
+export const loadUndispatchedCheckRuns = async (db: D1Database, now: string): Promise<UndispatchedCheckRunRow[]> => {
+  const result = await db
+    .prepare(
+      `
+      SELECT r.*, c.interval_minutes
+      FROM check_runs r
+      JOIN checks c ON c.id = r.check_id
+      WHERE r.dispatched_at IS NULL
+        AND r.finished_at IS NULL
+        AND r.scheduled_at <= ?
+        AND c.enabled = 1
+      ORDER BY r.scheduled_at ASC, r.id ASC
+      LIMIT 500
+    `,
+    )
+    .bind(now)
+    .all<UndispatchedCheckRunRow>();
+
+  return result.results;
+};
+
+export const markCheckRunDispatched = async (db: D1Database, attemptId: string, now: string): Promise<void> => {
+  await db
+    .prepare(
+      `
+      UPDATE check_runs
+      SET dispatched_at = ?, updated_at = ?
+      WHERE attempt_id = ?
+        AND dispatched_at IS NULL
+    `,
+    )
+    .bind(now, now, attemptId)
+    .run();
+};
+
+export const markCheckRunStarted = async (db: D1Database, attemptId: string, now: string): Promise<void> => {
+  await db
+    .prepare(
+      `
+      UPDATE check_runs
+      SET started_at = COALESCE(started_at, ?), updated_at = ?
+      WHERE attempt_id = ?
+    `,
+    )
+    .bind(now, now, attemptId)
+    .run();
 };
 
 export const getLatestRecoveryAt = async (db: D1Database, check: CheckRow): Promise<string | null> => {
@@ -34,7 +138,26 @@ export const persistCheckResult = async (
   check: CheckRow,
   result: ReturnType<typeof buildCheckResult>,
   certificate: CertProbeResponse | null,
+  attemptId?: string,
 ): Promise<TransitionChange> => {
+  if (attemptId) {
+    const run = await db
+      .prepare(
+        `
+        SELECT finished_at
+        FROM check_runs
+        WHERE attempt_id = ?
+        LIMIT 1
+      `,
+      )
+      .bind(attemptId)
+      .first<{ finished_at: string | null }>();
+
+    if (run?.finished_at) {
+      return { kind: "none", nextState: check.last_state };
+    }
+  }
+
   const evaluated = evaluateTransition(check, result);
   const nextCheck = evaluated.nextCheck;
   const unresolvedIncident = await db
@@ -205,6 +328,21 @@ export const persistCheckResult = async (
           result.latencyMs,
           result.checkedAt,
         ),
+    );
+  }
+
+  if (attemptId) {
+    statements.push(
+      db
+        .prepare(
+          `
+          UPDATE check_runs
+          SET finished_at = ?, result_state = ?, updated_at = ?
+          WHERE attempt_id = ?
+            AND finished_at IS NULL
+        `,
+        )
+        .bind(result.checkedAt, result.state, result.checkedAt, attemptId),
     );
   }
 

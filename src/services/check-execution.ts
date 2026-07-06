@@ -11,8 +11,13 @@ import { parseServerTimingHeader, resolveXRuntimeMs } from "../lib/http-timing";
 import { shouldProbeCertificateSnapshot } from "../lib/cert-probe";
 import type { ScheduledController } from "../lib/cloudflare";
 import {
+  claimScheduledCheckRun,
+  ensureCheckRunForExecution,
   getCheckForExecution,
   getLatestRecoveryAt,
+  loadUndispatchedCheckRuns,
+  markCheckRunDispatched,
+  markCheckRunStarted,
   persistCheckResult,
 } from "../store/check-execution";
 import { describeCertificateAlert, probeCertificateSnapshot } from "./certificate-check";
@@ -21,7 +26,35 @@ import type { ExecutionContext } from "../lib/cloudflare";
 
 const CHECK_USER_AGENT = "edge-pulse-check/1.0";
 
+const dispatchCheckRun = async (
+  env: Bindings,
+  checkId: number,
+  intervalMinutes: number,
+  job: CheckJob,
+  now: string,
+): Promise<void> => {
+  await env["pulse-queue"].send(job);
+  await markCheckRunDispatched(env["pulse-db"], job.attemptId, now);
+
+  const nextCheckAt = scheduleNextCheckAt(now, intervalMinutes);
+  await env["pulse-db"]
+    .prepare(
+      `
+      UPDATE checks
+      SET last_enqueued_at = ?, next_check_at = ?, updated_at = ?
+      WHERE id = ?
+    `,
+    )
+    .bind(now, nextCheckAt, now, checkId)
+    .run();
+};
+
 export const runCheck = async (env: Bindings, job: CheckJob, ctx?: ExecutionContext): Promise<void> => {
+  const run = await ensureCheckRunForExecution(env["pulse-db"], job, new Date().toISOString());
+  if (!run) return;
+
+  await markCheckRunStarted(env["pulse-db"], job.attemptId, new Date().toISOString());
+
   const check = await getCheckForExecution(env["pulse-db"], job.checkId);
   if (!check || !check.enabled) return;
 
@@ -36,7 +69,7 @@ export const runCheck = async (env: Bindings, job: CheckJob, ctx?: ExecutionCont
       reason: "invalid_url",
       checkedAt,
     });
-    await persistCheckResult(env["pulse-db"], check, result, null);
+    await persistCheckResult(env["pulse-db"], check, result, null, job.attemptId);
     return;
   }
 
@@ -95,7 +128,7 @@ export const runCheck = async (env: Bindings, job: CheckJob, ctx?: ExecutionCont
     xRuntimeMs: resolveXRuntimeMs(response?.headers.get("x-runtime"), serverTiming),
   });
 
-  const transition = await persistCheckResult(env["pulse-db"], check, result, certificate);
+  const transition = await persistCheckResult(env["pulse-db"], check, result, certificate, job.attemptId);
   if (!transition || transition.kind === "none") return;
   if (isMaintenanceWindowActive(check.maintenance_enabled)) return;
 
@@ -121,6 +154,21 @@ export const runCheck = async (env: Bindings, job: CheckJob, ctx?: ExecutionCont
 
 const handleScheduled = async (controller: ScheduledController, env: Bindings): Promise<void> => {
   const now = new Date(controller.scheduledTime).toISOString();
+  const undispatched = await loadUndispatchedCheckRuns(env["pulse-db"], now);
+  for (const run of undispatched) {
+    await dispatchCheckRun(
+      env,
+      run.check_id,
+      run.interval_minutes,
+      {
+        checkId: run.check_id,
+        scheduledAt: run.scheduled_at,
+        attemptId: run.attempt_id,
+      },
+      now,
+    );
+  }
+
   const due = await env["pulse-db"]
     .prepare(
       `
@@ -136,23 +184,26 @@ const handleScheduled = async (controller: ScheduledController, env: Bindings): 
     .all<{ id: number; interval_minutes: number }>();
 
   for (const check of due.results) {
-    await env["pulse-queue"].send({
+    const attemptId = crypto.randomUUID();
+    const claimed = await claimScheduledCheckRun(env["pulse-db"], {
       checkId: check.id,
       scheduledAt: now,
-      attemptId: crypto.randomUUID(),
-    });
+      attemptId,
+    }, now);
 
-    const nextCheckAt = scheduleNextCheckAt(now, check.interval_minutes);
-    await env["pulse-db"]
-      .prepare(
-        `
-        UPDATE checks
-        SET last_enqueued_at = ?, next_check_at = ?, updated_at = ?
-        WHERE id = ?
-      `,
-      )
-      .bind(now, nextCheckAt, now, check.id)
-      .run();
+    if (claimed) {
+      await dispatchCheckRun(
+        env,
+        check.id,
+        check.interval_minutes,
+        {
+          checkId: check.id,
+          scheduledAt: now,
+          attemptId,
+        },
+        now,
+      );
+    }
   }
 };
 
