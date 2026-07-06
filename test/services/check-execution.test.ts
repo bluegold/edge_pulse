@@ -195,6 +195,14 @@ describe("check execution service", () => {
       },
     );
 
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    const requestInit = vi.mocked(globalThis.fetch).mock.calls[0]?.[1];
+    expect(requestInit).toMatchObject({
+      headers: {
+        "user-agent": "edge-pulse-check/1.0",
+      },
+      redirect: "manual",
+    });
     expect(storeMocks.persistCheckResult).toHaveBeenCalledTimes(1);
     const [, , resultArg] = storeMocks.persistCheckResult.mock.calls[0] ?? [];
     expect(resultArg).toMatchObject({

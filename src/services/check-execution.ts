@@ -19,6 +19,8 @@ import { describeCertificateAlert, probeCertificateSnapshot } from "./certificat
 import { dispatchNotifications } from "./notifications";
 import type { ExecutionContext } from "../lib/cloudflare";
 
+const CHECK_USER_AGENT = "edge-pulse-check/1.0";
+
 export const runCheck = async (env: Bindings, job: CheckJob, ctx?: ExecutionContext): Promise<void> => {
   const check = await getCheckForExecution(env["pulse-db"], job.checkId);
   if (!check || !check.enabled) return;
@@ -52,6 +54,9 @@ export const runCheck = async (env: Bindings, job: CheckJob, ctx?: ExecutionCont
   try {
     response = await fetch(validation.url, {
       method: check.method,
+      headers: {
+        "user-agent": CHECK_USER_AGENT,
+      },
       redirect: "manual",
       signal: controller.signal,
     });
