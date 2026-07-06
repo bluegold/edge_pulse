@@ -6,6 +6,36 @@ import (
 	"testing"
 )
 
+func TestListenAddrFromEnv(t *testing.T) {
+	tests := []struct {
+		name string
+		port string
+		want string
+	}{
+		{name: "default", port: "", want: ":8080"},
+		{name: "valid port", port: "9090", want: ":9090"},
+		{name: "trimmed port", port: " 3000 ", want: ":3000"},
+		{name: "invalid port", port: "not-a-number", want: ":8080"},
+		{name: "too small", port: "0", want: ":8080"},
+		{name: "too large", port: "65536", want: ":8080"},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.port == "" {
+				t.Setenv("PORT", "")
+			} else {
+				t.Setenv("PORT", tc.port)
+			}
+
+			if got := listenAddrFromEnv(); got != tc.want {
+				t.Fatalf("unexpected listen addr: got %q want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestValidateProbeInputRejectsBlockedHosts(t *testing.T) {
 	t.Parallel()
 

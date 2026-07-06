@@ -232,13 +232,24 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
+func listenAddrFromEnv() string {
+	port := 8080
+	if raw := strings.TrimSpace(os.Getenv("PORT")); raw != "" {
+		if parsed, err := strconv.Atoi(raw); err == nil && parsed >= 1 && parsed <= 65535 {
+			port = parsed
+		}
+	}
+
+	return ":" + strconv.Itoa(port)
+}
+
 func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ping", pingHandler)
 	mux.HandleFunc("/probe", handler)
 
 	server := &http.Server{
-		Addr:              ":8080",
+		Addr:              listenAddrFromEnv(),
 		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
