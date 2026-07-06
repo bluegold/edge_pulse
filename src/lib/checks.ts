@@ -2,11 +2,37 @@ import type { ServerTimingEntry } from "./http-timing";
 import ipaddr from "ipaddr.js";
 
 export type CheckState = "unknown" | "ok" | "fail";
+export type CheckRunResultState = "ok" | "fail" | "skipped";
+
+export type CheckRunClaim =
+  | { kind: "claimed"; run: CheckRunRow }
+  | { kind: "finished" }
+  | { kind: "leased"; leaseUntil: string }
+  | { kind: "missing" };
 
 export type CheckJob = {
   checkId: number;
   scheduledAt: string;
   attemptId: string;
+};
+
+export type CheckRunRow = {
+  id: number;
+  check_id: number;
+  attempt_id: string;
+  scheduled_at: string;
+  started_at: string | null;
+  lease_until: string | null;
+  finished_at: string | null;
+  result_state: CheckRunResultState | null;
+  skip_reason: string | null;
+  dispatched_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type UndispatchedCheckRunRow = CheckRunRow & {
+  interval_minutes: number;
 };
 
 export type CheckResult = {

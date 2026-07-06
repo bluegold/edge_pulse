@@ -11,8 +11,15 @@ import { parseServerTimingHeader, resolveXRuntimeMs } from "../lib/http-timing";
 import { shouldProbeCertificateSnapshot } from "../lib/cert-probe";
 import type { ScheduledController } from "../lib/cloudflare";
 import {
+  claimScheduledCheckRun,
+  ensureCheckRunForExecution,
   getCheckForExecution,
   getLatestRecoveryAt,
+  loadUndispatchedCheckRuns,
+  loadStaleCheckRuns,
+  markCheckRunDispatched,
+  clearCheckRunLease,
+  finishCheckRun,
   persistCheckResult,
 } from "../store/check-execution";
 import { describeCertificateAlert, probeCertificateSnapshot } from "./certificate-check";
@@ -21,9 +28,51 @@ import type { ExecutionContext } from "../lib/cloudflare";
 
 const CHECK_USER_AGENT = "edge-pulse-check/1.0";
 
+const dispatchCheckRun = async (
+  env: Bindings,
+  checkId: number,
+  intervalMinutes: number,
+  job: CheckJob,
+  now: string,
+): Promise<void> => {
+  await env["pulse-queue"].send(job);
+  await markCheckRunDispatched(env["pulse-db"], job.attemptId, now);
+
+  const nextCheckAt = scheduleNextCheckAt(now, intervalMinutes);
+  await env["pulse-db"]
+    .prepare(
+      `
+      UPDATE checks
+      SET last_enqueued_at = ?, next_check_at = ?, updated_at = ?
+      WHERE id = ?
+    `,
+    )
+    .bind(now, nextCheckAt, now, checkId)
+    .run();
+};
+
+const requeueStaleCheckRun = async (env: Bindings, run: CheckJob, now: string): Promise<void> => {
+  await env["pulse-queue"].send(run);
+  await clearCheckRunLease(env["pulse-db"], run.attemptId, now);
+};
+
 export const runCheck = async (env: Bindings, job: CheckJob, ctx?: ExecutionContext): Promise<void> => {
+  const claim = await ensureCheckRunForExecution(env["pulse-db"], job, new Date().toISOString());
+  if (claim.kind === "finished" || claim.kind === "missing") return;
+  if (claim.kind === "leased") {
+    throw new Error("check run is leased");
+  }
+  const { run } = claim;
+
   const check = await getCheckForExecution(env["pulse-db"], job.checkId);
-  if (!check || !check.enabled) return;
+  if (!check) {
+    await finishCheckRun(env["pulse-db"], run, new Date().toISOString(), "skipped", "check_not_found");
+    return;
+  }
+  if (!check.enabled) {
+    await finishCheckRun(env["pulse-db"], run, new Date().toISOString(), "skipped", "check_disabled");
+    return;
+  }
 
   const validation = validateMonitorUrl(check.url);
   const checkedAt = new Date().toISOString();
@@ -36,7 +85,7 @@ export const runCheck = async (env: Bindings, job: CheckJob, ctx?: ExecutionCont
       reason: "invalid_url",
       checkedAt,
     });
-    await persistCheckResult(env["pulse-db"], check, result, null);
+    await persistCheckResult(env["pulse-db"], check, result, null, run);
     return;
   }
 
@@ -95,7 +144,7 @@ export const runCheck = async (env: Bindings, job: CheckJob, ctx?: ExecutionCont
     xRuntimeMs: resolveXRuntimeMs(response?.headers.get("x-runtime"), serverTiming),
   });
 
-  const transition = await persistCheckResult(env["pulse-db"], check, result, certificate);
+  const transition = await persistCheckResult(env["pulse-db"], check, result, certificate, run);
   if (!transition || transition.kind === "none") return;
   if (isMaintenanceWindowActive(check.maintenance_enabled)) return;
 
@@ -121,6 +170,54 @@ export const runCheck = async (env: Bindings, job: CheckJob, ctx?: ExecutionCont
 
 const handleScheduled = async (controller: ScheduledController, env: Bindings): Promise<void> => {
   const now = new Date(controller.scheduledTime).toISOString();
+  const stale = await loadStaleCheckRuns(env["pulse-db"], now);
+  for (const run of stale) {
+    const check = await getCheckForExecution(env["pulse-db"], run.check_id);
+    if (!check) {
+      await finishCheckRun(env["pulse-db"], run, now, "skipped", "check_not_found");
+      continue;
+    }
+    if (!check.enabled) {
+      await finishCheckRun(env["pulse-db"], run, now, "skipped", "check_disabled");
+      continue;
+    }
+
+    await requeueStaleCheckRun(
+      env,
+      {
+        checkId: run.check_id,
+        scheduledAt: run.scheduled_at,
+        attemptId: run.attempt_id,
+      },
+      now,
+    );
+  }
+
+  const undispatched = await loadUndispatchedCheckRuns(env["pulse-db"], now);
+  for (const run of undispatched) {
+    const check = await getCheckForExecution(env["pulse-db"], run.check_id);
+    if (!check) {
+      await finishCheckRun(env["pulse-db"], run, now, "skipped", "check_not_found");
+      continue;
+    }
+    if (!check.enabled) {
+      await finishCheckRun(env["pulse-db"], run, now, "skipped", "check_disabled");
+      continue;
+    }
+
+    await dispatchCheckRun(
+      env,
+      check.id,
+      check.interval_minutes,
+      {
+        checkId: run.check_id,
+        scheduledAt: run.scheduled_at,
+        attemptId: run.attempt_id,
+      },
+      now,
+    );
+  }
+
   const due = await env["pulse-db"]
     .prepare(
       `
@@ -136,23 +233,26 @@ const handleScheduled = async (controller: ScheduledController, env: Bindings): 
     .all<{ id: number; interval_minutes: number }>();
 
   for (const check of due.results) {
-    await env["pulse-queue"].send({
+    const attemptId = crypto.randomUUID();
+    const claimed = await claimScheduledCheckRun(env["pulse-db"], {
       checkId: check.id,
       scheduledAt: now,
-      attemptId: crypto.randomUUID(),
-    });
+      attemptId,
+    }, now);
 
-    const nextCheckAt = scheduleNextCheckAt(now, check.interval_minutes);
-    await env["pulse-db"]
-      .prepare(
-        `
-        UPDATE checks
-        SET last_enqueued_at = ?, next_check_at = ?, updated_at = ?
-        WHERE id = ?
-      `,
-      )
-      .bind(now, nextCheckAt, now, check.id)
-      .run();
+    if (claimed) {
+      await dispatchCheckRun(
+        env,
+        check.id,
+        check.interval_minutes,
+        {
+          checkId: check.id,
+          scheduledAt: now,
+          attemptId,
+        },
+        now,
+      );
+    }
   }
 };
 
