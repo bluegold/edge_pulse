@@ -40,7 +40,6 @@ const check: CheckRow = {
   tls_days_remaining: 10,
   tls_dns_names: null,
   maintenance_enabled: 0,
-  maintenance_until: null,
   created_at: "2026-07-03T00:00:00.000Z",
   updated_at: "2026-07-03T00:00:00.000Z",
 };

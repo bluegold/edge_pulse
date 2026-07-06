@@ -53,7 +53,6 @@ const baseCheck: CheckRow = {
   first_failure_at: null,
   first_success_at: null,
   maintenance_enabled: 0,
-  maintenance_until: null,
   created_at: "2026-06-22T00:00:00.000Z",
   updated_at: "2026-06-22T00:00:00.000Z",
 };
@@ -117,7 +116,6 @@ describe("check execution service", () => {
     storeMocks.getCheckForExecution.mockResolvedValue({
       ...baseCheck,
       maintenance_enabled: 1,
-      maintenance_until: "2030-01-01T00:00:00.000Z",
     });
     storeMocks.getLatestRecoveryAt.mockResolvedValue(null);
     storeMocks.persistCheckResult.mockResolvedValue({ kind: "incident-opened", nextState: "fail", startedAt: "2026-06-22T00:00:00.000Z" });

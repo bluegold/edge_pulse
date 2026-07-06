@@ -38,15 +38,11 @@ describe("checks presenter", () => {
   });
 
   it("describes maintenance badges", () => {
-    expect(describeMaintenanceBadge({ maintenance_enabled: 1, maintenance_until: "2026-07-05T12:00:00.000Z" }, "2026-07-05T11:00:00.000Z")).toEqual({
+    expect(describeMaintenanceBadge({ maintenance_enabled: 1 })).toEqual({
       label: "メンテ中",
       className: "status maintenance",
     });
-    expect(describeMaintenanceBadge({ maintenance_enabled: 1, maintenance_until: "2026-07-05T10:00:00.000Z" }, "2026-07-05T11:00:00.000Z")).toEqual({
-      label: "メンテ超過",
-      className: "status maintenance overdue",
-    });
-    expect(describeMaintenanceBadge({ maintenance_enabled: 0, maintenance_until: null }, "2026-07-05T11:00:00.000Z")).toBeNull();
+    expect(describeMaintenanceBadge({ maintenance_enabled: 0 })).toBeNull();
   });
 
   it("formats nullable values", () => {

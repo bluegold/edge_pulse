@@ -165,9 +165,9 @@ const SettingsSection = ({ data }: { data: CheckDetailData }) => (
         <dd class="mt-1 text-right text-base font-semibold tabular-nums text-slate-50">{data.check.interval_minutes} 分</dd>
       </div>
       <div class="w-full max-w-[16rem] flex-1">
-        <dt class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">メンテ終了</dt>
+        <dt class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">メンテ</dt>
         <dd class="mt-1 text-right text-base font-semibold text-slate-50">
-          <span class="whitespace-nowrap">{data.check.maintenance_until ? <LocalTime iso={data.check.maintenance_until} class="whitespace-nowrap" /> : "未設定"}</span>
+          <span class="whitespace-nowrap">{data.check.maintenance_enabled ? "有効" : "無効"}</span>
         </dd>
       </div>
     </dl>
@@ -416,7 +416,7 @@ const ResultsSection = ({ data }: { data: CheckDetailData }) => (
 
 const CheckDetailShell = ({ data }: { data: CheckDetailData }) => {
   const stateBadge = describeCheckState(data.check.enabled, data.check.last_state);
-  const maintenanceBadge = describeMaintenanceBadge(data.check, data.generatedAt);
+  const maintenanceBadge = describeMaintenanceBadge(data.check);
 
   return (
     <section id="check-detail-shell" class="w-full">

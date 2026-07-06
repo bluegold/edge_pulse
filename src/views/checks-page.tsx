@@ -2,7 +2,7 @@ import { renderToString } from "hono/jsx/dom/server";
 import { AppLayout } from "./app-layout.tsx";
 import type { ChecksPageData as ChecksPageDataType } from "../store/checks";
 import { buildChecksUrl } from "../lib/checks-search";
-import { LocalTime, formatLocalDateTimeInput } from "./time.tsx";
+import { LocalTime } from "./time.tsx";
 import { formatNullable } from "../presenters/common";
 import { describeCertificateBadge, describeCheckState, describeMaintenanceBadge } from "../presenters/checks";
 
@@ -25,12 +25,10 @@ const StateBadge = ({ enabled, state }: { enabled: number; state: ChecksPageData
 
 const MaintenanceBadge = ({
   check,
-  referenceIso,
 }: {
   check: ChecksPageData["checks"][number];
-  referenceIso: string;
 }) => {
-  const badge = describeMaintenanceBadge(check, referenceIso);
+  const badge = describeMaintenanceBadge(check);
   if (!badge) return null;
 
   return (
@@ -105,14 +103,12 @@ const ViewCard = ({
   q,
   filter,
   highlighted,
-  generatedAt,
 }: {
   check: ChecksPageData["checks"][number];
   page: number;
   q: string;
   filter: string;
   highlighted: boolean;
-  generatedAt: string;
 }) => (
   <tr id={`check-item-${check.id}`} class={`check-row ${check.enabled ? "" : "off"} ${highlighted ? "check-row-highlight" : ""}`}>
     <th scope="row" class="check-main-cell">
@@ -123,7 +119,7 @@ const ViewCard = ({
           </a>
         </h3>
         <StateBadge enabled={check.enabled} state={check.last_state} />
-        <MaintenanceBadge check={check} referenceIso={generatedAt} />
+        <MaintenanceBadge check={check} />
       </div>
       <p class="check-url">{check.url}</p>
     </th>
@@ -244,15 +240,6 @@ const EditCard = ({
                 </label>
               </div>
               <label class="check-edit-field">
-                <span class="check-meta-label">終了予定</span>
-                <input
-                  name="maintenance_until"
-                  type="datetime-local"
-                  value={formatLocalDateTimeInput(check.maintenance_until)}
-                  class="glass-input rounded-md px-3 py-2 text-slate-100 tabular-nums"
-                />
-              </label>
-              <label class="check-edit-field">
                 <span class="check-meta-label">状態</span>
                 <select name="enabled" class="glass-input rounded-md px-3 py-2 text-slate-100">
                   <option value="1" selected={check.enabled === 1}>
@@ -347,14 +334,6 @@ const CreateForm = ({ page, q, filter }: { page: number; q: string; filter: stri
               <span>通知を止める</span>
             </label>
           </div>
-          <label class="grid min-w-0 gap-1 text-sm">
-            <span class="font-semibold text-slate-200">終了予定</span>
-            <input
-              name="maintenance_until"
-              type="datetime-local"
-              class="glass-input w-full min-w-0 rounded-md px-3 py-2 text-slate-100 tabular-nums"
-            />
-          </label>
         </div>
         <div class="create-block">
           <label class="grid min-w-0 gap-1 text-sm">
@@ -537,7 +516,6 @@ const ChecksShell = ({ data }: { data: ChecksPageData }) => (
                         q={data.q}
                         filter={data.filter}
                         highlighted={data.highlightId === check.id}
-                        generatedAt={data.generatedAt}
                       />
                     ),
                   )}

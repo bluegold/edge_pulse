@@ -1,5 +1,5 @@
 import type { CheckRow } from "../lib/checks";
-import { isMaintenanceWindowActive, isMaintenanceWindowOverdue } from "../lib/checks";
+import { isMaintenanceWindowActive } from "../lib/checks";
 
 export type CheckStateBadge = {
   label: string;
@@ -44,15 +44,10 @@ export const describeCertificateBadge = (
 };
 
 export const describeMaintenanceBadge = (
-  check: Pick<CheckRow, "maintenance_enabled" | "maintenance_until">,
-  referenceIso: string,
+  check: Pick<CheckRow, "maintenance_enabled">,
 ): MaintenanceBadge | null => {
   if (!isMaintenanceWindowActive(check.maintenance_enabled)) {
     return null;
-  }
-
-  if (isMaintenanceWindowOverdue(check.maintenance_enabled, check.maintenance_until, referenceIso)) {
-    return { label: "メンテ超過", className: "status maintenance overdue" };
   }
 
   return { label: "メンテ中", className: "status maintenance" };

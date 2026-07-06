@@ -97,8 +97,8 @@ const IncidentCard = ({ incident }: { incident: IncidentRow }) => (
   </div>
 );
 
-const RecentCheckCard = ({ check, referenceIso }: { check: CheckRow; referenceIso: string }) => {
-  const maintenanceBadge = describeMaintenanceBadge(check, referenceIso);
+const RecentCheckCard = ({ check }: { check: CheckRow }) => {
+  const maintenanceBadge = describeMaintenanceBadge(check);
   return (
     <article id={`recent-check-${check.id}`} class="subpanel p-4">
       <div class="flex items-start justify-between gap-3">
@@ -356,7 +356,7 @@ const DashboardShell = ({ data }: { data: DashboardData }) => {
               最近の監視対象
             </h2>
             <div id="recent-checks-list" class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {recentChecks.map((check) => <RecentCheckCard check={check} referenceIso={data.generatedAt} />)}
+              {recentChecks.map((check) => <RecentCheckCard check={check} />)}
             </div>
           </section>
         ) : null}
