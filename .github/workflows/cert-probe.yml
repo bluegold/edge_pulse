@@ -1,0 +1,29 @@
+name: cert-probe
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "external/cert_probe/**"
+      - ".github/workflows/cert-probe.yml"
+  pull_request:
+    paths:
+      - "external/cert_probe/**"
+      - ".github/workflows/cert-probe.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: external/cert_probe/go.mod
+
+      - name: Run tests
+        working-directory: external/cert_probe
+        run: go test ./...
