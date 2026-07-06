@@ -485,6 +485,8 @@ timeout を必ず設定する
 
 最小実装では、`fetch()` の `redirect` は `manual` にします。
 
+この検証は URL 文字列ベースです。DNS rebinding を完全に防ぐものではありません。
+
 ```ts
 const response = await fetch(check.url, {
   method: check.method ?? "GET",

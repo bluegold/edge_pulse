@@ -3,6 +3,7 @@ node_modules/
 .codegraph/
 .dev.vars
 *.log
+worker-startup.cpuprofile
 
 external/cert_probe/cert-probe
 .env

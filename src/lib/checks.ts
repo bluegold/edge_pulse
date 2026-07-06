@@ -1,4 +1,5 @@
 import type { ServerTimingEntry } from "./http-timing";
+import ipaddr from "ipaddr.js";
 
 export type CheckState = "unknown" | "ok" | "fail";
 
@@ -44,6 +45,35 @@ const TLS_ERROR_PATTERNS = [
 const DNS_ERROR_PATTERNS = [/dns/i, /nxdomain/i, /getaddrinfo/i, /enotfound/i, /eai_again/i];
 
 const TIMEOUT_ERROR_PATTERNS = [/timeout/i, /timed out/i, /aborted/i, /abort/i];
+
+const isSpecialUseHost = (hostname: string): boolean => {
+  const normalized = hostname.trim().toLowerCase();
+  const withoutTrailingDot = normalized.endsWith(".") ? normalized.slice(0, -1) : normalized;
+  const stripped =
+    withoutTrailingDot.startsWith("[") && withoutTrailingDot.endsWith("]")
+      ? withoutTrailingDot.slice(1, -1)
+      : withoutTrailingDot;
+
+  if (stripped === "localhost" || stripped.endsWith(".localhost")) {
+    return true;
+  }
+
+  if (!ipaddr.isValid(stripped)) {
+    return false;
+  }
+
+  const parsed = ipaddr.parse(stripped);
+  if (parsed.kind() === "ipv4") {
+    return parsed.range() !== "unicast";
+  }
+
+  const ipv6 = parsed as ipaddr.IPv6;
+  if (ipv6.range() === "ipv4Mapped") {
+    return ipv6.toIPv4Address().range() !== "unicast";
+  }
+
+  return ipv6.range() !== "unicast";
+};
 
 export const classifyCheckFailureReason = (statusCode: number | null, error: string | null): string => {
   if (statusCode === 526) return "tls_error";
@@ -134,29 +164,6 @@ export type EvaluatedCheck = {
   transition: TransitionChange;
 };
 
-const isPrivateIpv4 = (hostname: string): boolean => {
-  const parts = hostname.split(".");
-  if (parts.length !== 4) return false;
-
-  const octets = parts.map((part) => {
-    if (!/^\d+$/.test(part)) return Number.NaN;
-    const value = Number(part);
-    return Number.isInteger(value) && value >= 0 && value <= 255 ? value : Number.NaN;
-  });
-
-  if (octets.some((part) => Number.isNaN(part))) {
-    return false;
-  }
-
-  const [a, b] = octets as [number, number, number, number];
-  if (a === 10) return true;
-  if (a === 127) return true;
-  if (a === 169 && b === 254) return true;
-  if (a === 172 && b >= 16 && b <= 31) return true;
-  if (a === 192 && b === 168) return true;
-  return false;
-};
-
 const normalizeHostname = (hostname: string): string => {
   const trimmed = hostname.trim().toLowerCase();
   return trimmed.endsWith(".") ? trimmed.slice(0, -1) : trimmed;
@@ -192,16 +199,9 @@ export const validateMonitorUrl = (
     return { ok: false, error: "ホスト名が空です" };
   }
 
-  if (hostname === "localhost") {
-    return { ok: false, error: "localhost は許可されていません" };
-  }
-
-  if (hostname === "::1") {
-    return { ok: false, error: "::1 は許可されていません" };
-  }
-
-  if (isPrivateIpv4(hostname)) {
-    return { ok: false, error: "プライベート IP は許可されていません" };
+  // これは URL 文字列ベースの検証であり、DNS rebinding を完全には防げません。
+  if (isSpecialUseHost(hostname)) {
+    return { ok: false, error: "special-use address は許可されていません" };
   }
 
   return { ok: true, url };

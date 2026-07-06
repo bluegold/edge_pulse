@@ -59,18 +59,45 @@ const failResult = (checkedAt = "2026-06-22T00:01:00.000Z"): CheckResult => ({
 });
 
 describe("validateMonitorUrl", () => {
-  it("rejects localhost and private addresses", () => {
+  it("rejects localhost, private, and special-use addresses", () => {
     expect(validateMonitorUrl("http://localhost")).toMatchObject({ ok: false });
+    expect(validateMonitorUrl("http://foo.localhost")).toMatchObject({ ok: false });
+    expect(validateMonitorUrl("http://localhost.")).toMatchObject({ ok: false });
+    expect(validateMonitorUrl("http://0.0.0.0")).toMatchObject({ ok: false });
     expect(validateMonitorUrl("http://127.0.0.1")).toMatchObject({ ok: false });
+    expect(validateMonitorUrl("http://127.1")).toMatchObject({ ok: false });
     expect(validateMonitorUrl("http://10.0.0.1")).toMatchObject({ ok: false });
     expect(validateMonitorUrl("http://172.16.0.1")).toMatchObject({ ok: false });
+    expect(validateMonitorUrl("http://172.31.255.255")).toMatchObject({ ok: false });
     expect(validateMonitorUrl("http://192.168.0.1")).toMatchObject({ ok: false });
     expect(validateMonitorUrl("http://169.254.0.1")).toMatchObject({ ok: false });
+    expect(validateMonitorUrl("http://100.64.0.1")).toMatchObject({ ok: false });
+    expect(validateMonitorUrl("http://224.0.0.1")).toMatchObject({ ok: false });
+    expect(validateMonitorUrl("http://192.0.2.1")).toMatchObject({ ok: false });
+    expect(validateMonitorUrl("http://198.51.100.1")).toMatchObject({ ok: false });
+    expect(validateMonitorUrl("http://203.0.113.1")).toMatchObject({ ok: false });
+    expect(validateMonitorUrl("http://[::1]")).toMatchObject({ ok: false });
+    expect(validateMonitorUrl("http://[::]")).toMatchObject({ ok: false });
+    expect(validateMonitorUrl("http://[fe80::1]")).toMatchObject({ ok: false });
+    expect(validateMonitorUrl("http://[fc00::1]")).toMatchObject({ ok: false });
+    expect(validateMonitorUrl("http://[fd00::1]")).toMatchObject({ ok: false });
+    expect(validateMonitorUrl("http://[2001:db8::1]")).toMatchObject({ ok: false });
+    expect(validateMonitorUrl("http://[::ffff:127.0.0.1]")).toMatchObject({ ok: false });
+    expect(validateMonitorUrl("http://[::ffff:10.0.0.1]")).toMatchObject({ ok: false });
   });
 
   it("rejects unsupported schemes", () => {
     expect(validateMonitorUrl("file:///tmp/a")).toMatchObject({ ok: false });
+    expect(validateMonitorUrl("ftp://example.com")).toMatchObject({ ok: false });
     expect(validateMonitorUrl("javascript:alert(1)")).toMatchObject({ ok: false });
+  });
+
+  it("allows public hostnames and literal addresses", () => {
+    expect(validateMonitorUrl("https://example.com")).toMatchObject({ ok: true });
+    expect(validateMonitorUrl("http://example.com")).toMatchObject({ ok: true });
+    expect(validateMonitorUrl("http://8.8.8.8")).toMatchObject({ ok: true });
+    expect(validateMonitorUrl("http://[2001:4860:4860::8888]")).toMatchObject({ ok: true });
+    expect(validateMonitorUrl("http://[::ffff:8.8.8.8]")).toMatchObject({ ok: true });
   });
 });
 
