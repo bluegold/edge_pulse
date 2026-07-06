@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -40,6 +41,22 @@ type ProbeLog struct {
 	Error     string     `json:"error,omitempty"`
 }
 
+var lookupIPAddrs = func(ctx context.Context, host string) ([]netip.Addr, error) {
+	addrs, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+	if err != nil {
+		return nil, err
+	}
+
+	resolved := make([]netip.Addr, 0, len(addrs))
+	for _, addr := range addrs {
+		if ip, ok := netip.AddrFromSlice(addr.IP); ok {
+			resolved = append(resolved, ip.Unmap())
+		}
+	}
+
+	return resolved, nil
+}
+
 func probeCert(host string, port int, serverName string) CertResult {
 	result := CertResult{
 		Host:       host,
@@ -60,8 +77,14 @@ func probeCert(host string, port int, serverName string) CertResult {
 		result.ServerName = serverName
 	}
 
+	dialAddr, err := resolveProbeDialAddr(host, port)
+	if err != nil {
+		result.Error = err.Error()
+		return result
+	}
+
 	dialer := &net.Dialer{Timeout: 5 * time.Second}
-	conn, err := tls.DialWithDialer(dialer, "tcp", net.JoinHostPort(host, strconv.Itoa(port)), &tls.Config{
+	conn, err := tls.DialWithDialer(dialer, "tcp", dialAddr, &tls.Config{
 		ServerName: serverName,
 		// InsecureSkipVerify is used only to retrieve the peer certificate
 		// even when it is expired or self-signed. This probe does not treat
@@ -90,6 +113,34 @@ func probeCert(host string, port int, serverName string) CertResult {
 	result.DNSNames = cert.DNSNames
 
 	return result
+}
+
+func resolveProbeDialAddr(host string, port int) (string, error) {
+	if addr, err := netip.ParseAddr(host); err == nil {
+		if isBlockedIP(addr) {
+			return "", fmt.Errorf("host is not allowed")
+		}
+		return net.JoinHostPort(addr.String(), strconv.Itoa(port)), nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	addrs, err := lookupIPAddrs(ctx, host)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve host: %w", err)
+	}
+	if len(addrs) == 0 {
+		return "", fmt.Errorf("failed to resolve host")
+	}
+
+	for _, addr := range addrs {
+		if isBlockedIP(addr) {
+			return "", fmt.Errorf("host resolved to blocked address")
+		}
+	}
+
+	return net.JoinHostPort(addrs[0].String(), strconv.Itoa(port)), nil
 }
 
 func validateProbeInput(host string, port int, serverName string) (string, int, string, error) {
@@ -131,26 +182,18 @@ func isBlockedHost(host string) bool {
 		return false
 	}
 	if addr.Is4In6() {
-		return isBlockedIPv4(addr.Unmap())
+		return isBlockedIP(addr.Unmap())
 	}
-	if addr.Is4() {
-		return isBlockedIPv4(addr)
-	}
-
-	return addr.IsLoopback() ||
-		addr.IsUnspecified() ||
-		addr.IsLinkLocalUnicast() ||
-		addr.IsMulticast() ||
-		addr.IsPrivate()
+	return isBlockedIP(addr)
 }
 
-func isBlockedIPv4(addr netip.Addr) bool {
-	if !addr.Is4() {
-		return false
+func isBlockedIP(addr netip.Addr) bool {
+	if addr.IsLoopback() || addr.IsUnspecified() || addr.IsLinkLocalUnicast() || addr.IsMulticast() || addr.IsPrivate() {
+		return true
 	}
 
-	if addr.IsLoopback() || addr.IsPrivate() || addr.IsLinkLocalUnicast() || addr.IsMulticast() || addr.IsUnspecified() {
-		return true
+	if !addr.Is4() {
+		return false
 	}
 
 	octets := addr.As4()

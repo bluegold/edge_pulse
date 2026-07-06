@@ -80,6 +80,8 @@ API が返す `days_remaining` は、監視側で 30 日以内の警告判定に
 
 現状、外部から調整する設定項目はこの待ち受けポートだけです。DNS や probe 対象はリクエストの入力であり、固定設定ではありません。
 
+`/probe` は DNS 名についても名前解決後の IP を検査し、loopback / private / link-local / multicast / ULA などに解決された場合は拒否します。
+
 ## ログ
 
 各リクエストの処理結果を標準出力へ JSONL で 1 行ずつ出します。

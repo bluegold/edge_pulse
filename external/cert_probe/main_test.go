@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"testing"
 )
 
@@ -108,6 +110,34 @@ func TestValidateProbeInputAllowsPublicDomain(t *testing.T) {
 	}
 	if serverName != "example.com" {
 		t.Fatalf("unexpected serverName: %q", serverName)
+	}
+}
+
+func TestResolveProbeDialAddrRejectsBlockedResolvedAddress(t *testing.T) {
+	oldLookup := lookupIPAddrs
+	t.Cleanup(func() { lookupIPAddrs = oldLookup })
+	lookupIPAddrs = func(context.Context, string) ([]netip.Addr, error) {
+		return []netip.Addr{netip.MustParseAddr("127.0.0.1")}, nil
+	}
+
+	if _, err := resolveProbeDialAddr("example.com", 443); err == nil {
+		t.Fatal("expected blocked resolved address to be rejected")
+	}
+}
+
+func TestResolveProbeDialAddrAllowsPublicResolvedAddress(t *testing.T) {
+	oldLookup := lookupIPAddrs
+	t.Cleanup(func() { lookupIPAddrs = oldLookup })
+	lookupIPAddrs = func(context.Context, string) ([]netip.Addr, error) {
+		return []netip.Addr{netip.MustParseAddr("93.184.216.34")}, nil
+	}
+
+	got, err := resolveProbeDialAddr("example.com", 443)
+	if err != nil {
+		t.Fatalf("expected public address to be allowed: %v", err)
+	}
+	if got != "93.184.216.34:443" {
+		t.Fatalf("unexpected dial addr: %q", got)
 	}
 }
 
