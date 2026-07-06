@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 import { buildCheckResult, type CheckJob, type CheckRow, type CheckRunRow } from "../../src/lib/checks";
 import {
   claimScheduledCheckRun,
+  ensureCheckRunForExecution,
   getLatestRecoveryAt,
-  markCheckRunStarted,
+  finishCheckRun,
   persistCheckResult,
 } from "../../src/store/check-execution";
 import type { D1Database } from "../../src/lib/cloudflare";
@@ -42,8 +43,10 @@ const makeCheckRun = (overrides: Partial<CheckRunRow> = {}): CheckRunRow => ({
   attempt_id: "attempt-1",
   scheduled_at: "2026-06-22T00:00:00.000Z",
   started_at: null,
+  lease_until: null,
   finished_at: null,
   result_state: null,
+  skip_reason: null,
   dispatched_at: null,
   created_at: "2026-06-22T00:00:00.000Z",
   updated_at: "2026-06-22T00:00:00.000Z",
@@ -93,8 +96,15 @@ const makeDb = (overrides: Partial<TestState> = {}) => {
   const applyStatement = (normalized: string, params: unknown[]): void => {
     state.statements.push({ sql: normalized, params });
 
-    if (normalized.startsWith("INSERT INTO check_results")) {
-      state.results.push({ sql: normalized, params });
+    if (normalized.startsWith("INSERT INTO check_results") || normalized.startsWith("INSERT OR IGNORE INTO check_results")) {
+      const [checkId, checkRunId] = params as [number, number];
+      const exists = state.results.some((entry) => {
+        const [existingCheckId, existingRunId] = entry.params as [number, number, ...unknown[]];
+        return existingCheckId === checkId && existingRunId === checkRunId;
+      });
+      if (!exists) {
+        state.results.push({ sql: normalized, params });
+      }
       return;
     }
 
@@ -195,7 +205,7 @@ const makeDb = (overrides: Partial<TestState> = {}) => {
       return;
     }
 
-    if (normalized.startsWith("INSERT INTO incidents")) {
+    if (normalized.startsWith("INSERT INTO incidents") || normalized.startsWith("INSERT OR IGNORE INTO incidents")) {
       const [checkId, startedAt, startReason, startStatusCode, createdAt, updatedAt] = params as [
         number,
         string,
@@ -204,17 +214,20 @@ const makeDb = (overrides: Partial<TestState> = {}) => {
         string,
         string,
       ];
-      state.incidents.push({
-        id: state.nextIncidentId++,
-        check_id: checkId,
-        started_at: startedAt,
-        resolved_at: null,
-        start_reason: startReason,
-        end_reason: null,
-        start_status_code: startStatusCode,
-        end_status_code: null,
-        failure_count: 1,
-      });
+      const exists = state.incidents.some((incident) => incident.check_id === checkId && incident.resolved_at === null);
+      if (!exists) {
+        state.incidents.push({
+          id: state.nextIncidentId++,
+          check_id: checkId,
+          started_at: startedAt,
+          resolved_at: null,
+          start_reason: startReason,
+          end_reason: null,
+          start_status_code: startStatusCode,
+          end_status_code: null,
+          failure_count: 1,
+        });
+      }
       state.check.updated_at = updatedAt;
       state.check.last_checked_at = createdAt;
       return;
@@ -251,22 +264,16 @@ const makeDb = (overrides: Partial<TestState> = {}) => {
       return;
     }
 
-    if (normalized.startsWith("UPDATE check_runs SET finished_at = ?, result_state = ?, updated_at = ?")) {
-      const [finishedAt, resultState, updatedAt, attemptId] = params as [string, string, string, string];
-      const run = state.checkRuns.find((entry) => entry.attempt_id === attemptId);
+    if (normalized.startsWith("UPDATE check_runs SET finished_at = ?, result_state = ?")) {
+      const runId = params.at(-1) as number;
+      const run = state.checkRuns.find((entry) => entry.id === runId);
       if (run && run.finished_at === null) {
+        const [finishedAt, resultState] = params as [string, string];
+        const updatedAt = params[params.length - 2] as string;
         run.finished_at = finishedAt;
         run.result_state = resultState as CheckRunRow["result_state"];
-        run.updated_at = updatedAt;
-      }
-      return;
-    }
-
-    if (normalized.startsWith("UPDATE check_runs SET started_at = COALESCE(started_at, ?), updated_at = ?")) {
-      const [startedAt, updatedAt, attemptId] = params as [string, string, string];
-      const run = state.checkRuns.find((entry) => entry.attempt_id === attemptId);
-      if (run && run.started_at === null) {
-        run.started_at = startedAt;
+        run.skip_reason = normalized.includes("skip_reason = ?") ? (params[2] as string | null) : null;
+        run.lease_until = null;
         run.updated_at = updatedAt;
       }
       return;
@@ -308,6 +315,19 @@ const makeDb = (overrides: Partial<TestState> = {}) => {
             return { occurred_at: "2026-06-22T00:10:00.000Z" } as T;
           }
 
+          if (normalized.startsWith("UPDATE check_runs SET started_at = COALESCE(started_at, ?), lease_until = ?, updated_at = ?")) {
+            const [startedAt, leaseUntil, updatedAt, attemptId, now] = statement.params as [string, string, string, string, string];
+            const run = state.checkRuns.find((entry) => entry.attempt_id === attemptId);
+            if (!run || run.finished_at !== null) return null as T;
+            if (run.lease_until !== null && run.lease_until > now) return null as T;
+            if (run.started_at === null) {
+              run.started_at = startedAt;
+            }
+            run.lease_until = leaseUntil;
+            run.updated_at = updatedAt;
+            return run as T;
+          }
+
           if (normalized.includes("FROM incidents") && normalized.includes("resolved_at IS NULL")) {
             return state.incidents.find((incident) => incident.check_id === state.check.id && incident.resolved_at === null) as T;
           }
@@ -335,6 +355,35 @@ const makeDb = (overrides: Partial<TestState> = {}) => {
               updated_at: updatedAt,
             });
             state.checkRuns.push(inserted);
+            return { id: inserted.id } as T;
+          }
+
+          if (normalized.startsWith("INSERT OR IGNORE INTO incidents") && normalized.includes("RETURNING id")) {
+            const [checkId, startedAt, startReason, startStatusCode, createdAt, updatedAt] = statement.params as [
+              number,
+              string,
+              string | null,
+              number | null,
+              string,
+              string,
+            ];
+            const exists = state.incidents.some((incident) => incident.check_id === checkId && incident.resolved_at === null);
+            if (exists) return null as T;
+
+            const inserted = {
+              id: state.nextIncidentId++,
+              check_id: checkId,
+              started_at: startedAt,
+              resolved_at: null,
+              start_reason: startReason,
+              end_reason: null,
+              start_status_code: startStatusCode,
+              end_status_code: null,
+              failure_count: 1,
+            };
+            state.incidents.push(inserted);
+            state.check.updated_at = updatedAt;
+            state.check.last_checked_at = createdAt;
             return { id: inserted.id } as T;
           }
 
@@ -444,10 +493,11 @@ describe("check execution store", () => {
       ],
     });
 
-    const transition = await persistCheckResult(db, baseCheck, result, null, "attempt-1");
+    const transition = await persistCheckResult(db, baseCheck, result, null, state.checkRuns[0]!);
 
-    const insertStatement = state.statements.find((entry) => entry.sql.startsWith("INSERT INTO check_results"));
+    const insertStatement = state.statements.find((entry) => entry.sql.startsWith("INSERT OR IGNORE INTO check_results"));
     expect(insertStatement?.params).toEqual([
+      1,
       1,
       "ok",
       200,
@@ -469,20 +519,36 @@ describe("check execution store", () => {
     ]);
     expect(insertStatement).toBeDefined();
     expect(state.statements.some((entry) => entry.sql.startsWith("UPDATE checks"))).toBe(true);
-    expect(state.statements.some((entry) => entry.sql.startsWith("INSERT INTO incidents"))).toBe(false);
+    expect(state.statements.some((entry) => entry.sql.startsWith("INSERT OR IGNORE INTO incidents"))).toBe(false);
     expect(state.statements.some((entry) => entry.sql.startsWith("INSERT INTO status_events"))).toBe(false);
     expect(state.checkRuns[0]?.finished_at).toBe("2026-06-22T00:11:00.000Z");
     expect(transition).toMatchObject({ kind: "none", nextState: "ok" });
   });
 
-  it("marks a check run as started before persisting the result", async () => {
+  it("claims a check run with a lease before persisting the result", async () => {
     const { db, state } = makeDb({
       checkRuns: [makeCheckRun()],
     });
 
-    await markCheckRunStarted(db, "attempt-1", "2026-06-22T00:10:30.000Z");
+    const run = await ensureCheckRunForExecution(db, { checkId: 1, scheduledAt: "2026-06-22T00:00:00.000Z", attemptId: "attempt-1" }, "2026-06-22T00:10:30.000Z");
 
-    expect(state.checkRuns[0]?.started_at).toBe("2026-06-22T00:10:30.000Z");
+    expect(run?.started_at).toBe("2026-06-22T00:10:30.000Z");
+    expect(run?.lease_until).toBe("2026-06-22T00:15:30.000Z");
+
+    const second = await ensureCheckRunForExecution(db, { checkId: 1, scheduledAt: "2026-06-22T00:00:00.000Z", attemptId: "attempt-1" }, "2026-06-22T00:11:00.000Z");
+    expect(second).toBeNull();
+  });
+
+  it("finishes a skipped check run", async () => {
+    const { db, state } = makeDb({
+      checkRuns: [makeCheckRun()],
+    });
+
+    await finishCheckRun(db, state.checkRuns[0]!, "2026-06-22T00:10:30.000Z", "skipped", "check_disabled");
+
+    expect(state.checkRuns[0]?.finished_at).toBe("2026-06-22T00:10:30.000Z");
+    expect(state.checkRuns[0]?.result_state).toBe("skipped");
+    expect(state.checkRuns[0]?.skip_reason).toBe("check_disabled");
   });
 
   it("does not duplicate incident open on the same attempt", async () => {
@@ -502,8 +568,8 @@ describe("check execution store", () => {
       checkedAt: "2026-06-22T00:11:00.000Z",
     });
 
-    await persistCheckResult(db, state.check, result, null, "attempt-1");
-    await persistCheckResult(db, state.check, result, null, "attempt-1");
+    await persistCheckResult(db, state.check, result, null, state.checkRuns[0]!);
+    await persistCheckResult(db, state.check, result, null, state.checkRuns[0]!);
 
     expect(state.incidents).toHaveLength(1);
     expect(state.events).toHaveLength(1);
@@ -542,8 +608,8 @@ describe("check execution store", () => {
       checkedAt: "2026-06-22T00:12:00.000Z",
     });
 
-    await persistCheckResult(db, state.check, result, null, "attempt-1");
-    await persistCheckResult(db, state.check, result, null, "attempt-1");
+    await persistCheckResult(db, state.check, result, null, state.checkRuns[0]!);
+    await persistCheckResult(db, state.check, result, null, state.checkRuns[0]!);
 
     expect(state.incidents[0]?.resolved_at).toBe("2026-06-22T00:12:00.000Z");
     expect(state.events).toHaveLength(1);

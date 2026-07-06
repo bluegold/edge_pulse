@@ -17,7 +17,7 @@ import {
   getLatestRecoveryAt,
   loadUndispatchedCheckRuns,
   markCheckRunDispatched,
-  markCheckRunStarted,
+  finishCheckRun,
   persistCheckResult,
 } from "../store/check-execution";
 import { describeCertificateAlert, probeCertificateSnapshot } from "./certificate-check";
@@ -53,10 +53,15 @@ export const runCheck = async (env: Bindings, job: CheckJob, ctx?: ExecutionCont
   const run = await ensureCheckRunForExecution(env["pulse-db"], job, new Date().toISOString());
   if (!run) return;
 
-  await markCheckRunStarted(env["pulse-db"], job.attemptId, new Date().toISOString());
-
   const check = await getCheckForExecution(env["pulse-db"], job.checkId);
-  if (!check || !check.enabled) return;
+  if (!check) {
+    await finishCheckRun(env["pulse-db"], run, new Date().toISOString(), "skipped", "check_not_found");
+    return;
+  }
+  if (!check.enabled) {
+    await finishCheckRun(env["pulse-db"], run, new Date().toISOString(), "skipped", "check_disabled");
+    return;
+  }
 
   const validation = validateMonitorUrl(check.url);
   const checkedAt = new Date().toISOString();
@@ -69,7 +74,7 @@ export const runCheck = async (env: Bindings, job: CheckJob, ctx?: ExecutionCont
       reason: "invalid_url",
       checkedAt,
     });
-    await persistCheckResult(env["pulse-db"], check, result, null, job.attemptId);
+    await persistCheckResult(env["pulse-db"], check, result, null, run);
     return;
   }
 
@@ -128,7 +133,7 @@ export const runCheck = async (env: Bindings, job: CheckJob, ctx?: ExecutionCont
     xRuntimeMs: resolveXRuntimeMs(response?.headers.get("x-runtime"), serverTiming),
   });
 
-  const transition = await persistCheckResult(env["pulse-db"], check, result, certificate, job.attemptId);
+  const transition = await persistCheckResult(env["pulse-db"], check, result, certificate, run);
   if (!transition || transition.kind === "none") return;
   if (isMaintenanceWindowActive(check.maintenance_enabled)) return;
 
@@ -156,10 +161,20 @@ const handleScheduled = async (controller: ScheduledController, env: Bindings): 
   const now = new Date(controller.scheduledTime).toISOString();
   const undispatched = await loadUndispatchedCheckRuns(env["pulse-db"], now);
   for (const run of undispatched) {
+    const check = await getCheckForExecution(env["pulse-db"], run.check_id);
+    if (!check) {
+      await finishCheckRun(env["pulse-db"], run, now, "skipped", "check_not_found");
+      continue;
+    }
+    if (!check.enabled) {
+      await finishCheckRun(env["pulse-db"], run, now, "skipped", "check_disabled");
+      continue;
+    }
+
     await dispatchCheckRun(
       env,
-      run.check_id,
-      run.interval_minutes,
+      check.id,
+      check.interval_minutes,
       {
         checkId: run.check_id,
         scheduledAt: run.scheduled_at,
