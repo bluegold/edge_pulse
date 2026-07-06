@@ -37,7 +37,7 @@ export const insertCheck = async (db: D1Database, input: CheckInput, now: string
         last_state, last_status_code, last_latency_ms, last_error,
         fail_threshold, recovery_threshold, consecutive_failures, consecutive_successes,
         first_failure_at, first_success_at, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, 'unknown', NULL, NULL, NULL, ?, ?, 0, 0, NULL, NULL, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, 'unknown', NULL, NULL, NULL, ?, ?, 0, 0, NULL, NULL, ?, ?)
       RETURNING id
     `,
     )
