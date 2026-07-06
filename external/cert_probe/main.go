@@ -3,39 +3,41 @@ package main
 import (
 	"crypto/tls"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
+	"net/netip"
 	"os"
 	"strconv"
+	"strings"
 	"time"
+	"unicode"
 )
 
 type CertResult struct {
-	Host          string `json:"host"`
-	Port          int    `json:"port"`
-	ServerName    string `json:"servername"`
-	Subject       string `json:"subject,omitempty"`
-	Issuer        string `json:"issuer,omitempty"`
-	Class         string `json:"class,omitempty"`
-	ValidFrom     string `json:"valid_from,omitempty"`
-	ValidTo       string `json:"valid_to,omitempty"`
-	DaysRemaining int    `json:"days_remaining,omitempty"`
+	Host          string   `json:"host"`
+	Port          int      `json:"port"`
+	ServerName    string   `json:"servername"`
+	Subject       string   `json:"subject,omitempty"`
+	Issuer        string   `json:"issuer,omitempty"`
+	Class         string   `json:"class,omitempty"`
+	ValidFrom     string   `json:"valid_from,omitempty"`
+	ValidTo       string   `json:"valid_to,omitempty"`
+	DaysRemaining int      `json:"days_remaining,omitempty"`
 	DNSNames      []string `json:"dns_names,omitempty"`
-	Error         string `json:"error,omitempty"`
+	Error         string   `json:"error,omitempty"`
 }
 
 type ProbeLog struct {
-	Timestamp string      `json:"timestamp"`
-	Event     string      `json:"event"`
-	Method    string      `json:"method"`
-	Path      string      `json:"path"`
-	Query     string      `json:"query,omitempty"`
-	Status    int         `json:"status"`
-	Duration  int64       `json:"duration_ms"`
-	Result    CertResult  `json:"result"`
-	Error     string      `json:"error,omitempty"`
+	Timestamp string     `json:"timestamp"`
+	Event     string     `json:"event"`
+	Method    string     `json:"method"`
+	Path      string     `json:"path"`
+	Query     string     `json:"query,omitempty"`
+	Status    int        `json:"status"`
+	Duration  int64      `json:"duration_ms"`
+	Result    CertResult `json:"result"`
+	Error     string     `json:"error,omitempty"`
 }
 
 func probeCert(host string, port int, serverName string) CertResult {
@@ -60,8 +62,11 @@ func probeCert(host string, port int, serverName string) CertResult {
 
 	dialer := &net.Dialer{Timeout: 5 * time.Second}
 	conn, err := tls.DialWithDialer(dialer, "tcp", net.JoinHostPort(host, strconv.Itoa(port)), &tls.Config{
-		ServerName:         serverName,
-		InsecureSkipVerify: true, // 期限切れ・自己署名でも証明書自体は取得する
+		ServerName: serverName,
+		// InsecureSkipVerify is used only to retrieve the peer certificate
+		// even when it is expired or self-signed. This probe does not treat
+		// the connection as certificate-verified.
+		InsecureSkipVerify: true,
 	})
 	if err != nil {
 		result.Error = err.Error()
@@ -87,22 +92,105 @@ func probeCert(host string, port int, serverName string) CertResult {
 	return result
 }
 
+func validateProbeInput(host string, port int, serverName string) (string, int, string, error) {
+	if host == "" {
+		return "", 0, "", fmt.Errorf("host is required")
+	}
+	if hasControlChars(host) {
+		return "", 0, "", fmt.Errorf("invalid host")
+	}
+	if port < 1 || port > 65535 {
+		return "", 0, "", fmt.Errorf("invalid port")
+	}
+	if isBlockedHost(host) {
+		return "", 0, "", fmt.Errorf("host is not allowed")
+	}
+
+	if serverName == "" {
+		serverName = host
+	}
+	if hasControlChars(serverName) {
+		return "", 0, "", fmt.Errorf("invalid serverName")
+	}
+
+	return host, port, serverName, nil
+}
+
+func hasControlChars(s string) bool {
+	return strings.IndexFunc(s, unicode.IsControl) >= 0
+}
+
+func isBlockedHost(host string) bool {
+	lower := strings.ToLower(strings.TrimSuffix(host, "."))
+	if lower == "localhost" || strings.HasSuffix(lower, ".localhost") {
+		return true
+	}
+
+	addr, err := netip.ParseAddr(host)
+	if err != nil {
+		return false
+	}
+	if addr.Is4In6() {
+		return isBlockedIPv4(addr.Unmap())
+	}
+	if addr.Is4() {
+		return isBlockedIPv4(addr)
+	}
+
+	return addr.IsLoopback() ||
+		addr.IsUnspecified() ||
+		addr.IsLinkLocalUnicast() ||
+		addr.IsMulticast() ||
+		addr.IsPrivate()
+}
+
+func isBlockedIPv4(addr netip.Addr) bool {
+	if !addr.Is4() {
+		return false
+	}
+
+	if addr.IsLoopback() || addr.IsPrivate() || addr.IsLinkLocalUnicast() || addr.IsMulticast() || addr.IsUnspecified() {
+		return true
+	}
+
+	octets := addr.As4()
+	return octets[0] == 100 && octets[1]&0xc0 == 0x40
+}
+
 func handler(w http.ResponseWriter, r *http.Request) {
 	started := time.Now()
+	if r.Method != http.MethodGet {
+		w.Header().Set("Allow", http.MethodGet)
+		result := CertResult{Error: "method not allowed"}
+		logProbe(r, http.StatusMethodNotAllowed, time.Since(started), result)
+		writeJSON(w, http.StatusMethodNotAllowed, result)
+		return
+	}
+
 	q := r.URL.Query()
-	host := q.Get("host")
-	serverName := q.Get("servername")
+	origHost := q.Get("host")
+	origServerName := q.Get("servername")
+	host := origHost
+	serverName := origServerName
 
 	port := 443
 	if p := q.Get("port"); p != "" {
 		parsed, err := strconv.Atoi(p)
 		if err != nil {
-			result := CertResult{Host: host, Error: errors.New("invalid port").Error()}
+			result := CertResult{Host: origHost, Port: port, ServerName: origServerName, Error: "invalid port"}
 			logProbe(r, http.StatusBadRequest, time.Since(started), result)
 			writeJSON(w, http.StatusBadRequest, result)
 			return
 		}
 		port = parsed
+	}
+
+	host, port, serverName, err := validateProbeInput(host, port, serverName)
+	if err != nil {
+		result := CertResult{Host: origHost, Port: port, ServerName: origServerName, Error: err.Error()}
+		logProbe(r, http.StatusBadRequest, time.Since(started), result)
+		writeJSON(w, http.StatusBadRequest, result)
+		return
 	}
 
 	result := probeCert(host, port, serverName)
@@ -145,7 +233,17 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 }
 
 func main() {
-	http.HandleFunc("/ping", pingHandler)
-	http.HandleFunc("/probe", handler)
-	http.ListenAndServe(":8080", nil)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ping", pingHandler)
+	mux.HandleFunc("/probe", handler)
+
+	server := &http.Server{
+		Addr:              ":8080",
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       30 * time.Second,
+	}
+	_ = server.ListenAndServe()
 }
