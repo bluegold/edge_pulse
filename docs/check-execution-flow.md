@@ -72,7 +72,7 @@ export type CheckJob = {
 - `finished_at`
   - 実行完了時刻
 - `result_state`
-  - 最終結果 `ok` / `fail`
+  - 最終結果 `ok` / `fail` / `skipped`
 - `skip_reason`
   - `skipped` の理由
 
@@ -101,6 +101,8 @@ export type CheckJob = {
 - しかし Queue 送信前に worker が落ちた
 
 この場合、次回 `scheduled()` でその run を再送します。
+
+lease 切れで未完了の `check_runs` も回収します。`lease_until` が過去で、`finished_at` がまだ入っていないものは再送対象です。
 
 ### 2. due checks を取得する
 

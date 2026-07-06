@@ -16,7 +16,9 @@ import {
   getCheckForExecution,
   getLatestRecoveryAt,
   loadUndispatchedCheckRuns,
+  loadStaleCheckRuns,
   markCheckRunDispatched,
+  clearCheckRunLease,
   finishCheckRun,
   persistCheckResult,
 } from "../store/check-execution";
@@ -49,9 +51,18 @@ const dispatchCheckRun = async (
     .run();
 };
 
+const requeueStaleCheckRun = async (env: Bindings, run: CheckJob, now: string): Promise<void> => {
+  await env["pulse-queue"].send(run);
+  await clearCheckRunLease(env["pulse-db"], run.attemptId, now);
+};
+
 export const runCheck = async (env: Bindings, job: CheckJob, ctx?: ExecutionContext): Promise<void> => {
-  const run = await ensureCheckRunForExecution(env["pulse-db"], job, new Date().toISOString());
-  if (!run) return;
+  const claim = await ensureCheckRunForExecution(env["pulse-db"], job, new Date().toISOString());
+  if (claim.kind === "finished" || claim.kind === "missing") return;
+  if (claim.kind === "leased") {
+    throw new Error("check run is leased");
+  }
+  const { run } = claim;
 
   const check = await getCheckForExecution(env["pulse-db"], job.checkId);
   if (!check) {
@@ -159,6 +170,29 @@ export const runCheck = async (env: Bindings, job: CheckJob, ctx?: ExecutionCont
 
 const handleScheduled = async (controller: ScheduledController, env: Bindings): Promise<void> => {
   const now = new Date(controller.scheduledTime).toISOString();
+  const stale = await loadStaleCheckRuns(env["pulse-db"], now);
+  for (const run of stale) {
+    const check = await getCheckForExecution(env["pulse-db"], run.check_id);
+    if (!check) {
+      await finishCheckRun(env["pulse-db"], run, now, "skipped", "check_not_found");
+      continue;
+    }
+    if (!check.enabled) {
+      await finishCheckRun(env["pulse-db"], run, now, "skipped", "check_disabled");
+      continue;
+    }
+
+    await requeueStaleCheckRun(
+      env,
+      {
+        checkId: run.check_id,
+        scheduledAt: run.scheduled_at,
+        attemptId: run.attempt_id,
+      },
+      now,
+    );
+  }
+
   const undispatched = await loadUndispatchedCheckRuns(env["pulse-db"], now);
   for (const run of undispatched) {
     const check = await getCheckForExecution(env["pulse-db"], run.check_id);

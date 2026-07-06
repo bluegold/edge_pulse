@@ -4,6 +4,12 @@ import ipaddr from "ipaddr.js";
 export type CheckState = "unknown" | "ok" | "fail";
 export type CheckRunResultState = "ok" | "fail" | "skipped";
 
+export type CheckRunClaim =
+  | { kind: "claimed"; run: CheckRunRow }
+  | { kind: "finished" }
+  | { kind: "leased"; leaseUntil: string }
+  | { kind: "missing" };
+
 export type CheckJob = {
   checkId: number;
   scheduledAt: string;

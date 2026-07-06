@@ -2,6 +2,7 @@ import type { D1Database } from "../lib/cloudflare";
 import {
   buildCheckResult,
   evaluateTransition,
+  type CheckRunClaim,
   type CheckJob,
   type CheckResult,
   type CheckRow,
@@ -38,9 +39,9 @@ export const claimScheduledCheckRun = async (db: D1Database, job: CheckJob, now:
   return Boolean(inserted);
 };
 
-export const ensureCheckRunForExecution = async (db: D1Database, job: CheckJob, now: string): Promise<CheckRunRow | null> => {
+export const ensureCheckRunForExecution = async (db: D1Database, job: CheckJob, now: string): Promise<CheckRunClaim> => {
   const leaseUntil = addMilliseconds(now, CHECK_RUN_LEASE_MS);
-  return db
+  const claimed = await db
     .prepare(
       `
       UPDATE check_runs
@@ -58,6 +59,36 @@ export const ensureCheckRunForExecution = async (db: D1Database, job: CheckJob, 
     )
     .bind(now, leaseUntil, now, job.attemptId, now)
     .first<CheckRunRow>();
+
+  if (claimed) {
+    return { kind: "claimed", run: claimed };
+  }
+
+  const run = await db
+    .prepare(
+      `
+      SELECT *
+      FROM check_runs
+      WHERE attempt_id = ?
+      LIMIT 1
+    `,
+    )
+    .bind(job.attemptId)
+    .first<CheckRunRow>();
+
+  if (!run) {
+    return { kind: "missing" };
+  }
+
+  if (run.finished_at) {
+    return { kind: "finished" };
+  }
+
+  if (run.lease_until && run.lease_until > now) {
+    return { kind: "leased", leaseUntil: run.lease_until };
+  }
+
+  return { kind: "missing" };
 };
 
 export const loadUndispatchedCheckRuns = async (db: D1Database, now: string): Promise<CheckRunRow[]> => {
@@ -79,6 +110,26 @@ export const loadUndispatchedCheckRuns = async (db: D1Database, now: string): Pr
   return result.results;
 };
 
+export const loadStaleCheckRuns = async (db: D1Database, now: string): Promise<CheckRunRow[]> => {
+  const result = await db
+    .prepare(
+      `
+      SELECT *
+      FROM check_runs
+      WHERE finished_at IS NULL
+        AND dispatched_at IS NOT NULL
+        AND lease_until IS NOT NULL
+        AND lease_until <= ?
+      ORDER BY lease_until ASC, id ASC
+      LIMIT 500
+    `,
+    )
+    .bind(now)
+    .all<CheckRunRow>();
+
+  return result.results;
+};
+
 export const markCheckRunDispatched = async (db: D1Database, attemptId: string, now: string): Promise<void> => {
   await db
     .prepare(
@@ -90,6 +141,20 @@ export const markCheckRunDispatched = async (db: D1Database, attemptId: string, 
     `,
     )
     .bind(now, now, attemptId)
+    .run();
+};
+
+export const clearCheckRunLease = async (db: D1Database, attemptId: string, now: string): Promise<void> => {
+  await db
+    .prepare(
+      `
+      UPDATE check_runs
+      SET lease_until = NULL, updated_at = ?
+      WHERE attempt_id = ?
+        AND finished_at IS NULL
+    `,
+    )
+    .bind(now, attemptId)
     .run();
 };
 
@@ -165,33 +230,24 @@ export const persistCheckResult = async (
     )
     .run();
 
-  const incidentInserted =
-    evaluated.transition.kind === "incident-opened"
-      ? await db
-          .prepare(
-            `
-            INSERT OR IGNORE INTO incidents (
-              check_id, started_at, resolved_at, start_reason, end_reason, start_status_code, end_status_code,
-              failure_count, created_at, updated_at
-            ) VALUES (?, ?, NULL, ?, NULL, ?, NULL, 1, ?, ?)
-            RETURNING id
-          `,
-          )
-          .bind(
-            check.id,
-            evaluated.transition.startedAt,
-            result.reason,
-            result.statusCode,
-            result.checkedAt,
-            result.checkedAt,
-          )
-          .first<{ id: number }>()
-      : null;
+  if (evaluated.transition.kind === "incident-opened") {
+    await db
+      .prepare(
+        `
+        INSERT OR IGNORE INTO incidents (
+          check_id, started_at, resolved_at, start_reason, end_reason, start_status_code, end_status_code,
+          failure_count, created_at, updated_at
+        ) VALUES (?, ?, NULL, ?, NULL, ?, NULL, 1, ?, ?)
+      `,
+      )
+      .bind(check.id, evaluated.transition.startedAt, result.reason, result.statusCode, result.checkedAt, result.checkedAt)
+      .run();
+  }
 
   const unresolvedIncident = await db
     .prepare(
       `
-      SELECT id
+      SELECT id, started_at
       FROM incidents
       WHERE check_id = ?
         AND resolved_at IS NULL
@@ -200,7 +256,24 @@ export const persistCheckResult = async (
     `,
     )
     .bind(check.id)
-    .first<{ id: number }>();
+    .first<{ id: number; started_at: string }>();
+
+  const incidentStartedAt =
+    evaluated.transition.kind === "incident-opened" ? evaluated.transition.startedAt : unresolvedIncident?.started_at ?? result.checkedAt;
+
+  const failureCountRow = await db
+    .prepare(
+      `
+      SELECT COUNT(*) AS count
+      FROM check_results
+      WHERE check_id = ?
+        AND state = 'fail'
+        AND checked_at >= ?
+    `,
+    )
+    .bind(check.id, incidentStartedAt)
+    .first<{ count: number }>();
+  const failureCount = Number(failureCountRow?.count ?? 0);
 
   const statements = [
     db
@@ -272,40 +345,43 @@ export const persistCheckResult = async (
   }
 
   if (nextCheck.last_state === "fail") {
-    if (incidentInserted) {
-      statements.push(
-        db
-          .prepare(
-            `
-            INSERT INTO status_events (
-              check_id, from_state, to_state, reason, status_code, error, latency_ms, occurred_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-          `,
-          )
-          .bind(
-            check.id,
-            check.last_state,
-            evaluated.transition.nextState,
-            result.reason,
-            result.statusCode,
-            result.error,
-            result.latencyMs,
-            result.checkedAt,
-          ),
-      );
-    } else if (unresolvedIncident) {
+    if (unresolvedIncident) {
       statements.push(
         db
           .prepare(
             `
             UPDATE incidents
-            SET failure_count = failure_count + 1, updated_at = ?
+            SET failure_count = ?, updated_at = ?
             WHERE id = ? AND resolved_at IS NULL
           `,
           )
-          .bind(result.checkedAt, unresolvedIncident.id),
+          .bind(failureCount, result.checkedAt, unresolvedIncident.id),
       );
     }
+  }
+
+  if (evaluated.transition.kind === "incident-opened") {
+    statements.push(
+      db
+        .prepare(
+          `
+          INSERT OR IGNORE INTO status_events (
+            check_id, check_run_id, from_state, to_state, reason, status_code, error, latency_ms, occurred_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        )
+        .bind(
+          check.id,
+          run.id,
+          check.last_state,
+          evaluated.transition.nextState,
+          result.reason,
+          result.statusCode,
+          result.error,
+          result.latencyMs,
+          result.checkedAt,
+        ),
+    );
   }
 
   if (evaluated.transition.kind === "incident-resolved" && unresolvedIncident) {
@@ -313,13 +389,14 @@ export const persistCheckResult = async (
       db
         .prepare(
           `
-          INSERT INTO status_events (
-            check_id, from_state, to_state, reason, status_code, error, latency_ms, occurred_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT OR IGNORE INTO status_events (
+            check_id, check_run_id, from_state, to_state, reason, status_code, error, latency_ms, occurred_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         )
         .bind(
           check.id,
+          run.id,
           check.last_state,
           evaluated.transition.nextState,
           result.reason,

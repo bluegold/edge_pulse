@@ -31,6 +31,12 @@ CREATE UNIQUE INDEX idx_check_results_check_run_id
 ON check_results(check_run_id)
 WHERE check_run_id IS NOT NULL;
 
+ALTER TABLE status_events ADD COLUMN check_run_id INTEGER;
+
+CREATE UNIQUE INDEX idx_status_events_check_run_id
+ON status_events(check_run_id)
+WHERE check_run_id IS NOT NULL;
+
 CREATE UNIQUE INDEX idx_incidents_one_unresolved_per_check
 ON incidents(check_id)
 WHERE resolved_at IS NULL;
