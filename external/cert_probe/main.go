@@ -41,6 +41,11 @@ type ProbeLog struct {
 	Error     string     `json:"error,omitempty"`
 }
 
+type tlsConnection interface {
+	ConnectionState() tls.ConnectionState
+	Close() error
+}
+
 var lookupIPAddrs = func(ctx context.Context, host string) ([]netip.Addr, error) {
 	addrs, err := net.DefaultResolver.LookupIPAddr(ctx, host)
 	if err != nil {
@@ -55,6 +60,10 @@ var lookupIPAddrs = func(ctx context.Context, host string) ([]netip.Addr, error)
 	}
 
 	return resolved, nil
+}
+
+var dialTLSWithDialer = func(dialer *net.Dialer, network, addr string, config *tls.Config) (tlsConnection, error) {
+	return tls.DialWithDialer(dialer, network, addr, config)
 }
 
 func probeCert(host string, port int, serverName string) CertResult {
@@ -77,50 +86,62 @@ func probeCert(host string, port int, serverName string) CertResult {
 		result.ServerName = serverName
 	}
 
-	dialAddr, err := resolveProbeDialAddr(host, port)
+	dialAddrs, err := resolveProbeDialAddrs(host, port)
 	if err != nil {
 		result.Error = err.Error()
 		return result
 	}
 
 	dialer := &net.Dialer{Timeout: 5 * time.Second}
-	conn, err := tls.DialWithDialer(dialer, "tcp", dialAddr, &tls.Config{
-		ServerName: serverName,
-		// InsecureSkipVerify is used only to retrieve the peer certificate
-		// even when it is expired or self-signed. This probe does not treat
-		// the connection as certificate-verified.
-		InsecureSkipVerify: true,
-	})
-	if err != nil {
-		result.Error = err.Error()
+	var lastErr error
+	var conn tlsConnection
+	for _, dialAddr := range dialAddrs {
+		conn, err = dialTLSWithDialer(dialer, "tcp", dialAddr, &tls.Config{
+			ServerName: serverName,
+			// InsecureSkipVerify is used only to retrieve the peer certificate
+			// even when it is expired or self-signed. This probe does not treat
+			// the connection as certificate-verified.
+			InsecureSkipVerify: true,
+		})
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		defer conn.Close()
+
+		certs := conn.ConnectionState().PeerCertificates
+		if len(certs) == 0 {
+			result.Error = "no peer certificates"
+			return result
+		}
+
+		cert := certs[0]
+		result.Subject = cert.Subject.String()
+		result.Issuer = cert.Issuer.String()
+		result.Class = fmt.Sprint(cert.PublicKeyAlgorithm)
+		result.ValidFrom = cert.NotBefore.UTC().Format(time.RFC3339)
+		result.ValidTo = cert.NotAfter.UTC().Format(time.RFC3339)
+		result.DaysRemaining = int(time.Until(cert.NotAfter).Hours() / 24)
+		result.DNSNames = cert.DNSNames
+
 		return result
 	}
-	defer conn.Close()
 
-	certs := conn.ConnectionState().PeerCertificates
-	if len(certs) == 0 {
-		result.Error = "no peer certificates"
+	if lastErr != nil {
+		result.Error = lastErr.Error()
 		return result
 	}
 
-	cert := certs[0]
-	result.Subject = cert.Subject.String()
-	result.Issuer = cert.Issuer.String()
-	result.Class = fmt.Sprint(cert.PublicKeyAlgorithm)
-	result.ValidFrom = cert.NotBefore.UTC().Format(time.RFC3339)
-	result.ValidTo = cert.NotAfter.UTC().Format(time.RFC3339)
-	result.DaysRemaining = int(time.Until(cert.NotAfter).Hours() / 24)
-	result.DNSNames = cert.DNSNames
-
+	result.Error = "failed to connect"
 	return result
 }
 
-func resolveProbeDialAddr(host string, port int) (string, error) {
+func resolveProbeDialAddrs(host string, port int) ([]string, error) {
 	if addr, err := netip.ParseAddr(host); err == nil {
 		if isBlockedIP(addr) {
-			return "", fmt.Errorf("host is not allowed")
+			return nil, fmt.Errorf("host is not allowed")
 		}
-		return net.JoinHostPort(addr.String(), strconv.Itoa(port)), nil
+		return []string{net.JoinHostPort(addr.String(), strconv.Itoa(port))}, nil
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -128,19 +149,21 @@ func resolveProbeDialAddr(host string, port int) (string, error) {
 
 	addrs, err := lookupIPAddrs(ctx, host)
 	if err != nil {
-		return "", fmt.Errorf("failed to resolve host: %w", err)
+		return nil, fmt.Errorf("failed to resolve host: %w", err)
 	}
 	if len(addrs) == 0 {
-		return "", fmt.Errorf("failed to resolve host")
+		return nil, fmt.Errorf("failed to resolve host")
 	}
 
+	dialAddrs := make([]string, 0, len(addrs))
 	for _, addr := range addrs {
 		if isBlockedIP(addr) {
-			return "", fmt.Errorf("host resolved to blocked address")
+			return nil, fmt.Errorf("host resolved to blocked address")
 		}
+		dialAddrs = append(dialAddrs, net.JoinHostPort(addr.String(), strconv.Itoa(port)))
 	}
 
-	return net.JoinHostPort(addrs[0].String(), strconv.Itoa(port)), nil
+	return dialAddrs, nil
 }
 
 func validateProbeInput(host string, port int, serverName string) (string, int, string, error) {
