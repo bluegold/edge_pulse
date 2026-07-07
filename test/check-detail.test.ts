@@ -157,10 +157,11 @@ const createDb = (result: CheckDetailData | null): D1Database => ({
         return { results: [] } as T;
       },
       async run() {
-        return {};
+        return { success: true };
       },
     };
   },
+  batch: async <T>() => [] as T[],
 });
 
 describe("check detail", () => {

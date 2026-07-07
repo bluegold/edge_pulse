@@ -156,11 +156,13 @@ const formatAccessAudience = (value: AccessJwtPayload["aud"]): string | null => 
   return audiences.length > 0 ? audiences.join(", ") : null;
 };
 
-const isJsonWebKey = (value: unknown): value is JsonWebKey => {
+type AccessJsonWebKey = JsonWebKey & { kid?: string };
+
+const isJsonWebKey = (value: unknown): value is AccessJsonWebKey => {
   return Boolean(value && typeof value === "object");
 };
 
-const extractAccessKeys = (payload: unknown): JsonWebKey[] => {
+const extractAccessKeys = (payload: unknown): AccessJsonWebKey[] => {
   if (Array.isArray(payload)) {
     return payload.filter(isJsonWebKey);
   }
@@ -239,7 +241,12 @@ const verifyAccessJwtSignature = async (
         ["verify"],
       );
 
-      const verified = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", cryptoKey, signature, data);
+      const verified = await crypto.subtle.verify(
+        "RSASSA-PKCS1-v1_5",
+        cryptoKey,
+        signature as BufferSource,
+        data,
+      );
       if (verified) {
         return true;
       }

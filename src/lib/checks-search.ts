@@ -175,9 +175,6 @@ class FilterParser {
 
     const attr = this.readAttribute();
     const op = this.readOperator();
-    if (op === "~=") {
-      throw new Error("approx 演算子 (~=) は未対応です");
-    }
 
     const value = this.readValue();
     this.expect(")");

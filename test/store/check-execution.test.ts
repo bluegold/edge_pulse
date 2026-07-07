@@ -160,6 +160,7 @@ const makeDb = (overrides: Partial<TestState> = {}) => {
         tlsDaysRemaining,
         tlsDnsNames,
         updatedAt,
+        _checkId,
       ] = params as [
         string,
         string,
@@ -176,9 +177,11 @@ const makeDb = (overrides: Partial<TestState> = {}) => {
         string | null,
         string | null,
         string | null,
+        string | null,
         number | null,
         string | null,
         string,
+        number,
       ];
 
       state.check = {
@@ -437,10 +440,10 @@ const makeDb = (overrides: Partial<TestState> = {}) => {
         async all<T>() {
           return { results: [] } as T;
         },
-        async run() {
-          applyStatement(normalized, statement.params);
-          return {};
-        },
+      async run() {
+        applyStatement(normalized, statement.params);
+        return { success: true };
+      },
       };
       return statement as unknown as ReturnType<D1Database["prepare"]>;
     },
@@ -450,7 +453,7 @@ const makeDb = (overrides: Partial<TestState> = {}) => {
         throw new Error("batch failed");
       }
 
-      for (const statement of statements as Array<{ sql: string; params: unknown[]; run: () => Promise<unknown> }>) {
+      for (const statement of statements as unknown as Array<{ sql: string; params: unknown[] }>) {
         applyStatement(statement.sql, statement.params);
       }
       return [] as T[];

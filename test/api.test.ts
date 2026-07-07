@@ -167,14 +167,18 @@ const base64UrlEncode = (input: ArrayBuffer | Uint8Array | string): string => {
   const bytes =
     typeof input === "string" ? new TextEncoder().encode(input) : input instanceof Uint8Array ? input : new Uint8Array(input);
 
-  return Buffer.from(bytes)
-    .toString("base64")
+  let binary = "";
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+
+  return btoa(binary)
     .replaceAll("+", "-")
     .replaceAll("/", "_")
     .replaceAll("=", "");
 };
 
-const createAccessToken = async (kid = "test-key-1"): Promise<{ token: string; jwk: JsonWebKey }> => {
+const createAccessToken = async (kid = "test-key-1"): Promise<{ token: string; jwk: JsonWebKey & { kid: string } }> => {
   const keyPair = await crypto.subtle.generateKey(
     {
       name: "RSASSA-PKCS1-v1_5",
