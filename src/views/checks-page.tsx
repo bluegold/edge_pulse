@@ -539,71 +539,73 @@ const ChecksShell = ({ data }: { data: ChecksPageData }) => (
         <SearchPanel q={data.q} filter={data.filter} order={data.order} searchError={data.searchError} />
       </div>
 
-      <section id="checks-list-panel" class="panel m-2">
-        <div class="panel-pad">
-          <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h2 class="panel-title text-lg font-black tracking-tight">監視対象</h2>
-              <p class="mt-1 text-sm muted">直近の状態、HTTP、遅延、間隔、しきい値だけを表示します。</p>
-            </div>
-            <span class="count-badge">{data.totalChecks} 件</span>
-          </div>
-          <CreateForm page={data.page} q={data.q} filter={data.filter} order={data.order} />
-          <div id="checks-list" class="mt-4 overflow-x-auto">
-            {data.checks.length > 0 ? (
-              <table class="checks-table">
-                <colgroup>
-                  <col />
-                  <col />
-                  <col />
-                  <col />
-                  <col />
-                  <col />
-                  <col class="check-actions-col" />
-                </colgroup>
-                <thead>
-                  <tr>
-                    <SortHeader label="監視対象" orderKey="name" order={data.order} q={data.q} filter={data.filter} />
-                    <SortHeader label="最終確認" orderKey="checked_at" order={data.order} q={data.q} filter={data.filter} />
-                    <th scope="col">HTTP / 遅延</th>
-                    <th scope="col">間隔</th>
-                    <th scope="col">しきい値</th>
-                    <SortHeader label="証明書" orderKey="certificate_remain" order={data.order} q={data.q} filter={data.filter} />
-                    <th scope="col">操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.checks.map((check) =>
-                    data.editId === check.id ? (
-                      <EditCard check={check} page={data.page} q={data.q} filter={data.filter} order={data.order} />
-                    ) : (
-                      <ViewCard
-                        check={check}
-                        page={data.page}
-                        q={data.q}
-                        filter={data.filter}
-                        order={data.order}
-                        highlighted={data.highlightId === check.id}
-                      />
-                    ),
-                  )}
-                </tbody>
-              </table>
-            ) : (
-              <div id="checks-empty" class="empty-state border border-dashed border-white/15 px-4 py-8">
-                <div>
-                  <span class="empty-icon text-sky-200">
-                    <svg viewBox="0 0 24 24" class="h-8 w-8" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h16"/><path d="M12 4v16"/></svg>
-                  </span>
-                  <p class="mt-4 font-bold text-slate-100">まだ監視対象がありません。</p>
-                  <p class="mt-1 text-sm text-slate-400">右上の追加ボタンから登録できます。</p>
-                </div>
+      <div class="px-2 pt-2">
+        <section id="checks-list-panel" class="checks-list-panel">
+          <div class="panel-pad">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 class="panel-title text-lg font-black tracking-tight">監視対象</h2>
+                <p class="mt-1 text-sm muted">直近の状態、HTTP、遅延、間隔、しきい値だけを表示します。</p>
               </div>
-            )}
+              <span class="count-badge">{data.totalChecks} 件</span>
+            </div>
+            <CreateForm page={data.page} q={data.q} filter={data.filter} order={data.order} />
+            <div id="checks-list" class="mt-4 overflow-x-auto">
+              {data.checks.length > 0 ? (
+                <table class="checks-table">
+                  <colgroup>
+                    <col />
+                    <col />
+                    <col />
+                    <col />
+                    <col />
+                    <col />
+                    <col class="check-actions-col" />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <SortHeader label="監視対象" orderKey="name" order={data.order} q={data.q} filter={data.filter} />
+                      <SortHeader label="最終確認" orderKey="checked_at" order={data.order} q={data.q} filter={data.filter} />
+                      <th scope="col">HTTP / 遅延</th>
+                      <th scope="col">間隔</th>
+                      <th scope="col">しきい値</th>
+                      <SortHeader label="証明書" orderKey="certificate_remain" order={data.order} q={data.q} filter={data.filter} />
+                      <th scope="col">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.checks.map((check) =>
+                      data.editId === check.id ? (
+                        <EditCard check={check} page={data.page} q={data.q} filter={data.filter} order={data.order} />
+                      ) : (
+                        <ViewCard
+                          check={check}
+                          page={data.page}
+                          q={data.q}
+                          filter={data.filter}
+                          order={data.order}
+                          highlighted={data.highlightId === check.id}
+                        />
+                      ),
+                    )}
+                  </tbody>
+                </table>
+              ) : (
+                <div id="checks-empty" class="empty-state border border-dashed border-white/15 px-4 py-8">
+                  <div>
+                    <span class="empty-icon text-sky-200">
+                      <svg viewBox="0 0 24 24" class="h-8 w-8" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h16"/><path d="M12 4v16"/></svg>
+                    </span>
+                    <p class="mt-4 font-bold text-slate-100">まだ監視対象がありません。</p>
+                    <p class="mt-1 text-sm text-slate-400">右上の追加ボタンから登録できます。</p>
+                  </div>
+                </div>
+              )}
           </div>
-        </div>
-      </section>
-      <div class="px-2 pb-2">
+          </div>
+        </section>
+      </div>
+      <div class="px-6 pb-2 mb-4">
         <Pagination page={data.page} totalPages={data.totalPages} totalChecks={data.totalChecks} q={data.q} filter={data.filter} order={data.order} />
       </div>
     </div>

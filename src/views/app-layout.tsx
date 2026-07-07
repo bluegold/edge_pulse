@@ -375,6 +375,11 @@ export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, res
           border: 1px solid rgba(56, 189, 248, 0.18);
           background: rgba(8, 19, 38, 0.72);
         }
+        .checks-list-panel {
+          position: relative;
+          border: 0;
+          background: transparent;
+        }
         .panel-pad {
           padding: 1.25rem;
         }
@@ -857,11 +862,41 @@ export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, res
           border-bottom: 1px solid rgba(148, 163, 184, 0.12);
           background: linear-gradient(90deg, rgba(16, 185, 129, 0.08), rgba(14, 165, 233, 0.03), transparent);
         }
+        .dashboard-divider {
+          display: flex;
+          align-items: center;
+          gap: 0.9rem;
+          margin: 0.25rem 0;
+          padding: 0.85rem 1.5rem;
+          border-top: 1px solid rgba(56, 189, 248, 0.18);
+          border-bottom: 1px solid rgba(56, 189, 248, 0.10);
+          background: linear-gradient(90deg, rgba(56, 189, 248, 0.12), rgba(8, 19, 38, 0.08) 24%, rgba(8, 19, 38, 0.08) 76%, rgba(56, 189, 248, 0.12));
+        }
+        .dashboard-divider::before,
+        .dashboard-divider::after {
+          content: "";
+          flex: 1;
+          height: 2px;
+          background: linear-gradient(90deg, transparent, rgba(125, 211, 252, 0.95));
+          opacity: 1;
+        }
+        .dashboard-divider::after {
+          background: linear-gradient(90deg, rgba(125, 211, 252, 0.95), transparent);
+        }
+        .dashboard-divider > span {
+          width: 0.85rem;
+          height: 0.85rem;
+          flex: 0 0 auto;
+          border-radius: 999px;
+          border: 1px solid rgba(125, 211, 252, 0.68);
+          background: radial-gradient(circle, rgba(125, 211, 252, 1), rgba(56, 189, 248, 0.28) 62%, transparent 70%);
+          box-shadow: 0 0 24px rgba(56, 189, 248, 0.72);
+        }
         .subpanel,
         .incident-history {
           position: relative;
-          border: 1px solid rgba(56, 189, 248, 0.20);
-          background: rgba(8, 19, 38, 0.72);
+          border: 0;
+          background: transparent;
         }
         .panel-title { color: #f8fafc; letter-spacing: -0.02em; }
         .table-wrap {

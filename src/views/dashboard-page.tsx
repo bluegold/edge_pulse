@@ -218,6 +218,12 @@ const IncidentHistoryRow = ({ incident }: { incident: DashboardData["recentIncid
   </tr>
 );
 
+const SectionDivider = () => (
+  <div class="dashboard-divider" aria-hidden="true">
+    <span></span>
+  </div>
+);
+
 const DashboardShell = ({ data }: { data: DashboardData }) => {
   const summary = summarizeDashboard(data.checks, data.recentIncidents);
   const recentChecks = data.recentChecks;
@@ -275,6 +281,8 @@ const DashboardShell = ({ data }: { data: DashboardData }) => {
           </div>
         </header>
 
+        <SectionDivider />
+
         <section class="grid gap-px border-b border-slate-700/30 bg-slate-700/20 p-px sm:grid-cols-2 xl:grid-cols-6">
           <SummaryCard
             id="summary-total-checks"
@@ -321,6 +329,8 @@ const DashboardShell = ({ data }: { data: DashboardData }) => {
           />
         </section>
 
+        <SectionDivider />
+
         <section id="current-incidents-panel" class="status-strip px-6 py-5">
           <div class="flex items-center justify-between gap-4">
             <div class="flex items-center gap-4">
@@ -347,8 +357,10 @@ const DashboardShell = ({ data }: { data: DashboardData }) => {
           </div>
         </section>
 
+        <SectionDivider />
+
         {recentChecks.length > 0 ? (
-          <section id="recent-checks-panel" class="subpanel m-2 p-4 sm:p-5">
+          <section id="recent-checks-panel" class="subpanel px-6 py-5">
             <h2 class="panel-title flex items-center gap-2 pl-3 text-lg font-black">
               <svg viewBox="0 0 24 24" class="h-5 w-5 text-sky-300" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M4 7h16" />
@@ -362,6 +374,8 @@ const DashboardShell = ({ data }: { data: DashboardData }) => {
             </div>
           </section>
         ) : null}
+
+        {recentChecks.length > 0 ? <SectionDivider /> : null}
 
         <section class="grid gap-2 bg-slate-950/20 p-2 xl:grid-cols-2">
           <section id="recent-results-panel" class="subpanel p-4 sm:p-5">
@@ -445,7 +459,9 @@ const DashboardShell = ({ data }: { data: DashboardData }) => {
           </section>
         </section>
 
-        <section id="incident-history-panel" class="incident-history mx-2 mb-2 p-4 sm:p-5">
+        <SectionDivider />
+
+        <section id="incident-history-panel" class="incident-history px-6 py-5">
           <h2 class="panel-title flex items-center gap-2 pl-3 text-lg font-black">
             <svg viewBox="0 0 24 24" class="h-5 w-5 text-sky-300" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14H3V6a2 2 0 0 1 2-2Z"/></svg>
             最近の incident
