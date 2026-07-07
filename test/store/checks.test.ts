@@ -1,38 +1,109 @@
 import { describe, expect, it } from "vitest";
 import { loadChecksPageData } from "../../src/store/checks";
 import type { D1Database } from "../../src/lib/cloudflare";
+import {
+  buildCheckSearchAttributes,
+  evaluateCheckSearchFilter,
+  parseCheckOrder,
+  parseCheckSearchFilter,
+  matchesCheckTextQuery,
+} from "../../src/lib/checks-search";
 
-const makeDb = (rows: {
-  checks: Array<Record<string, unknown>>;
-  incidents: Array<{ check_id: number }>;
-}): D1Database => ({
-  prepare(sql: string) {
-    const normalized = sql.replaceAll(/\s+/g, " ").trim();
-    return {
-      bind(..._args: unknown[]) {
-        return this;
-      },
-      async first<T>() {
-        return null as T;
-      },
-      async all<T>() {
-        if (normalized.includes("FROM checks ORDER BY created_at DESC, id DESC")) {
-          return { results: rows.checks } as T;
-        }
-        if (normalized.includes("FROM incidents WHERE started_at >= ?")) {
-          return { results: rows.incidents } as T;
-        }
-        return { results: [] } as T;
-      },
-      async run() {
-        return {};
-      },
-    } as unknown as ReturnType<D1Database["prepare"]>;
+const makeDb = (
+  rows: {
+    checks: Array<Record<string, unknown>>;
+    incidents: Array<{ check_id: number }>;
   },
-  async batch() {
-    return [];
-  },
-});
+  search: { q?: string; filter?: string; order?: string } = {},
+): D1Database => {
+  const recentIncidentCheckIds = new Set(rows.incidents.map((row) => row.check_id));
+  const filterAst = search.filter ? parseCheckSearchFilter(search.filter) : null;
+
+  const filteredChecks = rows.checks.filter((row) => {
+    const check = row as any;
+    if (!matchesCheckTextQuery(check, search.q ?? "")) {
+      return false;
+    }
+    if (!filterAst) {
+      return true;
+    }
+    return evaluateCheckSearchFilter(filterAst, buildCheckSearchAttributes(check, recentIncidentCheckIds.has(Number(row.id))));
+  });
+
+  const orderTerms = parseCheckOrder(search.order ?? "");
+  const orderedChecks = filteredChecks.slice().sort((a, b) => {
+    for (const term of orderTerms) {
+      const direction = term.direction === "asc" ? 1 : -1;
+      const aValue =
+        term.key === "checked_at"
+          ? String(a.last_checked_at ?? "")
+          : term.key === "certificate_remain"
+            ? String(a.tls_valid_to ?? "")
+            : String(a.name ?? "");
+      const bValue =
+        term.key === "checked_at"
+          ? String(b.last_checked_at ?? "")
+          : term.key === "certificate_remain"
+            ? String(b.tls_valid_to ?? "")
+            : String(b.name ?? "");
+      if (aValue === bValue) continue;
+      if (aValue === "") return 1;
+      if (bValue === "") return -1;
+      return aValue < bValue ? -1 * direction : direction;
+    }
+
+    const aCreated = Date.parse(String(a.created_at ?? ""));
+    const bCreated = Date.parse(String(b.created_at ?? ""));
+    const aName = String(a.name ?? "");
+    const bName = String(b.name ?? "");
+    if (aName !== bName) {
+      if (aName === "") return 1;
+      if (bName === "") return -1;
+      return aName < bName ? -1 : 1;
+    }
+    if (Number.isFinite(aCreated) && Number.isFinite(bCreated) && aCreated !== bCreated) {
+      return bCreated - aCreated;
+    }
+    return Number(b.id) - Number(a.id);
+  });
+
+  return {
+    prepare(sql: string) {
+      const normalized = sql.replaceAll(/\s+/g, " ").trim();
+      let boundArgs: unknown[] = [];
+      const statement = {
+        bind(...args: unknown[]) {
+          boundArgs = args;
+          return statement;
+        },
+        async first<T>() {
+          if (normalized.includes("COUNT(*) AS count") && normalized.includes("FROM checks c")) {
+            return { count: filteredChecks.length } as T;
+          }
+          return null as T;
+        },
+        async all<T>() {
+          if (normalized.includes("FROM checks c")) {
+            const limit = Number(boundArgs[boundArgs.length - 2] ?? 20);
+            const offset = Number(boundArgs[boundArgs.length - 1] ?? 0);
+            return { results: orderedChecks.slice(offset, offset + limit) } as T;
+          }
+          if (normalized.includes("FROM incidents WHERE started_at >= ?")) {
+            return { results: rows.incidents } as T;
+          }
+          return { results: [] } as T;
+        },
+        async run() {
+          return {};
+        },
+      };
+      return statement as unknown as ReturnType<D1Database["prepare"]>;
+    },
+    async batch() {
+      return [];
+    },
+  };
+};
 
 const now = "2026-07-03T00:00:00.000Z";
 
@@ -96,14 +167,17 @@ describe("loadChecksPageData", () => {
 
   it("filters by q and LDAP-like filter, including derived attributes", async () => {
     const data = await loadChecksPageData(
-      makeDb({
-        checks: [
-          { id: 1, name: "api-a", url: "https://api-a.example.com", enabled: 1, last_state: "ok", ...baseCheck },
-          { id: 2, name: "api-b", url: "https://api-b.example.com", enabled: 1, last_state: "fail", ...baseCheck, tls_days_remaining: 10 },
-          { id: 3, name: "docs", url: "https://docs.example.com", enabled: 0, last_state: "ok", ...baseCheck },
-        ],
-        incidents: [{ check_id: 2 }],
-      }),
+      makeDb(
+        {
+          checks: [
+            { id: 1, name: "api-a", url: "https://api-a.example.com", enabled: 1, last_state: "ok", ...baseCheck },
+            { id: 2, name: "api-b", url: "https://api-b.example.com", enabled: 1, last_state: "fail", ...baseCheck, tls_valid_to: "2026-07-13T00:00:00.000Z" },
+            { id: 3, name: "docs", url: "https://docs.example.com", enabled: 0, last_state: "ok", ...baseCheck },
+          ],
+          incidents: [{ check_id: 2 }],
+        },
+        { q: "api", filter: "(&(enabled=1)(last_state=ok))" },
+      ),
       1,
       null,
       null,
@@ -119,13 +193,16 @@ describe("loadChecksPageData", () => {
 
   it("marks recent incidents through the derived filter attribute", async () => {
     const data = await loadChecksPageData(
-      makeDb({
-        checks: [
-          { id: 1, name: "api-a", url: "https://api-a.example.com", enabled: 1, last_state: "ok", ...baseCheck },
-          { id: 2, name: "api-b", url: "https://api-b.example.com", enabled: 1, last_state: "fail", ...baseCheck },
-        ],
-        incidents: [{ check_id: 2 }],
-      }),
+      makeDb(
+        {
+          checks: [
+            { id: 1, name: "api-a", url: "https://api-a.example.com", enabled: 1, last_state: "ok", ...baseCheck },
+            { id: 2, name: "api-b", url: "https://api-b.example.com", enabled: 1, last_state: "fail", ...baseCheck },
+          ],
+          incidents: [{ check_id: 2 }],
+        },
+        { filter: "(recent_incident_24h=1)" },
+      ),
       1,
       null,
       null,

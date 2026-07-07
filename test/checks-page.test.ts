@@ -66,6 +66,7 @@ const checksPageData: ChecksPageData = {
   highlightId: 1,
   q: "",
   filter: "",
+  order: "",
   searchError: null,
   generatedAt: "2026-06-22T00:00:00.000Z",
 };
@@ -91,11 +92,21 @@ describe("renderChecksPage", () => {
     expect(html).toContain('id="checks-search-form"');
     expect(html).toContain('name="q"');
     expect(html).toContain('name="filter"');
+    expect(html).toContain('name="order"');
+    expect(html).toContain('type="hidden" name="order" value=""');
     expect(html).toContain('checks-search-cell');
     expect(html).toContain('>稼働中<');
     expect(html).toContain('>障害中<');
     expect(html).toContain('>証明書30日以内<');
     expect(html).toContain('>24h障害件数<');
+    expect(html).not.toContain('checked_at,certificate_remain,-name');
+    expect(html).toContain('aria-label="監視対象 を 昇順 で並び替え"');
+    expect(html).toContain('aria-label="最終確認 を 昇順 で並び替え"');
+    expect(html).toContain('aria-label="証明書 を 昇順 で並び替え"');
+    expect(html).toContain('title="監視対象: なし"');
+    expect(html).toContain('title="最終確認: なし"');
+    expect(html).toContain('title="証明書: なし"');
+    expect(html).toContain('sort-toggle-icon');
     expect(html).not.toContain('id="checks-search-submit"');
     expect(html).not.toContain('id="checks-search-reset"');
     expect(html).toContain('id="checks-create-form"');

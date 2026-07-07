@@ -1,4 +1,5 @@
 import type { CheckRow } from "../lib/checks";
+import { calculateCertificateDaysRemaining } from "../lib/checks";
 
 export const formatDuration = (startedAt: string, resolvedAt: string | null): string => {
   const start = new Date(startedAt).getTime();
@@ -23,9 +24,9 @@ export const describeRecentCheckState = (check: Pick<CheckRow, "enabled" | "last
   return { label: "未確認", className: "border-white/15 bg-white/8 text-slate-100" };
 };
 
-export const formatCertificateDays = (daysRemaining: number | null | undefined): string => {
-  if (daysRemaining === null || daysRemaining === undefined) return "-";
+export const formatCertificateDays = (validTo: string | null | undefined, now: Date | string = new Date()): string => {
+  const daysRemaining = calculateCertificateDaysRemaining(validTo, now);
+  if (daysRemaining === null) return "-";
   if (daysRemaining < 0) return `期限切れ ${Math.abs(daysRemaining)} 日前`;
   return `残り ${daysRemaining} 日`;
 };
-

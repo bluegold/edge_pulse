@@ -1,11 +1,6 @@
 import type { D1Database } from "../lib/cloudflare";
 import type { CheckInput, CheckRow } from "../lib/checks";
-import {
-  buildCheckSearchAttributes,
-  evaluateCheckSearchFilter,
-  matchesCheckTextQuery,
-  parseCheckSearchFilter,
-} from "../lib/checks-search";
+import { buildCheckOrderByClause, buildChecksSearchWhereClause } from "../lib/checks-search";
 
 export type ChecksPageData = {
   checks: CheckRow[];
@@ -17,6 +12,7 @@ export type ChecksPageData = {
   highlightId: number | null;
   q: string;
   filter: string;
+  order: string;
   searchError: string | null;
   generatedAt: string;
 };
@@ -98,65 +94,40 @@ export const loadChecksPageData = async (
   highlightId: number | null = null,
   q = "",
   filter = "",
+  order = "",
 ): Promise<ChecksPageData> => {
   const pageSize = 20;
   const normalizedQuery = q.trim();
   const normalizedFilter = filter.trim();
+  const normalizedOrder = order.trim();
   const dayAgo = new Date(Date.now() - 24 * 60 * 60_000).toISOString();
 
-  const [checksResult, recentIncidentResult] = await Promise.all([
-    db
-      .prepare(
-        `
-        SELECT *
-        FROM checks
-        ORDER BY created_at DESC, id DESC
-      `,
-      )
-      .all<CheckRow>(),
-    db
-      .prepare(
-        `
-        SELECT check_id
-        FROM incidents
-        WHERE started_at >= ?
-      `,
-      )
-      .bind(dayAgo)
-      .all<{ check_id: number }>(),
-  ]);
+  const { sql: whereSql, params: whereParams, searchError } = buildChecksSearchWhereClause(normalizedQuery, normalizedFilter, dayAgo);
+  const orderBySql = buildCheckOrderByClause(normalizedOrder);
+  const whereClause = whereSql ? `WHERE ${whereSql}` : "";
 
-  const recentIncidentCheckIds = new Set(recentIncidentResult.results.map((row) => row.check_id));
-  let filterAst = null;
-  let searchError: string | null = null;
+  const countQuery = `
+        SELECT COUNT(*) AS count
+        FROM checks c
+        ${whereClause}
+      `;
+  const countResult = await db.prepare(countQuery).bind(...whereParams).first<{ count: number }>();
 
-  if (normalizedFilter) {
-    try {
-      filterAst = parseCheckSearchFilter(normalizedFilter);
-    } catch (error) {
-      searchError = error instanceof Error ? error.message : "filter の形式が不正です";
-    }
-  }
-
-  const filteredChecks = searchError
-    ? []
-    : checksResult.results.filter((check) => {
-        if (!matchesCheckTextQuery(check, normalizedQuery)) {
-          return false;
-        }
-
-        if (!filterAst) {
-          return true;
-        }
-
-        return evaluateCheckSearchFilter(filterAst, buildCheckSearchAttributes(check, recentIncidentCheckIds.has(check.id)));
-      });
-
-  const totalChecks = filteredChecks.length;
+  const totalChecks = searchError ? 0 : countResult?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalChecks / pageSize));
   const currentPage = Math.min(normalizePage(page), totalPages);
   const offset = (currentPage - 1) * pageSize;
-  const checks = filteredChecks.slice(offset, offset + pageSize);
+  const dataQuery = `
+        SELECT c.*
+        FROM checks c
+        ${whereClause}
+        ORDER BY ${orderBySql}
+        LIMIT ? OFFSET ?
+      `;
+  const checksResult = searchError
+    ? { results: [] as CheckRow[] }
+    : await db.prepare(dataQuery).bind(...whereParams, pageSize, offset).all<CheckRow>();
+  const checks = checksResult.results;
 
   return {
     checks,
@@ -168,6 +139,7 @@ export const loadChecksPageData = async (
     highlightId,
     q: normalizedQuery,
     filter: normalizedFilter,
+    order: normalizedOrder,
     searchError,
     generatedAt: new Date().toISOString(),
   };

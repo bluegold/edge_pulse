@@ -23,8 +23,10 @@ describe("dashboard presenter", () => {
   });
 
   it("formats certificate age labels", () => {
-    expect(formatCertificateDays(null)).toBe("-");
-    expect(formatCertificateDays(10)).toBe("残り 10 日");
-    expect(formatCertificateDays(-3)).toBe("期限切れ 3 日前");
+    const now = "2026-07-03T00:00:00.000Z";
+
+    expect(formatCertificateDays(null, now)).toBe("-");
+    expect(formatCertificateDays("2026-07-13T00:00:00.000Z", now)).toBe("残り 10 日");
+    expect(formatCertificateDays("2026-06-30T00:00:00.000Z", now)).toBe("期限切れ 3 日前");
   });
 });

@@ -1,5 +1,5 @@
 import type { CheckRow } from "../lib/checks";
-import { isMaintenanceWindowActive } from "../lib/checks";
+import { calculateCertificateDaysRemaining, isMaintenanceWindowActive } from "../lib/checks";
 
 export type CheckStateBadge = {
   label: string;
@@ -29,18 +29,22 @@ export const describeCheckState = (enabled: number, state: CheckRow["last_state"
 };
 
 export const describeCertificateBadge = (
-  check: Pick<CheckRow, "tls_last_error" | "tls_days_remaining" | "tls_valid_to">,
+  check: Pick<CheckRow, "tls_last_error" | "tls_valid_to">,
+  now: Date | string = new Date(),
 ): CertificateBadge => {
   if (check.tls_last_error) {
     return { label: "未取得", className: "cert-chip warn" };
   }
-  if (typeof check.tls_days_remaining === "number" && check.tls_days_remaining <= 30) {
-    return { label: `要確認・${formatCertificateDaysCompact(check.tls_days_remaining)}`, className: "cert-chip warn" };
+
+  const daysRemaining = calculateCertificateDaysRemaining(check.tls_valid_to, now);
+  if (daysRemaining === null) {
+    return { label: "未取得", className: "cert-chip warn" };
   }
-  if (check.tls_valid_to) {
-    return { label: `OK・${formatCertificateDaysCompact(check.tls_days_remaining)}`, className: "cert-chip" };
+  if (daysRemaining !== null && daysRemaining <= 30) {
+    return { label: `要確認・${formatCertificateDaysCompact(daysRemaining)}`, className: "cert-chip warn" };
   }
-  return { label: "未取得", className: "cert-chip warn" };
+
+  return { label: `OK・${formatCertificateDaysCompact(daysRemaining)}`, className: "cert-chip" };
 };
 
 export const describeMaintenanceBadge = (

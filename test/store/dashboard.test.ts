@@ -19,9 +19,9 @@ const makeDb = (): D1Database => ({
         if (normalized === "SELECT * FROM checks ORDER BY created_at DESC, id DESC") {
           return {
             results: [
-              { id: 1, name: "api", last_state: "ok", enabled: 1, last_latency_ms: 10, tls_days_remaining: 30, maintenance_enabled: 0 },
-              { id: 2, name: "api-2", last_state: "fail", enabled: 1, last_latency_ms: null, tls_days_remaining: null },
-              { id: 3, name: "api-3", last_state: "ok", enabled: 1, last_latency_ms: 8, tls_days_remaining: 90, maintenance_enabled: 1 },
+              { id: 1, name: "api", last_state: "ok", enabled: 1, last_latency_ms: 10, tls_valid_to: "2026-07-20T00:00:00.000Z", maintenance_enabled: 0 },
+              { id: 2, name: "api-2", last_state: "fail", enabled: 1, last_latency_ms: null, tls_valid_to: null },
+              { id: 3, name: "api-3", last_state: "ok", enabled: 1, last_latency_ms: 8, tls_valid_to: "2026-10-01T00:00:00.000Z", maintenance_enabled: 1 },
             ],
           } as T;
         }

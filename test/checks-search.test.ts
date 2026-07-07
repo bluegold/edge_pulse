@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildCheckOrderByClause,
+  buildCheckOrderWithTerm,
   buildCheckSearchAttributes,
   evaluateCheckSearchFilter,
+  getCheckOrderDirection,
   matchesCheckTextQuery,
   parseCheckSearchFilter,
 } from "../src/lib/checks-search";
@@ -58,5 +61,17 @@ describe("checks search filter", () => {
 
   it("rejects approx filters", () => {
     expect(() => parseCheckSearchFilter("(name~=api)")).toThrow("approx 演算子 (~=) は未対応です");
+  });
+
+  it("builds whitelist-only sort states", () => {
+    expect(getCheckOrderDirection("checked_at,-name", "checked_at")).toBe("asc");
+    expect(getCheckOrderDirection("checked_at,-name", "name")).toBe("desc");
+    expect(getCheckOrderDirection("checked_at,-name", "certificate_remain")).toBeNull();
+    expect(buildCheckOrderByClause("")).toBe("c.name ASC NULLS LAST, c.id DESC");
+    expect(buildCheckOrderWithTerm("checked_at,-name", "checked_at", null)).toBe("-name");
+    expect(buildCheckOrderWithTerm("checked_at,-name", "checked_at", "desc")).toBe("-checked_at,-name");
+    expect(buildCheckOrderWithTerm("checked_at,-name", "certificate_remain", "asc")).toBe("certificate_remain,checked_at,-name");
+    expect(buildCheckOrderByClause("certificate_remain,-name")).toContain("c.tls_valid_to ASC NULLS LAST");
+    expect(buildCheckOrderByClause("certificate_remain,-name")).toContain("c.name DESC NULLS LAST");
   });
 });

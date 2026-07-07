@@ -3,6 +3,7 @@ import { renderToString } from "hono/jsx/dom/server";
 import { AppLayout } from "./app-layout.tsx";
 import { summarizeDashboard, type DashboardData as DashboardDataType, type IncidentRow } from "../store/dashboard";
 import type { CheckRow } from "../lib/checks";
+import { calculateCertificateDaysRemaining } from "../lib/checks";
 import { buildChecksUrl } from "../lib/checks-search";
 import { LocalTime } from "./time.tsx";
 import { formatNullable } from "../presenters/common";
@@ -27,13 +28,14 @@ const CertificateBadge = ({ check }: { check: CheckRow }) => {
   if (check.tls_last_error) {
     return <span class="rounded-full border border-amber-400/30 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-100">証明書確認失敗</span>;
   }
-  if (typeof check.tls_days_remaining === "number" && check.tls_days_remaining <= 30) {
+  const daysRemaining = calculateCertificateDaysRemaining(check.tls_valid_to);
+  if (daysRemaining === null) {
+    return <span class="rounded-full border border-white/15 bg-white/8 px-3 py-1 text-xs font-semibold text-slate-100">証明書未取得</span>;
+  }
+  if (daysRemaining !== null && daysRemaining <= 30) {
     return <span class="rounded-full border border-amber-400/30 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-100">証明書要確認</span>;
   }
-  if (check.tls_valid_to) {
-    return <span class="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-100">証明書OK</span>;
-  }
-  return <span class="rounded-full border border-white/15 bg-white/8 px-3 py-1 text-xs font-semibold text-slate-100">証明書未取得</span>;
+  return <span class="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-100">証明書OK</span>;
 };
 
 const SummaryCard = ({
@@ -143,7 +145,7 @@ const RecentCheckCard = ({ check }: { check: CheckRow }) => {
         </div>
         <div>
           <dt class="text-slate-500">証明書</dt>
-          <dd class="mt-1">{formatCertificateDays(check.tls_days_remaining)}</dd>
+          <dd class="mt-1">{formatCertificateDays(check.tls_valid_to)}</dd>
         </div>
       </dl>
     </article>

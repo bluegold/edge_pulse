@@ -573,6 +573,54 @@ export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, res
           line-height: 1.45;
           text-align: left;
         }
+        .sort-header {
+          display: block;
+          width: 100%;
+          min-width: 0;
+        }
+        .sort-header-label {
+          display: block;
+          white-space: nowrap;
+          font-size: 0.83rem;
+          font-weight: 900;
+          letter-spacing: 0.03em;
+          color: #dbeafe;
+        }
+        .sort-toggle {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 0.75rem;
+          width: 100%;
+          padding: 0.3rem 0.55rem;
+          border-radius: 999px;
+          color: #94a3b8;
+          font-weight: 850;
+          text-decoration: none;
+          transition: background 120ms ease, color 120ms ease, transform 120ms ease, box-shadow 120ms ease;
+        }
+        .sort-toggle-icon-wrap {
+          display: inline-flex;
+          align-items: center;
+          justify-content: flex-end;
+          flex: none;
+        }
+        .sort-toggle:hover {
+          color: #e2e8f0;
+          background: rgba(56, 189, 248, 0.14);
+        }
+        .sort-toggle.active {
+          color: #e0f2fe;
+          background: rgba(56, 189, 248, 0.22);
+          box-shadow: inset 0 0 0 1px rgba(56, 189, 248, 0.26);
+        }
+        .sort-toggle-icon {
+          width: 0.95rem;
+          height: 0.95rem;
+          stroke-linecap: round;
+          stroke-linejoin: round;
+          flex: none;
+        }
         .status {
           display: inline-flex;
           align-items: center;

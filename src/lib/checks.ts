@@ -115,6 +115,16 @@ export const isCertificateExpiringSoon = (daysRemaining: number | null, threshol
   return daysRemaining !== null && daysRemaining <= thresholdDays;
 };
 
+export const calculateCertificateDaysRemaining = (validTo: string | null | undefined, now: Date | string = new Date()): number | null => {
+  if (!validTo) return null;
+
+  const validToTime = Date.parse(validTo);
+  const nowTime = typeof now === "string" ? Date.parse(now) : now.getTime();
+  if (!Number.isFinite(validToTime) || !Number.isFinite(nowTime)) return null;
+
+  return Math.floor((validToTime - nowTime) / 86_400_000);
+};
+
 export type CheckRow = {
   id: number;
   name: string;

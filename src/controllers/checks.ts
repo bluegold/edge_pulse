@@ -28,11 +28,12 @@ const getPageFromRequest = (request: Request): number => {
   return Number(new URL(request.url).searchParams.get("page") ?? "1");
 };
 
-const getSearchParamsFromRequest = (request: Request): { q: string; filter: string } => {
+const getSearchParamsFromRequest = (request: Request): { q: string; filter: string; order: string } => {
   const searchParams = new URL(request.url).searchParams;
   return {
     q: searchParams.get("q") ?? "",
     filter: searchParams.get("filter") ?? "",
+    order: searchParams.get("order") ?? "",
   };
 };
 
@@ -63,8 +64,9 @@ const renderChecksPageResponse = async (
   highlightId: number | null = null,
   q = "",
   filter = "",
+  order = "",
 ): Promise<Response> => {
-  const data = await loadChecksPageData(env["pulse-db"], page, editId, highlightId, q, filter);
+  const data = await loadChecksPageData(env["pulse-db"], page, editId, highlightId, q, filter, order);
   return isHxRequest(request) ? respondHtml(`<main id="content">${renderChecksShell(data)}</main>`) : renderChecksPage(data);
 };
 
@@ -75,8 +77,8 @@ export const handleChecksRequest = async (
   editId: number | null = null,
   highlightId: number | null = null,
 ): Promise<Response> => {
-  const { q, filter } = getSearchParamsFromRequest(request);
-  return renderChecksPageResponse(request, env, page, editId, highlightId, q, filter);
+  const { q, filter, order } = getSearchParamsFromRequest(request);
+  return renderChecksPageResponse(request, env, page, editId, highlightId, q, filter, order);
 };
 
 export const handleCheckDetailRequest = async (request: Request, env: Bindings, id: number): Promise<Response> => {
@@ -90,7 +92,7 @@ export const handleCheckDetailRequest = async (request: Request, env: Bindings, 
 
 export const handleCreateCheck = async (request: Request, env: Bindings): Promise<Response> => {
   const page = getPageFromRequest(request);
-  const { q, filter } = getSearchParamsFromRequest(request);
+  const { q, filter, order } = getSearchParamsFromRequest(request);
   const inputResult = await readValidatedCheckInput(request);
   if (!inputResult.ok) {
     return inputResult.response;
@@ -99,12 +101,12 @@ export const handleCreateCheck = async (request: Request, env: Bindings): Promis
 
   const now = new Date().toISOString();
   await insertCheck(env["pulse-db"], input, now);
-  return renderChecksPageResponse(request, env, page, null, null, q, filter);
+  return renderChecksPageResponse(request, env, page, null, null, q, filter, order);
 };
 
 export const handleUpdateCheck = async (request: Request, env: Bindings, id: number): Promise<Response> => {
   const page = getPageFromRequest(request);
-  const { q, filter } = getSearchParamsFromRequest(request);
+  const { q, filter, order } = getSearchParamsFromRequest(request);
   const inputResult = await readValidatedCheckInput(request);
   if (!inputResult.ok) {
     return inputResult.response;
@@ -113,13 +115,13 @@ export const handleUpdateCheck = async (request: Request, env: Bindings, id: num
 
   const now = new Date().toISOString();
   await updateCheck(env["pulse-db"], id, input, now);
-  return renderChecksPageResponse(request, env, page, null, id, q, filter);
+  return renderChecksPageResponse(request, env, page, null, id, q, filter, order);
 };
 
 export const handleApiListChecks = async (env: Bindings, request: Request): Promise<Response> => {
   const page = getPageFromRequest(request);
-  const { q, filter } = getSearchParamsFromRequest(request);
-  const data = await loadChecksPageData(env["pulse-db"], page, null, null, q, filter);
+  const { q, filter, order } = getSearchParamsFromRequest(request);
+  const data = await loadChecksPageData(env["pulse-db"], page, null, null, q, filter, order);
   return respondJson({
     checks: data.checks,
     page: data.page,

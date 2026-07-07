@@ -1,7 +1,7 @@
 import { renderToString } from "hono/jsx/dom/server";
 import { AppLayout } from "./app-layout.tsx";
 import type { ChecksPageData as ChecksPageDataType } from "../store/checks";
-import { buildChecksUrl } from "../lib/checks-search";
+import { buildCheckOrderWithTerm, buildChecksUrl, getCheckOrderDirection } from "../lib/checks-search";
 import { LocalTime } from "./time.tsx";
 import { formatNullable } from "../presenters/common";
 import { describeCertificateBadge, describeCheckState, describeMaintenanceBadge } from "../presenters/checks";
@@ -50,7 +50,7 @@ const CertificateDetails = ({ check }: { check: ChecksPageData["checks"][number]
 
 const HX_SWAP_NO_SCROLL = "outerHTML show:none";
 
-const SearchPanel = ({ q, filter, searchError }: { q: string; filter: string; searchError: string | null }) => (
+const SearchPanel = ({ q, filter, order, searchError }: { q: string; filter: string; order: string; searchError: string | null }) => (
   <div class="summary-cell checks-search-cell min-w-0">
     <form
       id="checks-search-form"
@@ -63,12 +63,12 @@ const SearchPanel = ({ q, filter, searchError }: { q: string; filter: string; se
       hx-swap={HX_SWAP_NO_SCROLL}
     >
       <p class="text-sm font-bold tracking-wide text-slate-200">検索</p>
-      <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
         <input
           name="q"
           value={q}
           placeholder="name, url, state..."
-          class="glass-input w-full rounded-md px-3 py-2 text-slate-100 placeholder:text-slate-400"
+          class="glass-input w-full rounded-md px-3 py-2 text-slate-100 placeholder:text-slate-400 sm:col-span-2"
         />
         <select name="filter" class="glass-input min-w-0 rounded-md px-3 py-2 text-slate-100">
           <option value="" selected={filter === ""}>
@@ -87,6 +87,7 @@ const SearchPanel = ({ q, filter, searchError }: { q: string; filter: string; se
             24h障害件数
           </option>
         </select>
+        <input type="hidden" name="order" value={order} />
       </div>
       {searchError ? (
         <p id="checks-search-error" class="rounded-md border border-amber-400/20 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
@@ -97,17 +98,79 @@ const SearchPanel = ({ q, filter, searchError }: { q: string; filter: string; se
   </div>
 );
 
+type SortableHeaderKey = "name" | "checked_at" | "certificate_remain";
+
+const SortHeader = ({
+  label,
+  orderKey,
+  order,
+  q,
+  filter,
+}: {
+  label: string;
+  orderKey: SortableHeaderKey;
+  order: string;
+  q: string;
+  filter: string;
+}) => {
+  const currentDirection = getCheckOrderDirection(order, orderKey);
+  const nextDirection = currentDirection === null ? "asc" : currentDirection === "asc" ? "desc" : null;
+  const nextOrder = buildCheckOrderWithTerm(order, orderKey, nextDirection);
+  const href = buildChecksUrl({ page: 1, q, filter, order: nextOrder });
+  const icon =
+    currentDirection === null ? (
+      <svg viewBox="0 0 24 24" class="sort-toggle-icon" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path d="M6 9h12" />
+        <path d="M6 15h12" />
+      </svg>
+    ) : currentDirection === "asc" ? (
+      <svg viewBox="0 0 24 24" class="sort-toggle-icon" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path d="m6 15 6-6 6 6" />
+      </svg>
+    ) : (
+      <svg viewBox="0 0 24 24" class="sort-toggle-icon" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path d="m6 9 6 6 6-6" />
+      </svg>
+    );
+  const labelText = currentDirection === null ? "なし" : currentDirection;
+  const ariaLabel =
+    nextDirection === null
+      ? `${label} のソートを解除`
+      : `${label} を ${nextDirection === "asc" ? "昇順" : "降順"} で並び替え`;
+
+  return (
+    <th scope="col">
+      <div class="sort-header">
+        <a
+          href={href}
+          hx-get={href}
+          hx-target="#content"
+          hx-swap={HX_SWAP_NO_SCROLL}
+          aria-label={ariaLabel}
+          title={`${label}: ${labelText}`}
+          class={`sort-toggle ${currentDirection === null ? "" : "active"}`}
+        >
+          <span class="sort-header-label">{label}</span>
+          <span class="sort-toggle-icon-wrap">{icon}</span>
+        </a>
+      </div>
+    </th>
+  );
+};
+
 const ViewCard = ({
   check,
   page,
   q,
   filter,
+  order,
   highlighted,
 }: {
   check: ChecksPageData["checks"][number];
   page: number;
   q: string;
   filter: string;
+  order: string;
   highlighted: boolean;
 }) => (
   <tr id={`check-item-${check.id}`} class={`check-row ${check.enabled ? "" : "off"} ${highlighted ? "check-row-highlight" : ""}`}>
@@ -161,8 +224,8 @@ const ViewCard = ({
     <td class="check-actions-cell">
       <a
         id={`check-item-${check.id}-edit`}
-        href={buildChecksUrl({ page, edit: check.id, focus: check.id, q, filter })}
-        hx-get={buildChecksUrl({ page, edit: check.id, focus: check.id, q, filter })}
+        href={buildChecksUrl({ page, edit: check.id, focus: check.id, q, filter, order })}
+        hx-get={buildChecksUrl({ page, edit: check.id, focus: check.id, q, filter, order })}
         hx-target="#content"
         hx-swap={HX_SWAP_NO_SCROLL}
         class="glass-button inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-semibold text-slate-100"
@@ -178,18 +241,20 @@ const EditCard = ({
   page,
   q,
   filter,
+  order,
 }: {
   check: ChecksPageData["checks"][number];
   page: number;
   q: string;
   filter: string;
+  order: string;
 }) => (
   <tr id={`check-item-${check.id}`} class="check-row check-row-edit">
     <td colSpan={7} class="check-edit-cell">
       <form
         id={`check-item-${check.id}-form`}
         class="check-edit-form"
-        hx-post={buildChecksUrl({ page, q, filter }).replace("/checks", `/checks/${check.id}`)}
+        hx-post={buildChecksUrl({ page, q, filter, order }).replace("/checks", `/checks/${check.id}`)}
         hx-target="#content"
         hx-swap={HX_SWAP_NO_SCROLL}
       >
@@ -205,8 +270,8 @@ const EditCard = ({
               </button>
               <a
                 id={`check-item-${check.id}-cancel`}
-                href={buildChecksUrl({ page, focus: check.id, q, filter })}
-                hx-get={buildChecksUrl({ page, focus: check.id, q, filter })}
+                href={buildChecksUrl({ page, focus: check.id, q, filter, order })}
+                hx-get={buildChecksUrl({ page, focus: check.id, q, filter, order })}
                 hx-target="#content"
                 hx-swap={HX_SWAP_NO_SCROLL}
                 class="glass-button inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-semibold text-slate-100"
@@ -295,12 +360,12 @@ const EditCard = ({
   </tr>
 );
 
-const CreateForm = ({ page, q, filter }: { page: number; q: string; filter: string }) => (
+const CreateForm = ({ page, q, filter, order }: { page: number; q: string; filter: string; order: string }) => (
   <div id="checks-create-form-wrap" hidden>
     <form
       id="checks-create-form"
       class="table-wrap mt-4 grid gap-3 p-4"
-      hx-post={buildChecksUrl({ page, q, filter })}
+      hx-post={buildChecksUrl({ page, q, filter, order })}
       hx-target="#content"
       hx-swap={HX_SWAP_NO_SCROLL}
     >
@@ -364,12 +429,14 @@ const Pagination = ({
   totalChecks,
   q,
   filter,
+  order,
 }: {
   page: number;
   totalPages: number;
   totalChecks: number;
   q: string;
   filter: string;
+  order: string;
 }) => {
   const prevPage = Math.max(1, page - 1);
   const nextPage = Math.min(totalPages, page + 1);
@@ -388,8 +455,8 @@ const Pagination = ({
           {hasPrev ? (
             <a
               id="checks-pagination-prev"
-              href={buildChecksUrl({ page: prevPage, q, filter })}
-              hx-get={buildChecksUrl({ page: prevPage, q, filter })}
+              href={buildChecksUrl({ page: prevPage, q, filter, order })}
+              hx-get={buildChecksUrl({ page: prevPage, q, filter, order })}
               hx-target="#content"
               hx-swap={HX_SWAP_NO_SCROLL}
               class="glass-button inline-flex items-center rounded-md px-4 py-3 text-sm font-semibold text-slate-100"
@@ -407,8 +474,8 @@ const Pagination = ({
           {hasNext ? (
             <a
               id="checks-pagination-next"
-              href={buildChecksUrl({ page: nextPage, q, filter })}
-              hx-get={buildChecksUrl({ page: nextPage, q, filter })}
+              href={buildChecksUrl({ page: nextPage, q, filter, order })}
+              hx-get={buildChecksUrl({ page: nextPage, q, filter, order })}
               hx-target="#content"
               hx-swap={HX_SWAP_NO_SCROLL}
               class="glass-button inline-flex items-center rounded-md px-4 py-3 text-sm font-semibold text-slate-100"
@@ -469,7 +536,7 @@ const ChecksShell = ({ data }: { data: ChecksPageData }) => (
             <dd>{data.checks.filter((check) => !check.enabled).length}</dd>
           </div>
         </div>
-        <SearchPanel q={data.q} filter={data.filter} searchError={data.searchError} />
+        <SearchPanel q={data.q} filter={data.filter} order={data.order} searchError={data.searchError} />
       </div>
 
       <section id="checks-list-panel" class="panel m-2">
@@ -481,7 +548,7 @@ const ChecksShell = ({ data }: { data: ChecksPageData }) => (
             </div>
             <span class="count-badge">{data.totalChecks} 件</span>
           </div>
-          <CreateForm page={data.page} q={data.q} filter={data.filter} />
+          <CreateForm page={data.page} q={data.q} filter={data.filter} order={data.order} />
           <div id="checks-list" class="mt-4 overflow-x-auto">
             {data.checks.length > 0 ? (
               <table class="checks-table">
@@ -496,25 +563,26 @@ const ChecksShell = ({ data }: { data: ChecksPageData }) => (
                 </colgroup>
                 <thead>
                   <tr>
-                    <th scope="col">監視対象</th>
-                    <th scope="col">最終確認</th>
+                    <SortHeader label="監視対象" orderKey="name" order={data.order} q={data.q} filter={data.filter} />
+                    <SortHeader label="最終確認" orderKey="checked_at" order={data.order} q={data.q} filter={data.filter} />
                     <th scope="col">HTTP / 遅延</th>
                     <th scope="col">間隔</th>
                     <th scope="col">しきい値</th>
-                    <th scope="col">証明書</th>
+                    <SortHeader label="証明書" orderKey="certificate_remain" order={data.order} q={data.q} filter={data.filter} />
                     <th scope="col">操作</th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.checks.map((check) =>
                     data.editId === check.id ? (
-                      <EditCard check={check} page={data.page} q={data.q} filter={data.filter} />
+                      <EditCard check={check} page={data.page} q={data.q} filter={data.filter} order={data.order} />
                     ) : (
                       <ViewCard
                         check={check}
                         page={data.page}
                         q={data.q}
                         filter={data.filter}
+                        order={data.order}
                         highlighted={data.highlightId === check.id}
                       />
                     ),
@@ -536,7 +604,7 @@ const ChecksShell = ({ data }: { data: ChecksPageData }) => (
         </div>
       </section>
       <div class="px-2 pb-2">
-        <Pagination page={data.page} totalPages={data.totalPages} totalChecks={data.totalChecks} q={data.q} filter={data.filter} />
+        <Pagination page={data.page} totalPages={data.totalPages} totalChecks={data.totalChecks} q={data.q} filter={data.filter} order={data.order} />
       </div>
     </div>
   </section>

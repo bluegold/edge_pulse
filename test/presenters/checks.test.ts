@@ -23,16 +23,18 @@ describe("checks presenter", () => {
   });
 
   it("describes certificate badges", () => {
-    expect(describeCertificateBadge({ tls_last_error: "error", tls_days_remaining: null, tls_valid_to: null })).toEqual({
+    const now = "2026-07-03T00:00:00.000Z";
+
+    expect(describeCertificateBadge({ tls_last_error: "error", tls_valid_to: null }, now)).toEqual({
       label: "未取得",
       className: "cert-chip warn",
     });
-    expect(describeCertificateBadge({ tls_last_error: null, tls_days_remaining: 10, tls_valid_to: null })).toEqual({
+    expect(describeCertificateBadge({ tls_last_error: null, tls_valid_to: "2026-07-13T00:00:00.000Z" }, now)).toEqual({
       label: "要確認・10日",
       className: "cert-chip warn",
     });
-    expect(describeCertificateBadge({ tls_last_error: null, tls_days_remaining: null, tls_valid_to: "2026-08-01T00:00:00.000Z" })).toEqual({
-      label: "OK・-",
+    expect(describeCertificateBadge({ tls_last_error: null, tls_valid_to: "2026-08-12T00:00:00.000Z" }, now)).toEqual({
+      label: "OK・40日",
       className: "cert-chip",
     });
   });

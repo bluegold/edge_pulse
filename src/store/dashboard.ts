@@ -1,5 +1,5 @@
 import type { D1Database } from "../lib/cloudflare";
-import { isCertificateExpiringSoon, type CheckRow, type CheckState } from "../lib/checks";
+import { calculateCertificateDaysRemaining, isCertificateExpiringSoon, type CheckRow, type CheckState } from "../lib/checks";
 
 export type IncidentRow = {
   id: number;
@@ -56,7 +56,7 @@ export type DashboardData = {
 
 const RECENT_CHECKS_LIMIT = 5;
 
-const compareCheckAttention = (a: CheckRow, b: CheckRow): number => {
+const compareCheckAttention = (a: CheckRow, b: CheckRow, now: Date): number => {
   const aFail = a.last_state === "fail";
   const bFail = b.last_state === "fail";
   if (aFail !== bFail) return aFail ? -1 : 1;
@@ -69,8 +69,8 @@ const compareCheckAttention = (a: CheckRow, b: CheckRow): number => {
   const bMaintenance = Boolean(b.maintenance_enabled);
   if (aMaintenance !== bMaintenance) return aMaintenance ? -1 : 1;
 
-  const aCertSoon = isCertificateExpiringSoon(a.tls_days_remaining ?? null);
-  const bCertSoon = isCertificateExpiringSoon(b.tls_days_remaining ?? null);
+  const aCertSoon = isCertificateExpiringSoon(calculateCertificateDaysRemaining(a.tls_valid_to, now));
+  const bCertSoon = isCertificateExpiringSoon(calculateCertificateDaysRemaining(b.tls_valid_to, now));
   if (aCertSoon !== bCertSoon) return aCertSoon ? -1 : 1;
 
   const aCheckedAt = a.last_checked_at ? new Date(a.last_checked_at).getTime() : 0;
@@ -80,10 +80,10 @@ const compareCheckAttention = (a: CheckRow, b: CheckRow): number => {
   return b.id - a.id;
 };
 
-const isAttentionCheck = (check: CheckRow): boolean =>
+const isAttentionCheck = (check: CheckRow, now: Date): boolean =>
   check.last_state === "fail" ||
   Boolean(check.tls_last_error) ||
-  isCertificateExpiringSoon(check.tls_days_remaining ?? null) ||
+  isCertificateExpiringSoon(calculateCertificateDaysRemaining(check.tls_valid_to, now)) ||
   Boolean(check.maintenance_enabled);
 
 export const loadDashboardData = async (db: D1Database): Promise<DashboardData> => {
@@ -148,7 +148,10 @@ export const loadDashboardData = async (db: D1Database): Promise<DashboardData> 
       .first<{ count: number }>(),
   ]);
 
-  const recentChecks = checks.results.filter(isAttentionCheck).sort(compareCheckAttention).slice(0, RECENT_CHECKS_LIMIT);
+  const recentChecks = checks.results
+    .filter((check) => isAttentionCheck(check, now))
+    .sort((a, b) => compareCheckAttention(a, b, now))
+    .slice(0, RECENT_CHECKS_LIMIT);
 
   return {
     checks: checks.results,
@@ -162,12 +165,12 @@ export const loadDashboardData = async (db: D1Database): Promise<DashboardData> 
   };
 };
 
-export const summarizeDashboard = (checks: CheckRow[], recentIncidents: IncidentRow[]) => {
+export const summarizeDashboard = (checks: CheckRow[], recentIncidents: IncidentRow[], now: Date | string = new Date()) => {
   const totalChecks = checks.length;
   const okChecks = checks.filter((check) => check.last_state === "ok" && check.enabled === 1).length;
   const failedChecks = checks.filter((check) => check.last_state === "fail" && check.enabled === 1).length;
   const certExpiringSoonChecks = checks.filter(
-    (check) => typeof check.tls_days_remaining === "number" && check.tls_days_remaining <= 30,
+    (check) => isCertificateExpiringSoon(calculateCertificateDaysRemaining(check.tls_valid_to, now)),
   ).length;
   const averageLatency =
     checks.length === 0

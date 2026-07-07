@@ -5,6 +5,7 @@ import { LocalTime, formatLocalDateTime } from "./time.tsx";
 import { formatNullable } from "../presenters/common";
 import { describeCheckState, describeCertificateBadge, describeMaintenanceBadge } from "../presenters/checks";
 import { formatDuration } from "../presenters/dashboard";
+import { calculateCertificateDaysRemaining } from "../lib/checks";
 import type { CloudflareAccessIdentity } from "../http/shared";
 import type { Child } from "hono/jsx";
 
@@ -176,6 +177,7 @@ const SettingsSection = ({ data }: { data: CheckDetailData }) => (
 
 const ReportSection = ({ data }: { data: CheckDetailData }) => {
   const recentResult = data.recentResults[0] ?? null;
+  const certificateDaysRemaining = calculateCertificateDaysRemaining(data.check.tls_valid_to);
   const errorDetails =
     recentResult?.state === "fail"
       ? [formatNullable(recentResult.status_code), formatTimingMs(recentResult.latency_ms), recentResult.error ?? "-"]
@@ -189,8 +191,8 @@ const ReportSection = ({ data }: { data: CheckDetailData }) => {
         <ReportMetricCard
           id="summary-report-cert-days-remaining"
           label="証明書残日数"
-          value={formatNullable(data.check.tls_days_remaining)}
-          tone={data.check.tls_days_remaining !== null && data.check.tls_days_remaining !== undefined && data.check.tls_days_remaining <= 30 ? "danger" : "default"}
+          value={formatNullable(certificateDaysRemaining)}
+          tone={certificateDaysRemaining !== null && certificateDaysRemaining <= 30 ? "danger" : "default"}
           icon={<svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 3h10"/><path d="M7 21h10"/><path d="M9 7h6"/><path d="M9 11h6"/><path d="M9 15h2"/><path d="M12 17.5 9.5 16l2.5-1.5 2.5 1.5Z"/></svg>}
         />
         <ReportMetricCard
