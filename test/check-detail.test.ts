@@ -332,9 +332,9 @@ describe("check detail", () => {
     expect(state.check.tls_issuer).toBe("CN=Example CA");
     expect(state.check.tls_days_remaining).toBe(60);
     expect(html).toContain('id="recent-check-1"');
-    expect(html).toContain("証明書の最終確認");
-    expect(html).toContain("次回確認予定日時");
     expect(html).toContain("証明書OK");
+    expect(html).not.toContain("証明書の最終確認");
+    expect(html).not.toContain("次回確認予定日時");
   });
 
 });
