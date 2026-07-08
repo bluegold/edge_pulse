@@ -19,6 +19,17 @@ export const respondJson = (body: unknown, status = 200) =>
     },
   });
 
+export const respondHxOrHtml = (
+  request: Request,
+  shellRenderer: () => string,
+  fullPageRenderer: () => Response,
+): Response => {
+  if (isHxRequest(request)) {
+    return respondHtml(`<main id="content">${shellRenderer()}</main>`);
+  }
+  return fullPageRenderer();
+};
+
 const parseEnabled = (value: unknown): boolean => {
   return value === true || value === 1 || value === "1" || value === "true" || value === "on";
 };

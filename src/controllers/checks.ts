@@ -6,7 +6,7 @@ import { loadCheckDetailData } from "../store/check-detail";
 import { renderChecksPage, renderChecksShell } from "../views/checks-page.tsx";
 import { renderCheckDetailPage, renderCheckDetailShell } from "../views/check-detail-page.tsx";
 import { renderDashboardPage, renderDashboardShell, renderRecentCheckCard } from "../views/dashboard-page.tsx";
-import { isHxRequest, readCheckInputFromRequest, readCloudflareAccessIdentity, respondHtml, respondJson } from "../http/shared";
+import { isHxRequest, readCheckInputFromRequest, readCloudflareAccessIdentity, respondHtml, respondJson, respondHxOrHtml } from "../http/shared";
 import { refreshCertificateSnapshot } from "../services/certificate-check";
 
 const unsupportedContentTypeResponse = () =>
@@ -70,7 +70,7 @@ const renderChecksPageResponse = async (
   order = "",
 ): Promise<Response> => {
   const data = await loadChecksPageData(env["pulse-db"], page, editId, highlightId, q, filter, order);
-  return isHxRequest(request) ? respondHtml(`<main id="content">${renderChecksShell(data)}</main>`) : renderChecksPage(data);
+  return respondHxOrHtml(request, () => renderChecksShell(data), () => renderChecksPage(data));
 };
 
 const renderCheckDetailPageResponse = async (request: Request, env: Bindings, id: number): Promise<Response> => {
@@ -79,15 +79,13 @@ const renderCheckDetailPageResponse = async (request: Request, env: Bindings, id
     return notFoundResponse();
   }
 
-  return isHxRequest(request) ? respondHtml(`<main id="content">${renderCheckDetailShell(data)}</main>`) : renderCheckDetailPage(data);
+  return respondHxOrHtml(request, () => renderCheckDetailShell(data), () => renderCheckDetailPage(data));
 };
 
 const renderDashboardPageResponse = async (request: Request, env: Bindings): Promise<Response> => {
   const data = await loadDashboardData(env["pulse-db"]);
   const accessIdentity = readCloudflareAccessIdentity(request);
-  return isHxRequest(request)
-    ? respondHtml(`<main id="content">${renderDashboardShell(data)}</main>`)
-    : renderDashboardPage(data, accessIdentity);
+  return respondHxOrHtml(request, () => renderDashboardShell(data), () => renderDashboardPage(data, accessIdentity));
 };
 
 export const handleChecksRequest = async (

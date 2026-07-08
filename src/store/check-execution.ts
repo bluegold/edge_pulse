@@ -303,5 +303,3 @@ export const finishCheckRun = async (
     .bind(now, resultState, skipReason, now, run.id)
     .run();
 };
-
-export type { CheckResult };
