@@ -131,7 +131,7 @@ describe("renderChecksPage", () => {
     expect(html).toContain('HTTP / 応答時間');
     expect(html).toContain('>HTTP<');
     expect(html).toContain('>応答時間<');
-    expect(html).toContain('class="text-[0.92em]">12ms<');
+    expect(html).toContain('class="text-[0.92em] text-slate-300/80">12ms<');
     expect(html).toContain('<span> / 80ms</span>');
     expect(html).toContain('id="checks-pagination-panel"');
     expect(html).toContain('id="checks-pagination-current"');
