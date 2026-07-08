@@ -51,6 +51,11 @@ const CertificateDetails = ({ check }: { check: ChecksPageData["checks"][number]
 
 const HX_SWAP_NO_SCROLL = "outerHTML show:none";
 
+const formatTimingMs = (value: number | null | undefined, fractionDigits = 3): string => {
+  if (value === null || value === undefined) return "-";
+  return `${Number.isInteger(value) ? String(value) : value.toFixed(fractionDigits).replace(/\.?0+$/, "")}ms`;
+};
+
 const SearchPanel = ({ q, filter, order, searchError }: { q: string; filter: string; order: string; searchError: string | null }) => (
   <div class="summary-cell checks-search-cell min-w-0">
     <form
@@ -200,7 +205,10 @@ const ViewCard = ({
         </div>
         <div>
           <p class="check-meta-label">応答時間</p>
-          <div class="check-meta-value text-right tabular-nums">{check.last_latency_ms === null ? "-" : `${check.last_latency_ms}ms`}</div>
+          <div class="check-meta-value text-right tabular-nums">
+            <span class="text-[0.92em] text-slate-300/80">{formatTimingMs(check.last_runtime_ms, 2)}</span>
+            <span>{` / ${formatTimingMs(check.last_latency_ms)}`}</span>
+          </div>
         </div>
       </div>
     </td>

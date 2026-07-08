@@ -35,7 +35,14 @@ export const getCheckById = async (db: D1Database, id: number): Promise<ChecksPa
           FROM status_events e
           WHERE e.check_id = c.id
             AND e.to_state = 'ok'
-        ) AS uptime_started_at
+        ) AS uptime_started_at,
+        (
+          SELECT r.x_runtime_ms
+          FROM check_results r
+          WHERE r.check_id = c.id
+          ORDER BY r.checked_at DESC, r.id DESC
+          LIMIT 1
+        ) AS last_runtime_ms
       FROM checks c
       WHERE c.id = ?
       LIMIT 1
@@ -155,7 +162,14 @@ export const loadChecksPageData = async (
             FROM status_events e
             WHERE e.check_id = c.id
               AND e.to_state = 'ok'
-          ) AS uptime_started_at
+          ) AS uptime_started_at,
+          (
+            SELECT r.x_runtime_ms
+            FROM check_results r
+            WHERE r.check_id = c.id
+            ORDER BY r.checked_at DESC, r.id DESC
+            LIMIT 1
+          ) AS last_runtime_ms
         FROM checks c
         ${whereClause}
         ORDER BY ${orderBySql}

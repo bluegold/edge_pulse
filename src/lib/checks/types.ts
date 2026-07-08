@@ -73,6 +73,7 @@ export type CheckRow = {
   last_state: CheckState;
   last_status_code: number | null;
   last_latency_ms: number | null;
+  last_runtime_ms?: number | null;
   last_error: string | null;
   fail_threshold: number;
   recovery_threshold: number;

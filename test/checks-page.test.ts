@@ -19,6 +19,7 @@ const checksPageData: ChecksPageData = {
       last_state: "ok",
       last_status_code: 200,
       last_latency_ms: 80,
+      last_runtime_ms: 12,
       last_error: null,
       fail_threshold: 2,
       recovery_threshold: 1,
@@ -46,6 +47,7 @@ const checksPageData: ChecksPageData = {
       last_state: "fail",
       last_status_code: 500,
       last_latency_ms: null,
+      last_runtime_ms: null,
       last_error: "HTTP 500",
       fail_threshold: 3,
       recovery_threshold: 1,
@@ -126,6 +128,11 @@ describe("renderChecksPage", () => {
     expect(html).toContain('id="check-item-2-cancel"');
     expect(html).toContain('check-row-highlight');
     expect(html).toContain('証明書');
+    expect(html).toContain('HTTP / 応答時間');
+    expect(html).toContain('>HTTP<');
+    expect(html).toContain('>応答時間<');
+    expect(html).toContain('class="text-[0.92em]">12ms<');
+    expect(html).toContain('<span> / 80ms</span>');
     expect(html).toContain('id="checks-pagination-panel"');
     expect(html).toContain('id="checks-pagination-current"');
     expect(html).toContain('id="checks-pagination-prev"');
