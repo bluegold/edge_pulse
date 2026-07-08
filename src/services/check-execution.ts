@@ -1,7 +1,6 @@
 import type { Bindings } from "../lib/bindings";
 import {
   buildCheckResult,
-  classifyCheckFailureReason,
   scheduleNextCheckAt,
   validateMonitorUrl,
   isMaintenanceWindowActive,
@@ -25,8 +24,7 @@ import {
 import { describeCertificateAlert, probeCertificateSnapshot } from "./certificate-check";
 import { dispatchNotifications } from "./notifications";
 import type { ExecutionContext } from "../lib/cloudflare";
-
-const CHECK_USER_AGENT = "edge-pulse-check/1.0";
+import { determineResultState, performHttpCheck } from "./http-check";
 
 const dispatchCheckRun = async (
   env: Bindings,
@@ -90,47 +88,17 @@ export const runCheck = async (env: Bindings, job: CheckJob, ctx?: ExecutionCont
   }
 
   const latestRecovery = await getLatestRecoveryAt(env["pulse-db"], check);
-
   const certificatePromise = shouldProbeCertificateSnapshot(check, checkedAt, latestRecovery)
     ? probeCertificateSnapshot(env, check)
     : Promise.resolve(null);
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort("timeout"), check.timeout_ms);
-  const started = performance.now();
 
-  let response: Response | null = null;
-  let error: string | null = null;
-  try {
-    response = await fetch(validation.url, {
-      method: check.method,
-      headers: {
-        "user-agent": CHECK_USER_AGENT,
-      },
-      redirect: "manual",
-      signal: controller.signal,
-    });
-  } catch (cause) {
-    error = cause instanceof Error ? cause.message : String(cause);
-  } finally {
-    clearTimeout(timeout);
-  }
-
+  const { response, error, latencyMs } = await performHttpCheck(validation.url.toString(), check.method, check.timeout_ms);
   const certificate = await certificatePromise;
-  const latencyMs = Math.max(0, Math.round(performance.now() - started));
+
   const inRange = response ? response.status >= check.expected_status_min && response.status <= check.expected_status_max : false;
   const certificateAlert = certificate ? describeCertificateAlert(certificate) : null;
-  const certificateFailure = Boolean(certificateAlert);
-  const shouldFail = certificateFailure || !inRange;
-  const responseReason = response
-    ? response.status === 526
-      ? "tls_error"
-      : inRange
-        ? "http_ok"
-        : "http_status"
-    : classifyCheckFailureReason(null, error);
-  const resultReason = certificateAlert?.reason ?? responseReason;
-  const resultError =
-    certificateAlert?.error ?? (response?.status === 526 ? "invalid SSL certificate" : response ? null : error ?? "request failed");
+  
+  const { shouldFail, resultReason, resultError } = determineResultState(response, error, inRange, certificateAlert);
   const serverTiming = parseServerTimingHeader(response?.headers.get("server-timing"));
 
   const result = buildCheckResult({
