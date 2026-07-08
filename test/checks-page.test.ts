@@ -61,6 +61,8 @@ const checksPageData: ChecksPageData = {
   page: 2,
   pageSize: 20,
   totalChecks: 42,
+  okChecks: 1,
+  stoppedChecks: 0,
   totalPages: 3,
   editId: 2,
   highlightId: 1,

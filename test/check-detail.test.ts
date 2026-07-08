@@ -1,9 +1,29 @@
 import { describe, expect, it, vi } from "vitest";
 
+const certificateResponse = {
+  host: "api-a.example.com",
+  port: 443,
+  servername: "api-a.example.com",
+  subject: "CN=api-a.example.com",
+  issuer: "CN=Example CA",
+  class: "RSA",
+  valid_from: "2026-06-01T00:00:00.000Z",
+  valid_to: "2026-09-01T00:00:00.000Z",
+  days_remaining: 60,
+  dns_names: ["api-a.example.com"],
+  error: null,
+};
+
 vi.mock("@cloudflare/containers", () => ({
   Container: class {},
   getContainer: () => ({
-    fetch: async () => new Response(JSON.stringify({ ok: true }), { status: 200 }),
+    fetch: async () =>
+      new Response(JSON.stringify(certificateResponse), {
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+        },
+      }),
   }),
 }));
 
@@ -128,13 +148,16 @@ const detailData: CheckDetailData = {
 const createDb = (result: CheckDetailData | null): D1Database => ({
   prepare(sql: string) {
     const normalized = sql.replaceAll(/\s+/g, " ").trim();
-    return {
-      bind(..._args: unknown[]) {
-        return this;
+    const statement = (params: unknown[] = []) => ({
+      bind(...nextParams: unknown[]) {
+        return statement(nextParams);
       },
       async first<T>() {
         if (normalized === "SELECT * FROM checks WHERE id = ? LIMIT 1") {
           return (result?.check ?? null) as T;
+        }
+        if (normalized === "SELECT * FROM checks ORDER BY created_at DESC, id DESC") {
+          return ({ results: result ? [result.check] : [] } as unknown) as T;
         }
         if (normalized.includes("COUNT(*) AS checks24h")) {
           return (result ? result.report : null) as T;
@@ -154,12 +177,63 @@ const createDb = (result: CheckDetailData | null): D1Database => ({
         if (normalized.includes("FROM incidents")) {
           return { results: result?.recentIncidents ?? [] } as T;
         }
+        if (normalized.includes("FROM checks c") || normalized.includes("FROM checks ORDER BY")) {
+          return { results: result ? [result.check] : [] } as T;
+        }
         return { results: [] } as T;
       },
       async run() {
+        if (
+          normalized.startsWith("UPDATE checks SET tls_last_checked_at = ?, tls_last_error = ?, tls_subject = COALESCE(?, tls_subject), tls_issuer = COALESCE(?, tls_issuer), tls_public_key_class = COALESCE(?, tls_public_key_class), tls_valid_from = COALESCE(?, tls_valid_from), tls_valid_to = COALESCE(?, tls_valid_to), tls_days_remaining = COALESCE(?, tls_days_remaining), tls_dns_names = COALESCE(?, tls_dns_names), updated_at = ? WHERE id = ?")
+        ) {
+          const [
+            tlsLastCheckedAt,
+            tlsLastError,
+            tlsSubject,
+            tlsIssuer,
+            tlsPublicKeyClass,
+            tlsValidFrom,
+            tlsValidTo,
+            tlsDaysRemaining,
+            tlsDnsNames,
+            updatedAt,
+            id,
+          ] = params as [
+            string,
+            string | null,
+            string | null,
+            string | null,
+            string | null,
+            string | null,
+            string | null,
+            number | null,
+            string | null,
+            string,
+            number,
+          ];
+
+          if (result && result.check.id === id) {
+            result.check = {
+              ...result.check,
+              tls_last_checked_at: tlsLastCheckedAt,
+              tls_last_error: tlsLastError,
+              tls_subject: tlsSubject ?? result.check.tls_subject ?? null,
+              tls_issuer: tlsIssuer ?? result.check.tls_issuer ?? null,
+              tls_public_key_class: tlsPublicKeyClass ?? result.check.tls_public_key_class ?? null,
+              tls_valid_from: tlsValidFrom ?? result.check.tls_valid_from ?? null,
+              tls_valid_to: tlsValidTo ?? result.check.tls_valid_to ?? null,
+              tls_days_remaining: tlsDaysRemaining ?? result.check.tls_days_remaining ?? null,
+              tls_dns_names: tlsDnsNames ?? result.check.tls_dns_names ?? null,
+              updated_at: updatedAt,
+            };
+          }
+        }
+
         return { success: true };
       },
-    };
+    });
+
+    return statement();
   },
   batch: async <T>() => [] as T[],
 });
@@ -172,6 +246,8 @@ describe("check detail", () => {
     expect(html).toContain("24h 障害");
     expect(html).toContain("過去24H");
     expect(html).toContain("証明書情報");
+    expect(html).toContain("証明書の最終確認日時・結果");
+    expect(html).toContain("次回確認予定日時");
     expect(html).toContain("状態遷移イベント");
     expect(html).toContain("incident 履歴");
     expect(html).toContain("直近のチェック結果");
@@ -207,6 +283,7 @@ describe("check detail", () => {
       },
       {
         "pulse-db": createDb(detailData),
+        CertProbeContainer: {} as never,
       } as never,
     );
 
@@ -215,4 +292,49 @@ describe("check detail", () => {
     expect(html).toContain('id="check-detail-shell"');
     expect(html).toContain("Edge Pulse / api-a");
   });
+
+  it("rechecks certificate data from the dashboard route", async () => {
+    const state = {
+      ...detailData,
+      check: {
+        ...detailData.check,
+        tls_last_checked_at: "2026-07-03T11:40:00.000Z",
+        tls_last_error: "stale",
+        tls_subject: null,
+        tls_issuer: null,
+        tls_public_key_class: null,
+        tls_valid_from: null,
+        tls_valid_to: null,
+        tls_days_remaining: null,
+        tls_dns_names: null,
+      },
+    };
+
+    const response = await app.request(
+      "http://localhost/checks/1/certificate/recheck",
+      {
+        method: "POST",
+        headers: {
+          "HX-Request": "true",
+        },
+      },
+      {
+        "pulse-db": createDb(state),
+        CertProbeContainer: {} as never,
+      } as never,
+    );
+
+    expect(response.status).toBe(200);
+    const html = await response.text();
+    expect(state.check.tls_last_checked_at).not.toBe("2026-07-03T11:40:00.000Z");
+    expect(state.check.tls_last_error).toBeNull();
+    expect(state.check.tls_subject).toBe("CN=api-a.example.com");
+    expect(state.check.tls_issuer).toBe("CN=Example CA");
+    expect(state.check.tls_days_remaining).toBe(60);
+    expect(html).toContain('id="recent-check-1"');
+    expect(html).toContain("証明書の最終確認");
+    expect(html).toContain("次回確認予定日時");
+    expect(html).toContain("証明書OK");
+  });
+
 });

@@ -527,13 +527,13 @@ const ChecksShell = ({ data }: { data: ChecksPageData }) => (
         <div class="summary-cell">
           <div class="summary-metric">
             <dt>稼働中</dt>
-            <dd><span class="text-emerald-300">{data.checks.filter((check) => check.enabled && check.last_state === "ok").length}</span> / {data.totalChecks}</dd>
+            <dd><span class="text-emerald-300">{data.okChecks}</span> / {data.totalChecks}</dd>
           </div>
         </div>
         <div class="summary-cell">
           <div class="summary-metric">
             <dt>停止中</dt>
-            <dd>{data.checks.filter((check) => !check.enabled).length}</dd>
+            <dd>{data.stoppedChecks}</dd>
           </div>
         </div>
         <SearchPanel q={data.q} filter={data.filter} order={data.order} searchError={data.searchError} />

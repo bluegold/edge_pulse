@@ -1,5 +1,6 @@
 import type { D1Database } from "../lib/cloudflare";
 import { calculateCertificateDaysRemaining, isCertificateExpiringSoon, type CheckRow, type CheckState } from "../lib/checks";
+import { summarizeChecks } from "../lib/checks-summary";
 
 export type IncidentRow = {
   id: number;
@@ -166,9 +167,7 @@ export const loadDashboardData = async (db: D1Database): Promise<DashboardData> 
 };
 
 export const summarizeDashboard = (checks: CheckRow[], recentIncidents: IncidentRow[], now: Date | string = new Date()) => {
-  const totalChecks = checks.length;
-  const okChecks = checks.filter((check) => check.last_state === "ok" && check.enabled === 1).length;
-  const failedChecks = checks.filter((check) => check.last_state === "fail" && check.enabled === 1).length;
+  const summary = summarizeChecks(checks);
   const certExpiringSoonChecks = checks.filter(
     (check) => isCertificateExpiringSoon(calculateCertificateDaysRemaining(check.tls_valid_to, now)),
   ).length;
@@ -181,9 +180,9 @@ export const summarizeDashboard = (checks: CheckRow[], recentIncidents: Incident
         );
 
   return {
-    totalChecks,
-    okChecks,
-    failedChecks,
+    totalChecks: summary.totalChecks,
+    okChecks: summary.okChecks,
+    failedChecks: summary.failedChecks,
     certExpiringSoonChecks,
     incidents24h: recentIncidents.length,
     averageLatencyMs: checks.some((check) => check.last_latency_ms !== null) ? averageLatency : null,

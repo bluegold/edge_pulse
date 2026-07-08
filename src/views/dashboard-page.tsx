@@ -101,8 +101,9 @@ const IncidentCard = ({ incident }: { incident: IncidentRow }) => (
 
 const RecentCheckCard = ({ check }: { check: CheckRow }) => {
   const maintenanceBadge = describeMaintenanceBadge(check);
+  const isCertificateFailure = Boolean(check.tls_last_error);
   return (
-    <article id={`recent-check-${check.id}`} class="subpanel p-4">
+    <article id={`recent-check-${check.id}`} class="subpanel relative overflow-hidden p-4">
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
           <p class="truncate font-semibold text-slate-50">
@@ -123,34 +124,95 @@ const RecentCheckCard = ({ check }: { check: CheckRow }) => {
           <CertificateBadge check={check} />
         </div>
       </div>
-      <div class="flatline my-4" aria-hidden="true" />
-      <dl class="grid gap-2 text-sm text-slate-300 sm:grid-cols-2">
-        <div>
-          <dt class="text-slate-500">最終確認</dt>
-          <dd class="mt-1"><LocalTime iso={check.last_checked_at} class="whitespace-nowrap" /></dd>
-        </div>
-        <div>
-          <dt class="text-slate-500">HTTP / 遅延</dt>
-          <dd class="mt-1">
-            {formatNullable(check.last_status_code)} / {check.last_latency_ms === null ? "-" : `${check.last_latency_ms}ms`}
-          </dd>
-        </div>
-        <div>
-          <dt class="text-slate-500">間隔</dt>
-          <dd class="mt-1">{check.interval_minutes} 分</dd>
-        </div>
-        <div>
-          <dt class="text-slate-500">追加</dt>
-          <dd class="mt-1"><LocalTime iso={check.created_at} class="whitespace-nowrap" /></dd>
-        </div>
-        <div>
-          <dt class="text-slate-500">証明書</dt>
-          <dd class="mt-1">{formatCertificateDays(check.tls_valid_to)}</dd>
-        </div>
-      </dl>
+      {isCertificateFailure ? (
+        <>
+          <div class="flatline my-4" aria-hidden="true" />
+          <dl class="grid gap-2 text-sm text-slate-300 sm:grid-cols-2">
+            <div>
+              <dt class="text-slate-500">証明書の最終確認</dt>
+              <dd class="mt-1"><LocalTime iso={check.tls_last_checked_at} class="whitespace-nowrap" /></dd>
+            </div>
+            <div>
+              <dt class="text-slate-500">証明書残日数</dt>
+              <dd class="mt-1">{formatCertificateDays(check.tls_valid_to)}</dd>
+            </div>
+            <div>
+              <dt class="text-slate-500">次回確認予定日時</dt>
+              <dd class="mt-1"><LocalTime iso={check.next_check_at} class="whitespace-nowrap" /></dd>
+            </div>
+            <div>
+              <dt class="text-slate-500">エラー</dt>
+              <dd class="mt-1 break-words text-rose-200">{check.tls_last_error ?? "-"}</dd>
+            </div>
+          </dl>
+          <div class="mt-4 flex justify-end">
+            <form
+              method="post"
+              action={`/checks/${check.id}/certificate/recheck`}
+              hx-post={`/checks/${check.id}/certificate/recheck`}
+              hx-target={`#recent-check-${check.id}`}
+              hx-swap="outerHTML show:none"
+              hx-indicator={`#cert-recheck-indicator-${check.id}`}
+            >
+              <button class="glass-button inline-flex items-center rounded-md px-3 py-2 text-sm font-semibold text-slate-100">
+                再確認
+              </button>
+            </form>
+          </div>
+          <div
+            id={`cert-recheck-indicator-${check.id}`}
+            class="htmx-indicator absolute inset-0 z-20 flex items-center justify-center bg-slate-950/78 text-slate-100 backdrop-blur-sm"
+            aria-live="polite"
+            aria-label="証明書を再確認中"
+          >
+            <div class="flex flex-col items-center gap-3 rounded-lg border border-white/10 bg-slate-950/80 px-5 py-4 shadow-xl">
+              <span class="text-3xl leading-none">⏳</span>
+              <span class="text-sm font-semibold tracking-wide">証明書を再確認中</span>
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
+          <div class="flatline my-4" aria-hidden="true" />
+          <dl class="grid gap-2 text-sm text-slate-300 sm:grid-cols-2">
+            <div>
+              <dt class="text-slate-500">監視最終確認</dt>
+              <dd class="mt-1"><LocalTime iso={check.last_checked_at} class="whitespace-nowrap" /></dd>
+            </div>
+            <div>
+              <dt class="text-slate-500">HTTP / 遅延</dt>
+              <dd class="mt-1">
+                {formatNullable(check.last_status_code)} / {check.last_latency_ms === null ? "-" : `${check.last_latency_ms}ms`}
+              </dd>
+            </div>
+            <div>
+              <dt class="text-slate-500">間隔</dt>
+              <dd class="mt-1">{check.interval_minutes} 分</dd>
+            </div>
+            <div>
+              <dt class="text-slate-500">追加</dt>
+              <dd class="mt-1"><LocalTime iso={check.created_at} class="whitespace-nowrap" /></dd>
+            </div>
+            <div>
+              <dt class="text-slate-500">証明書残日数</dt>
+              <dd class="mt-1">{formatCertificateDays(check.tls_valid_to)}</dd>
+            </div>
+            <div>
+              <dt class="text-slate-500">証明書の最終確認</dt>
+              <dd class="mt-1"><LocalTime iso={check.tls_last_checked_at} class="whitespace-nowrap" /></dd>
+            </div>
+            <div>
+              <dt class="text-slate-500">次回確認予定日時</dt>
+              <dd class="mt-1"><LocalTime iso={check.next_check_at} class="whitespace-nowrap" /></dd>
+            </div>
+          </dl>
+        </>
+      )}
     </article>
   );
 };
+
+export const renderRecentCheckCard = (check: CheckRow): string => renderToString(<RecentCheckCard check={check} />);
 
 const ResultRow = ({ result }: { result: DashboardData["recentResults"][number] }) => (
   <tr id={`check-result-${result.id}`}>

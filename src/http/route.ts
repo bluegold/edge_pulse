@@ -5,6 +5,7 @@ import {
   handleApiListChecks,
   handleApiUpdateCheck,
   handleCheckDetailRequest,
+  handleCertificateRecheck,
   handleChecksRequest,
   handleCreateCheck,
   handleUpdateCheck,
@@ -46,6 +47,7 @@ app.get("/checks", async (c) => {
 app.get("/checks/:id", async (c) => handleCheckDetailRequest(c.req.raw, c.env, Number(c.req.param("id"))));
 app.post("/checks", async (c) => handleCreateCheck(c.req.raw, c.env));
 app.post("/checks/:id", async (c) => handleUpdateCheck(c.req.raw, c.env, Number(c.req.param("id"))));
+app.post("/checks/:id/certificate/recheck", async (c) => handleCertificateRecheck(c.req.raw, c.env, Number(c.req.param("id"))));
 app.get("/api/checks", async (c) => handleApiListChecks(c.env, c.req.raw));
 app.post("/api/checks", async (c) => handleApiCreateCheck(c.env, c.req.raw));
 app.get("/api/checks/:id", async (c) => handleApiGetCheck(c.env, Number(c.req.param("id"))));

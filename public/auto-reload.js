@@ -36,6 +36,7 @@
   });
 
   const hasControls = () => Boolean(controls().toggle);
+  const isHtmxRequestInFlight = () => Boolean(document.querySelector(".htmx-request"));
 
   const formatLocalDateTime = (date) => {
     const year = String(date.getFullYear()).padStart(4, "0");
@@ -142,6 +143,11 @@
     }
 
     if (!active) {
+      render();
+      return;
+    }
+
+    if (isHtmxRequestInFlight()) {
       render();
       return;
     }

@@ -80,13 +80,23 @@ const makeDb = (
           if (normalized.includes("COUNT(*) AS count") && normalized.includes("FROM checks c")) {
             return { count: filteredChecks.length } as T;
           }
+          if (normalized.includes("COALESCE(SUM(CASE WHEN enabled = 1 AND last_state = 'ok' THEN 1 ELSE 0 END), 0) AS ok_checks")) {
+            return {
+              count: filteredChecks.length,
+              ok_checks: filteredChecks.filter((check) => check.enabled === 1 && check.last_state === "ok").length,
+              disabled_checks: filteredChecks.filter((check) => check.enabled === 0).length,
+            } as T;
+          }
           return null as T;
         },
         async all<T>() {
           if (normalized.includes("FROM checks c")) {
-            const limit = Number(boundArgs[boundArgs.length - 2] ?? 20);
-            const offset = Number(boundArgs[boundArgs.length - 1] ?? 0);
-            return { results: orderedChecks.slice(offset, offset + limit) } as T;
+            if (normalized.includes("LIMIT ? OFFSET ?")) {
+              const limit = Number(boundArgs[boundArgs.length - 2] ?? 20);
+              const offset = Number(boundArgs[boundArgs.length - 1] ?? 0);
+              return { results: orderedChecks.slice(offset, offset + limit) } as T;
+            }
+            return { results: filteredChecks } as T;
           }
           if (normalized.includes("FROM incidents WHERE started_at >= ?")) {
             return { results: rows.incidents } as T;

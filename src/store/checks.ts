@@ -1,12 +1,15 @@
 import type { D1Database } from "../lib/cloudflare";
 import type { CheckInput, CheckRow } from "../lib/checks";
 import { buildCheckOrderByClause, buildChecksSearchWhereClause } from "../lib/checks-search";
+import { summarizeChecks } from "../lib/checks-summary";
 
 export type ChecksPageData = {
   checks: CheckRow[];
   page: number;
   pageSize: number;
   totalChecks: number;
+  okChecks: number;
+  stoppedChecks: number;
   totalPages: number;
   editId: number | null;
   highlightId: number | null;
@@ -112,6 +115,12 @@ export const loadChecksPageData = async (
         ${whereClause}
       `;
   const countResult = await db.prepare(countQuery).bind(...whereParams).first<{ count: number }>();
+  const summaryQuery = `
+        SELECT c.*
+        FROM checks c
+        ${whereClause}
+      `;
+  const summaryChecks = searchError ? { results: [] as CheckRow[] } : await db.prepare(summaryQuery).bind(...whereParams).all<CheckRow>();
 
   const totalChecks = searchError ? 0 : countResult?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalChecks / pageSize));
@@ -129,11 +138,15 @@ export const loadChecksPageData = async (
     : await db.prepare(dataQuery).bind(...whereParams, pageSize, offset).all<CheckRow>();
   const checks = checksResult.results;
 
+  const summary = summarizeChecks(summaryChecks.results);
+
   return {
     checks,
     page: currentPage,
     pageSize,
     totalChecks,
+    okChecks: summary.okChecks,
+    stoppedChecks: summary.stoppedChecks,
     totalPages,
     editId,
     highlightId,

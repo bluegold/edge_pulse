@@ -121,6 +121,42 @@ const dashboardData: DashboardData = {
       created_at: "2026-06-21T23:30:00.000Z",
       updated_at: "2026-06-21T23:45:00.000Z",
     },
+    {
+      id: 5,
+      name: "cert-error",
+      url: "https://cert-error.example.com",
+      method: "GET",
+      enabled: 1,
+      expected_status_min: 200,
+      expected_status_max: 399,
+      timeout_ms: 10_000,
+      interval_minutes: 10,
+      next_check_at: "2026-06-22T00:15:00.000Z",
+      last_enqueued_at: null,
+      last_checked_at: "2026-06-21T23:50:00.000Z",
+      last_state: "ok",
+      last_status_code: 200,
+      last_latency_ms: 111,
+      last_error: null,
+      fail_threshold: 2,
+      recovery_threshold: 1,
+      consecutive_failures: 0,
+      consecutive_successes: 0,
+      first_failure_at: null,
+      first_success_at: null,
+      tls_last_checked_at: "2026-06-21T23:50:00.000Z",
+      tls_last_error: "certificate expired 1 day ago",
+      tls_subject: null,
+      tls_issuer: null,
+      tls_public_key_class: null,
+      tls_valid_from: null,
+      tls_valid_to: null,
+      tls_days_remaining: null,
+      tls_dns_names: null,
+      maintenance_enabled: 0,
+      created_at: "2026-06-21T23:40:00.000Z",
+      updated_at: "2026-06-21T23:50:00.000Z",
+    },
   ],
   currentIncidents: [],
   recentIncidents: [],
@@ -207,9 +243,22 @@ describe("renderDashboardPage", () => {
     expect(html).toContain("<time");
     expect(html).toContain('id="recent-checks-panel"');
     expect(html).toContain('id="recent-checks-list"');
+    expect(html).toContain("監視最終確認");
     expect(html).toContain('status off status-fail');
     expect(html).toContain("メンテ中");
     expect(html).toContain("証明書要確認");
+    expect(html).toContain("証明書確認失敗");
+    expect(html).toContain("再確認");
+    expect(html).toContain('hx-target="#recent-check-5"');
+    expect(html).not.toContain('hx-target="closest article"');
+    expect(html).toContain('hx-swap="outerHTML show:none"');
+    expect(html).toContain('hx-indicator="#cert-recheck-indicator-5"');
+    expect(html).toContain('id="cert-recheck-indicator-5"');
+    expect(html).toContain("証明書を再確認中");
+    expect(html).toContain("証明書残日数");
+    expect(html).toContain("証明書の最終確認");
+    expect(html).toContain("次回確認予定日時");
+    expect(html).not.toContain("証明書だけを再取得します。");
     expect(html).toContain('id="recent-results-panel"');
     expect(html).toContain('id="recent-results-list"');
     expect(html).toContain('class="result-mark fail"');

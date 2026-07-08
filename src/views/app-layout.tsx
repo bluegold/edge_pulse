@@ -25,7 +25,11 @@ export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, res
       <title>{title}</title>
       <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
       {resetScrollOnLoad ? (
-        <script>{`history.scrollRestoration = "manual"; window.scrollTo({ top: 0, left: 0, behavior: "auto" });`}</script>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: 'history.scrollRestoration = "manual"; window.scrollTo({ top: 0, left: 0, behavior: "auto" });',
+          }}
+        />
       ) : null}
       <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
       <script src="https://unpkg.com/htmx.org@1.9.12"></script>
@@ -103,6 +107,16 @@ export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, res
         #content .text-slate-300 {
           color: #f8fafc !important;
         }
+        .htmx-indicator {
+          opacity: 0;
+          visibility: hidden;
+          transition: opacity 140ms ease, visibility 140ms ease;
+        }
+        .htmx-request.htmx-indicator,
+        .htmx-request .htmx-indicator {
+          opacity: 1;
+          visibility: visible;
+        }
         .topbar {
           border-bottom: 1px solid rgba(56, 189, 248, 0.18);
           background: rgba(2, 8, 23, 0.86);
@@ -177,6 +191,7 @@ export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, res
           background: linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(8, 16, 32, 0.9));
           color: #e2e8f0;
           transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
+          cursor: pointer;
         }
         .glass-button:hover {
           border-color: rgba(56, 189, 248, 0.45);

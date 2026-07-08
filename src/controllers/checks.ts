@@ -1,10 +1,13 @@
 import type { Bindings } from "../lib/bindings";
 import { validateCheckInput, type CheckInput } from "../lib/checks";
 import { getCheckById, insertCheck, loadChecksPageData, updateCheck } from "../store/checks";
+import { loadDashboardData } from "../store/dashboard";
 import { loadCheckDetailData } from "../store/check-detail";
 import { renderChecksPage, renderChecksShell } from "../views/checks-page.tsx";
 import { renderCheckDetailPage, renderCheckDetailShell } from "../views/check-detail-page.tsx";
-import { isHxRequest, readCheckInputFromRequest, respondHtml, respondJson } from "../http/shared";
+import { renderDashboardPage, renderDashboardShell, renderRecentCheckCard } from "../views/dashboard-page.tsx";
+import { isHxRequest, readCheckInputFromRequest, readCloudflareAccessIdentity, respondHtml, respondJson } from "../http/shared";
+import { refreshCertificateSnapshot } from "../services/certificate-check";
 
 const unsupportedContentTypeResponse = () =>
   respondHtml(
@@ -70,6 +73,23 @@ const renderChecksPageResponse = async (
   return isHxRequest(request) ? respondHtml(`<main id="content">${renderChecksShell(data)}</main>`) : renderChecksPage(data);
 };
 
+const renderCheckDetailPageResponse = async (request: Request, env: Bindings, id: number): Promise<Response> => {
+  const data = await loadCheckDetailData(env["pulse-db"], id);
+  if (!data) {
+    return notFoundResponse();
+  }
+
+  return isHxRequest(request) ? respondHtml(`<main id="content">${renderCheckDetailShell(data)}</main>`) : renderCheckDetailPage(data);
+};
+
+const renderDashboardPageResponse = async (request: Request, env: Bindings): Promise<Response> => {
+  const data = await loadDashboardData(env["pulse-db"]);
+  const accessIdentity = readCloudflareAccessIdentity(request);
+  return isHxRequest(request)
+    ? respondHtml(`<main id="content">${renderDashboardShell(data)}</main>`)
+    : renderDashboardPage(data, accessIdentity);
+};
+
 export const handleChecksRequest = async (
   request: Request,
   env: Bindings,
@@ -82,12 +102,7 @@ export const handleChecksRequest = async (
 };
 
 export const handleCheckDetailRequest = async (request: Request, env: Bindings, id: number): Promise<Response> => {
-  const data = await loadCheckDetailData(env["pulse-db"], id);
-  if (!data) {
-    return notFoundResponse();
-  }
-
-  return isHxRequest(request) ? respondHtml(`<main id="content">${renderCheckDetailShell(data)}</main>`) : renderCheckDetailPage(data);
+  return renderCheckDetailPageResponse(request, env, id);
 };
 
 export const handleCreateCheck = async (request: Request, env: Bindings): Promise<Response> => {
@@ -116,6 +131,32 @@ export const handleUpdateCheck = async (request: Request, env: Bindings, id: num
   const now = new Date().toISOString();
   await updateCheck(env["pulse-db"], id, input, now);
   return renderChecksPageResponse(request, env, page, null, id, q, filter, order);
+};
+
+export const handleCertificateRecheck = async (request: Request, env: Bindings, id: number): Promise<Response> => {
+  const check = await getCheckById(env["pulse-db"], id);
+  if (!check) {
+    return notFoundResponse();
+  }
+
+  const result = await refreshCertificateSnapshot(env, check);
+  if (!result.ok) {
+    return respondHtml(
+      `<main id="content" class="p-6 text-sm text-rose-200" role="alert" aria-live="assertive">${result.error}</main>`,
+      result.status,
+    );
+  }
+
+  if (isHxRequest(request)) {
+    const updatedCheck = await getCheckById(env["pulse-db"], id);
+    if (!updatedCheck) {
+      return notFoundResponse();
+    }
+
+    return respondHtml(renderRecentCheckCard(updatedCheck));
+  }
+
+  return Response.redirect(new URL("/", request.url), 303);
 };
 
 export const handleApiListChecks = async (env: Bindings, request: Request): Promise<Response> => {

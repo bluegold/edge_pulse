@@ -268,7 +268,7 @@ const CertificateSection = ({ data }: { data: CheckDetailData }) => {
           </dd>
         </div>
         <div class="rounded-md border border-white/10 bg-white/5 p-4">
-          <dt class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">最終チェック日時・結果</dt>
+          <dt class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">証明書の最終確認日時・結果</dt>
           <dd class="mt-1 text-right text-base font-semibold text-slate-50">
             <div class="flex flex-col items-end gap-2">
               <span class="whitespace-nowrap">
@@ -276,6 +276,12 @@ const CertificateSection = ({ data }: { data: CheckDetailData }) => {
               </span>
               <span class={badge.className}>{badge.label}</span>
             </div>
+          </dd>
+        </div>
+        <div class="rounded-md border border-white/10 bg-white/5 p-4">
+          <dt class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">次回確認予定日時</dt>
+          <dd class="mt-1 text-right text-base font-semibold text-slate-50">
+            <LocalTime iso={data.check.next_check_at} class="whitespace-nowrap" />
           </dd>
         </div>
         {data.check.tls_last_error ? (
