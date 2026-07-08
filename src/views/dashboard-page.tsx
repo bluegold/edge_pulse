@@ -101,7 +101,8 @@ const IncidentCard = ({ incident }: { incident: IncidentRow }) => (
 
 const RecentCheckCard = ({ check }: { check: CheckRow }) => {
   const maintenanceBadge = describeMaintenanceBadge(check);
-  const isCertificateFailure = Boolean(check.tls_last_error);
+  const daysRemaining = calculateCertificateDaysRemaining(check.tls_valid_to);
+  const shouldShowCertificateRecheck = Boolean(check.tls_last_error) || (daysRemaining !== null && daysRemaining <= 30);
   return (
     <article id={`recent-check-${check.id}`} class="recent-check-card relative overflow-hidden p-4">
       <div class="flex items-start justify-between gap-3">
@@ -124,7 +125,7 @@ const RecentCheckCard = ({ check }: { check: CheckRow }) => {
           <CertificateBadge check={check} />
         </div>
       </div>
-      {isCertificateFailure ? (
+      {shouldShowCertificateRecheck ? (
         <>
           <div class="flatline my-4" aria-hidden="true" />
           <dl class="grid gap-2 text-sm text-slate-300 sm:grid-cols-2">
@@ -192,18 +193,6 @@ const RecentCheckCard = ({ check }: { check: CheckRow }) => {
             <div>
               <dt class="text-slate-500">追加</dt>
               <dd class="mt-1"><LocalTime iso={check.created_at} class="whitespace-nowrap" /></dd>
-            </div>
-            <div>
-              <dt class="text-slate-500">証明書残日数</dt>
-              <dd class="mt-1">{formatCertificateDays(check.tls_valid_to)}</dd>
-            </div>
-            <div>
-              <dt class="text-slate-500">証明書の最終確認</dt>
-              <dd class="mt-1"><LocalTime iso={check.tls_last_checked_at} class="whitespace-nowrap" /></dd>
-            </div>
-            <div>
-              <dt class="text-slate-500">次回確認予定日時</dt>
-              <dd class="mt-1"><LocalTime iso={check.next_check_at} class="whitespace-nowrap" /></dd>
             </div>
           </dl>
         </>

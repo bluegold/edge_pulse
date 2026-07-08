@@ -245,6 +245,9 @@ describe("renderDashboardPage", () => {
     expect(html).toContain('id="recent-checks-list"');
     expect(html).toContain('class="recent-check-card relative overflow-hidden p-4"');
     expect(html).toContain('.recent-check-card {');
+    expect(html).toContain('hx-target="#recent-check-3"');
+    expect(html).toContain('hx-target="#recent-check-5"');
+    expect(html).not.toContain('hx-target="#recent-check-2"');
     expect(html).toContain("監視最終確認");
     expect(html).toContain('status off status-fail');
     expect(html).toContain("メンテ中");
