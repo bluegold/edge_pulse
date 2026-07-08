@@ -204,7 +204,7 @@ const ReportSection = ({ data }: { data: CheckDetailData }) => {
         />
         <ReportMetricCard
           id="summary-report-average-latency"
-          label="平均遅延"
+          label="平均応答時間"
           value={formatTimingMs(data.report.avgLatencyMs)}
           icon={<svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h3l2-5 4 10 2-5h5"/></svg>}
         />
@@ -239,7 +239,7 @@ const GraphSection = ({ data }: { data: CheckDetailData }) => {
   return (
     <DetailCard id="check-graphs" padded={false}>
       <div class="grid gap-4 xl:grid-cols-2">
-        <GraphCard title="遅延の推移" metric="latency" points={latencyPoints} emptyLabel="遅延データがまだありません。" />
+        <GraphCard title="応答時間の推移" metric="latency" points={latencyPoints} emptyLabel="応答時間データがまだありません。" />
         <GraphCard title="X-Runtime の推移" metric="runtime" points={runtimePoints} emptyLabel="X-Runtime データがまだありません。" />
       </div>
     </DetailCard>
@@ -303,8 +303,8 @@ const EventsSection = ({ data }: { data: CheckDetailData }) => (
           <tr>
             <th class="px-4 py-3 font-bold">遷移</th>
             <th class="px-4 py-3 font-bold">理由</th>
-            <th class="px-4 py-3 font-bold">HTTP</th>
-            <th class="px-4 py-3 font-bold">遅延</th>
+            <th class="px-4 py-3 font-bold text-right">HTTP</th>
+            <th class="px-4 py-3 font-bold text-right">応答時間</th>
             <th class="px-4 py-3 font-bold">時刻</th>
           </tr>
         </thead>
@@ -320,8 +320,8 @@ const EventsSection = ({ data }: { data: CheckDetailData }) => (
                   </span>
                 </td>
                 <td class="px-4 py-2.5">{formatNullable(event.reason)}</td>
-                <td class="px-4 py-2.5">{formatNullable(event.status_code)}</td>
-                <td class="px-4 py-2.5">{formatTimingMs(event.latency_ms)}</td>
+                <td class="px-4 py-2.5 text-right tabular-nums">{formatNullable(event.status_code)}</td>
+                <td class="px-4 py-2.5 text-right tabular-nums">{formatTimingMs(event.latency_ms)}</td>
                 <td class="px-4 py-2.5"><LocalTime iso={event.occurred_at} class="whitespace-nowrap" /></td>
               </tr>
             ))
@@ -346,7 +346,7 @@ const IncidentsSection = ({ data }: { data: CheckDetailData }) => (
           <tr>
             <th class="px-4 py-3 font-bold">開始</th>
             <th class="px-4 py-3 font-bold">復旧</th>
-            <th class="px-4 py-3 font-bold">継続</th>
+            <th class="px-4 py-3 font-bold text-right">継続</th>
             <th class="px-4 py-3 font-bold">開始理由</th>
             <th class="px-4 py-3 font-bold">終了理由</th>
           </tr>
@@ -357,7 +357,7 @@ const IncidentsSection = ({ data }: { data: CheckDetailData }) => (
               <tr id={`check-incident-${incident.id}`} class="transition hover:bg-white/5">
                 <td class="px-4 py-2.5"><LocalTime iso={incident.started_at} class="whitespace-nowrap" /></td>
                 <td class="px-4 py-2.5">{incident.resolved_at ? <LocalTime iso={incident.resolved_at} class="whitespace-nowrap" /> : "継続中"}</td>
-                <td class="px-4 py-2.5">{formatDuration(incident.started_at, incident.resolved_at)}</td>
+                <td class="px-4 py-2.5 text-right tabular-nums">{formatDuration(incident.started_at, incident.resolved_at)}</td>
                 <td class="px-4 py-2.5">{formatNullable(incident.start_reason)}</td>
                 <td class="px-4 py-2.5">{formatNullable(incident.end_reason)}</td>
               </tr>
@@ -384,9 +384,9 @@ const ResultsSection = ({ data }: { data: CheckDetailData }) => (
           <tr>
             <th class="px-4 py-3 font-bold">時刻</th>
             <th class="px-4 py-3 font-bold">状態</th>
-            <th class="px-4 py-3 font-bold">HTTP</th>
-            <th class="px-4 py-3 font-bold">遅延</th>
-            <th class="px-4 py-3 font-bold">X-Runtime</th>
+            <th class="px-4 py-3 font-bold text-right">HTTP</th>
+            <th class="px-4 py-3 font-bold text-right">応答時間</th>
+            <th class="px-4 py-3 font-bold text-right">X-Runtime</th>
             <th class="px-4 py-3 font-bold">Server-Timing</th>
             <th class="px-4 py-3 font-bold">エラー</th>
           </tr>
@@ -402,9 +402,9 @@ const ResultsSection = ({ data }: { data: CheckDetailData }) => (
                     {result.state}
                   </span>
                 </td>
-                <td class="px-4 py-2.5">{formatNullable(result.status_code)}</td>
-                <td class="px-4 py-2.5">{formatTimingMs(result.latency_ms)}</td>
-                <td class="px-4 py-2.5">{formatTimingMs(result.x_runtime_ms ?? null)}</td>
+                <td class="px-4 py-2.5 text-right tabular-nums">{formatNullable(result.status_code)}</td>
+                <td class="px-4 py-2.5 text-right tabular-nums">{formatTimingMs(result.latency_ms)}</td>
+                <td class="px-4 py-2.5 text-right tabular-nums">{formatTimingMs(result.x_runtime_ms ?? null)}</td>
                 <td class="max-w-[18rem] truncate px-4 py-2.5">{parseServerTimingSummary(result.server_timing_json)}</td>
                 <td class="max-w-[18rem] truncate px-4 py-2.5">{formatNullable(result.error)}</td>
               </tr>

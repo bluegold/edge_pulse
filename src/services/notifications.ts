@@ -97,7 +97,7 @@ const buildDiscordPayload = ({ check, result, transition }: NotificationContext)
           { name: "状態", value: `${check.last_state} → ${transition.nextState}`, inline: true },
           { name: "理由", value: result.reason ?? "-", inline: false },
           { name: "HTTP", value: result.statusCode === null ? "-" : String(result.statusCode), inline: true },
-          { name: "遅延", value: result.latencyMs === null ? "-" : `${result.latencyMs}ms`, inline: true },
+          { name: "応答時間", value: result.latencyMs === null ? "-" : `${result.latencyMs}ms`, inline: true },
           { name: "URL", value: check.url, inline: false },
         ],
       },

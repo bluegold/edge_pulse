@@ -196,7 +196,7 @@ const ViewCard = ({
           <span class="metric-value">{formatNullable(check.last_status_code)}</span>
         </div>
         <div class="metric-line">
-          <span class="metric-label">遅延</span>
+          <span class="metric-label">応答時間</span>
           <span class="metric-value">{check.last_latency_ms === null ? "-" : `${check.last_latency_ms}ms`}</span>
         </div>
       </div>
@@ -545,7 +545,7 @@ const ChecksShell = ({ data }: { data: ChecksPageData }) => (
             <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <h2 class="panel-title text-lg font-black tracking-tight">監視対象</h2>
-                <p class="mt-1 text-sm muted">直近の状態、HTTP、遅延、間隔、しきい値だけを表示します。</p>
+                <p class="mt-1 text-sm muted">直近の状態、HTTP、応答時間、間隔、しきい値だけを表示します。</p>
               </div>
               <span class="count-badge">{data.totalChecks} 件</span>
             </div>
@@ -566,7 +566,7 @@ const ChecksShell = ({ data }: { data: ChecksPageData }) => (
                     <tr>
                       <SortHeader label="監視対象" orderKey="name" order={data.order} q={data.q} filter={data.filter} />
                       <SortHeader label="最終確認" orderKey="checked_at" order={data.order} q={data.q} filter={data.filter} />
-                      <th scope="col">HTTP / 遅延</th>
+                      <th scope="col">HTTP / 応答時間</th>
                       <th scope="col">間隔</th>
                       <th scope="col">しきい値</th>
                       <SortHeader label="証明書" orderKey="certificate_remain" order={data.order} q={data.q} filter={data.filter} />

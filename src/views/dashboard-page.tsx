@@ -182,7 +182,7 @@ const RecentCheckCard = ({ check }: { check: CheckRow }) => {
               <dd class="mt-1"><LocalTime iso={check.last_checked_at} class="whitespace-nowrap" /></dd>
             </div>
             <div>
-              <dt class="text-slate-500">HTTP / 遅延</dt>
+              <dt class="text-slate-500">HTTP / 応答時間</dt>
               <dd class="mt-1">
                 {formatNullable(check.last_status_code)} / {check.last_latency_ms === null ? "-" : `${check.last_latency_ms}ms`}
               </dd>
@@ -225,8 +225,8 @@ const ResultRow = ({ result }: { result: DashboardData["recentResults"][number] 
         {result.state}
       </span>
     </td>
-    <td class="px-4 py-2.5">{formatNullable(result.status_code)}</td>
-    <td class="px-4 py-2.5">{formatNullable(result.latency_ms)}</td>
+    <td class="px-4 py-2.5 text-right tabular-nums">{formatNullable(result.status_code)}</td>
+    <td class="px-4 py-2.5 text-right tabular-nums">{formatNullable(result.latency_ms)}</td>
     <td class="max-w-[16rem] truncate px-4 py-2.5">{formatNullable(result.error)}</td>
     <td class="px-4 py-2.5 text-slate-300"><LocalTime iso={result.checked_at} class="whitespace-nowrap" /></td>
   </tr>
@@ -262,7 +262,7 @@ const IncidentHistoryRow = ({ incident }: { incident: DashboardData["recentIncid
     </td>
     <td class="pr-4"><LocalTime iso={incident.started_at} class="whitespace-nowrap" /></td>
     <td class="pr-4"><LocalTime iso={incident.resolved_at} class="whitespace-nowrap" /></td>
-    <td class="pr-4">{formatDuration(incident.started_at, incident.resolved_at)}</td>
+    <td class="pr-4 text-right tabular-nums">{formatDuration(incident.started_at, incident.resolved_at)}</td>
     <td class="pr-4">{formatNullable(incident.start_reason)}</td>
     <td class="pr-4">
       {incident.resolved_at ? <span class="font-semibold text-emerald-400">復旧</span> : <span class="font-semibold text-rose-400">継続中</span>}
@@ -375,7 +375,7 @@ const DashboardShell = ({ data }: { data: DashboardData }) => {
           />
           <SummaryCard
             id="summary-average-latency"
-            label="平均応答"
+            label="平均応答時間"
             value={summary.averageLatencyMs === null ? "-" : `${summary.averageLatencyMs}ms`}
             icon={<svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h3l2-5 4 10 2-5h5"/></svg>}
           />
@@ -442,7 +442,7 @@ const DashboardShell = ({ data }: { data: DashboardData }) => {
                     <th class="px-4 py-3 font-bold">対象</th>
                     <th class="px-4 py-3 font-bold">状態</th>
                     <th class="px-4 py-3 font-bold text-right">HTTP</th>
-                    <th class="px-4 py-3 font-bold">遅延</th>
+                    <th class="px-4 py-3 font-bold">応答時間</th>
                     <th class="px-4 py-3 font-bold">エラー</th>
                     <th class="px-4 py-3 font-bold">時刻</th>
                   </tr>
@@ -525,7 +525,7 @@ const DashboardShell = ({ data }: { data: DashboardData }) => {
                   <th class="px-4 py-3 font-bold">対象</th>
                   <th class="px-4 py-3 font-bold">開始</th>
                   <th class="px-4 py-3 font-bold">復旧</th>
-                  <th class="px-4 py-3 font-bold">継続</th>
+                  <th class="px-4 py-3 font-bold text-right">継続</th>
                   <th class="px-4 py-3 font-bold">理由</th>
                   <th class="px-4 py-3 font-bold">状態</th>
                 </tr>
