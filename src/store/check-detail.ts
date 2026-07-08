@@ -17,6 +17,7 @@ export type CheckDetailData = {
   recentResults: CheckResultRow[];
   recentEvents: StatusEventRow[];
   recentIncidents: IncidentRow[];
+  latestRecoveryAt: string | null;
   generatedAt: string;
 };
 
@@ -26,7 +27,7 @@ export const loadCheckDetailData = async (db: D1Database, id: number): Promise<C
 
   const dayAgo = new Date(Date.now() - 24 * 60 * 60_000).toISOString();
 
-  const [results24h, incidents24h, recentResults, recentEvents, recentIncidents] = await Promise.all([
+  const [results24h, incidents24h, recentResults, recentEvents, recentIncidents, latestRecovery] = await Promise.all([
     db
       .prepare(
         `
@@ -94,6 +95,20 @@ export const loadCheckDetailData = async (db: D1Database, id: number): Promise<C
       )
       .bind(id)
       .all<IncidentRow>(),
+    db
+      .prepare(
+        `
+        SELECT occurred_at
+        FROM status_events
+        WHERE check_id = ?
+          AND from_state = 'fail'
+          AND to_state = 'ok'
+        ORDER BY occurred_at DESC, id DESC
+        LIMIT 1
+      `,
+      )
+      .bind(id)
+      .first<{ occurred_at: string }>(),
   ]);
 
   const checks24h = results24h?.checks24h ?? 0;
@@ -113,6 +128,7 @@ export const loadCheckDetailData = async (db: D1Database, id: number): Promise<C
     recentResults: recentResults.results,
     recentEvents: recentEvents.results,
     recentIncidents: recentIncidents.results,
+    latestRecoveryAt: latestRecovery?.occurred_at ?? null,
     generatedAt: new Date().toISOString(),
   };
 };

@@ -6,6 +6,7 @@ import { formatNullable } from "../presenters/common";
 import { describeCheckState, describeCertificateBadge, describeMaintenanceBadge } from "../presenters/checks";
 import { formatDuration } from "../presenters/dashboard";
 import { calculateCertificateDaysRemaining } from "../lib/checks";
+import { calculateNextCertificateProbeAt } from "../lib/cert-probe";
 import type { CloudflareAccessIdentity } from "../http/shared";
 import type { Child } from "hono/jsx";
 
@@ -250,6 +251,7 @@ const CertificateSection = ({ data }: { data: CheckDetailData }) => {
   const badge = describeCertificateBadge(data.check);
   const issuerCn = extractIssuerCn(data.check.tls_issuer);
   const issuerTitle = data.check.tls_issuer ?? "-";
+  const nextCertificateProbeAt = calculateNextCertificateProbeAt(data.check, data.latestRecoveryAt);
   return (
     <DetailCard title="証明書情報" id="check-certificate">
       <div class="grid gap-4 xl:grid-cols-3">
@@ -279,9 +281,9 @@ const CertificateSection = ({ data }: { data: CheckDetailData }) => {
           </dd>
         </div>
         <div class="rounded-md border border-white/10 bg-white/5 p-4">
-          <dt class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">次回確認予定日時</dt>
+          <dt class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">次回証明書確認</dt>
           <dd class="mt-1 text-right text-base font-semibold text-slate-50">
-            <LocalTime iso={data.check.next_check_at} class="whitespace-nowrap" />
+            {nextCertificateProbeAt ? <LocalTime iso={nextCertificateProbeAt} class="whitespace-nowrap" /> : "-"}
           </dd>
         </div>
         {data.check.tls_last_error ? (

@@ -9,7 +9,7 @@ import {
   type CheckRow,
   type CheckResult,
 } from "../src/lib/checks";
-import { shouldProbeCertificateSnapshot } from "../src/lib/cert-probe";
+import { calculateNextCertificateProbeAt, shouldProbeCertificateSnapshot } from "../src/lib/cert-probe";
 
 const baseCheck: CheckRow = {
   id: 1,
@@ -292,5 +292,49 @@ describe("evaluateTransition", () => {
       kind: "incident-opened",
       startedAt: "2026-06-22T00:01:00.000Z",
     });
+  });
+});
+
+describe("calculateNextCertificateProbeAt", () => {
+  it("projects the next certificate check after the weekly refresh window", () => {
+    expect(
+      calculateNextCertificateProbeAt({
+        enabled: 1,
+        interval_minutes: 5,
+        next_check_at: "2026-07-03T12:05:00.000Z",
+        last_state: "fail",
+        tls_last_checked_at: "2026-07-03T11:40:00.000Z",
+        tls_last_error: null,
+        tls_days_remaining: 60,
+      }),
+    ).toBe("2026-07-10T11:40:00.000Z");
+  });
+
+  it("uses the next scheduled check when certificate data has never been collected", () => {
+    expect(
+      calculateNextCertificateProbeAt({
+        enabled: 1,
+        interval_minutes: 5,
+        next_check_at: "2026-07-03T12:05:00.000Z",
+        last_state: "unknown",
+        tls_last_checked_at: null,
+        tls_last_error: null,
+        tls_days_remaining: null,
+      }),
+    ).toBe("2026-07-03T12:05:00.000Z");
+  });
+
+  it("waits for recovery before scheduling a retry after certificate probe errors", () => {
+    expect(
+      calculateNextCertificateProbeAt({
+        enabled: 1,
+        interval_minutes: 5,
+        next_check_at: "2026-07-03T12:05:00.000Z",
+        last_state: "fail",
+        tls_last_checked_at: "2026-07-03T11:40:00.000Z",
+        tls_last_error: "dial tcp: lookup example.com: no such host",
+        tls_days_remaining: null,
+      }),
+    ).toBeNull();
   });
 });

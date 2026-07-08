@@ -32,6 +32,12 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const DAILY_REFRESH_MS = DAY_MS;
 const WEEKLY_REFRESH_MS = 7 * DAY_MS;
 
+const addMilliseconds = (iso: string, ms: number): string | null => {
+  const time = Date.parse(iso);
+  if (!Number.isFinite(time)) return null;
+  return new Date(time + ms).toISOString();
+};
+
 export const buildCertProbeUrl = (host: string, port: number, serverName: string): URL => {
   const url = new URL("http://cert-probe/probe");
   url.searchParams.set("host", host);
@@ -76,6 +82,51 @@ export const shouldProbeCertificateSnapshot = (
   }
 
   return elapsed >= WEEKLY_REFRESH_MS;
+};
+
+export const calculateNextCertificateProbeAt = (
+  check: Pick<
+    CheckRow,
+    "enabled" | "interval_minutes" | "next_check_at" | "last_state" | "tls_last_checked_at" | "tls_last_error" | "tls_days_remaining"
+  >,
+  latestRecoveryAt: string | null = null,
+): string | null => {
+  if (!check.enabled || !check.next_check_at) return null;
+
+  let eligibleAt: string | null = null;
+
+  if (check.tls_last_error) {
+    if (check.last_state !== "ok" || !latestRecoveryAt) {
+      return null;
+    }
+
+    const recoveryAt = Date.parse(latestRecoveryAt);
+    const lastCheckedAt = check.tls_last_checked_at ? Date.parse(check.tls_last_checked_at) : Number.NaN;
+    if (!Number.isFinite(recoveryAt)) return null;
+    if (check.tls_last_checked_at && Number.isFinite(lastCheckedAt) && recoveryAt <= lastCheckedAt) {
+      return null;
+    }
+
+    eligibleAt = latestRecoveryAt;
+  } else if (!check.tls_last_checked_at) {
+    eligibleAt = check.next_check_at;
+  } else {
+    const refreshMs = (check.tls_days_remaining ?? Number.POSITIVE_INFINITY) <= 30 ? DAILY_REFRESH_MS : WEEKLY_REFRESH_MS;
+    eligibleAt = addMilliseconds(check.tls_last_checked_at, refreshMs);
+  }
+
+  if (!eligibleAt) return null;
+
+  const nextCheckAtMs = Date.parse(check.next_check_at);
+  const eligibleAtMs = Date.parse(eligibleAt);
+  if (!Number.isFinite(nextCheckAtMs) || !Number.isFinite(eligibleAtMs)) return null;
+  if (nextCheckAtMs >= eligibleAtMs) return check.next_check_at;
+
+  const intervalMs = check.interval_minutes * 60_000;
+  if (!Number.isFinite(intervalMs) || intervalMs <= 0) return null;
+
+  const intervalsNeeded = Math.ceil((eligibleAtMs - nextCheckAtMs) / intervalMs);
+  return new Date(nextCheckAtMs + intervalsNeeded * intervalMs).toISOString();
 };
 
 export const fetchCertificateSnapshot = async (

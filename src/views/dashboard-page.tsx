@@ -4,6 +4,7 @@ import { AppLayout } from "./app-layout.tsx";
 import { summarizeDashboard, type DashboardData as DashboardDataType, type IncidentRow } from "../store/dashboard";
 import type { CheckRow } from "../lib/checks";
 import { calculateCertificateDaysRemaining } from "../lib/checks";
+import { calculateNextCertificateProbeAt } from "../lib/cert-probe";
 import { buildChecksUrl } from "../lib/checks-search";
 import { LocalTime } from "./time.tsx";
 import { formatNullable } from "../presenters/common";
@@ -103,6 +104,7 @@ const RecentCheckCard = ({ check, generatedAt }: { check: DashboardData["checks"
   const maintenanceBadge = describeMaintenanceBadge(check);
   const daysRemaining = calculateCertificateDaysRemaining(check.tls_valid_to);
   const shouldShowCertificateRecheck = Boolean(check.tls_last_error) || (daysRemaining !== null && daysRemaining <= 30);
+  const nextCertificateProbeAt = calculateNextCertificateProbeAt(check);
   const uptimeStartedAt = check.last_state === "ok" ? check.uptime_started_at ?? null : null;
   return (
     <article id={`recent-check-${check.id}`} class="recent-check-card relative overflow-hidden p-4">
@@ -140,8 +142,8 @@ const RecentCheckCard = ({ check, generatedAt }: { check: DashboardData["checks"
               <dd class="mt-2">{formatCertificateDays(check.tls_valid_to)}</dd>
             </div>
             <div class="cert-recheck-item">
-              <dt class="font-bold text-slate-200">次回確認予定日時</dt>
-              <dd class="mt-2"><LocalTime iso={check.next_check_at} class="whitespace-nowrap" /></dd>
+              <dt class="font-bold text-slate-200">次回証明書確認</dt>
+              <dd class="mt-2">{nextCertificateProbeAt ? <LocalTime iso={nextCertificateProbeAt} class="whitespace-nowrap" /> : "-"}</dd>
             </div>
             <div class="cert-recheck-item">
               <dt class="font-bold text-slate-200">エラー</dt>

@@ -142,6 +142,7 @@ const detailData: CheckDetailData = {
       updated_at: "2026-07-03T11:55:00.000Z",
     },
   ],
+  latestRecoveryAt: null,
   generatedAt: now,
 };
 
@@ -244,7 +245,8 @@ describe("check detail", () => {
     expect(html).toContain("過去24H");
     expect(html).toContain("証明書情報");
     expect(html).toContain("証明書の最終確認日時・結果");
-    expect(html).toContain("次回確認予定日時");
+    expect(html).toContain("次回証明書確認");
+    expect(html).toContain("2026-07-10T11:40:00.000Z");
     expect(html).toContain("状態遷移イベント");
     expect(html).toContain("incident 履歴");
     expect(html).toContain("直近のチェック結果");
@@ -331,7 +333,7 @@ describe("check detail", () => {
     expect(html).toContain('id="recent-check-1"');
     expect(html).toContain("証明書OK");
     expect(html).not.toContain("証明書の最終確認");
-    expect(html).not.toContain("次回確認予定日時");
+    expect(html).not.toContain("次回証明書確認");
   });
 
 });

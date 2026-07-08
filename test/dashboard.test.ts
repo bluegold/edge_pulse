@@ -262,7 +262,7 @@ describe("renderDashboardPage", () => {
     expect(html).toContain("証明書を再確認中");
     expect(html).toContain("証明書残日数");
     expect(html).toContain("証明書の最終確認");
-    expect(html).toContain("次回確認予定日時");
+    expect(html).toContain("次回証明書確認");
     expect(html).not.toContain("証明書だけを再取得します。");
     expect(html).toContain('id="recent-results-panel"');
     expect(html).toContain('id="recent-results-list"');
