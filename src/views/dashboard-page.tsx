@@ -128,22 +128,23 @@ const RecentCheckCard = ({ check }: { check: CheckRow }) => {
       {shouldShowCertificateRecheck ? (
         <>
           <div class="flatline my-4" aria-hidden="true" />
-          <dl class="grid gap-2 text-sm text-slate-300 sm:grid-cols-2">
-            <div>
-              <dt class="text-slate-500">証明書の最終確認</dt>
-              <dd class="mt-1"><LocalTime iso={check.tls_last_checked_at} class="whitespace-nowrap" /></dd>
+          <dl class="cert-recheck-grid grid gap-y-5 text-sm text-slate-300 sm:grid-cols-2 sm:gap-x-8">
+            <div class="cert-recheck-divider" aria-hidden="true"></div>
+            <div class="cert-recheck-item">
+              <dt class="font-bold text-slate-200">証明書の最終確認</dt>
+              <dd class="mt-2"><LocalTime iso={check.tls_last_checked_at} class="whitespace-nowrap" /></dd>
             </div>
-            <div>
-              <dt class="text-slate-500">証明書残日数</dt>
-              <dd class="mt-1">{formatCertificateDays(check.tls_valid_to)}</dd>
+            <div class="cert-recheck-item">
+              <dt class="font-bold text-slate-200">証明書残日数</dt>
+              <dd class="mt-2">{formatCertificateDays(check.tls_valid_to)}</dd>
             </div>
-            <div>
-              <dt class="text-slate-500">次回確認予定日時</dt>
-              <dd class="mt-1"><LocalTime iso={check.next_check_at} class="whitespace-nowrap" /></dd>
+            <div class="cert-recheck-item">
+              <dt class="font-bold text-slate-200">次回確認予定日時</dt>
+              <dd class="mt-2"><LocalTime iso={check.next_check_at} class="whitespace-nowrap" /></dd>
             </div>
-            <div>
-              <dt class="text-slate-500">エラー</dt>
-              <dd class="mt-1 break-words text-rose-200">{check.tls_last_error ?? "-"}</dd>
+            <div class="cert-recheck-item">
+              <dt class="font-bold text-slate-200">エラー</dt>
+              <dd class="mt-2 break-words text-rose-200">{check.tls_last_error ?? "-"}</dd>
             </div>
           </dl>
           <div class="mt-4 flex justify-end">

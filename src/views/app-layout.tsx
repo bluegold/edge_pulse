@@ -219,6 +219,38 @@ export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, res
           opacity: 0.7;
           cursor: not-allowed;
         }
+        .cert-recheck-grid {
+          position: relative;
+          isolation: isolate;
+        }
+        .cert-recheck-divider {
+          display: none;
+        }
+        @media (min-width: 640px) {
+          .cert-recheck-divider {
+            display: block;
+            position: absolute;
+            top: 0.25rem;
+            bottom: 0.25rem;
+            left: 50%;
+            width: 2px;
+            transform: translateX(-1px);
+            background: rgba(148, 163, 184, 0.45);
+            box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.5);
+            z-index: 1;
+            pointer-events: none;
+          }
+          .cert-recheck-item:nth-child(odd) {
+            padding-right: 1rem;
+            position: relative;
+            z-index: 2;
+          }
+          .cert-recheck-item:nth-child(even) {
+            padding-left: 1rem;
+            position: relative;
+            z-index: 2;
+          }
+        }
         .graph-shell {
           position: relative;
         }
