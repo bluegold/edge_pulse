@@ -103,7 +103,7 @@ const RecentCheckCard = ({ check }: { check: CheckRow }) => {
   const maintenanceBadge = describeMaintenanceBadge(check);
   const isCertificateFailure = Boolean(check.tls_last_error);
   return (
-    <article id={`recent-check-${check.id}`} class="subpanel relative overflow-hidden p-4">
+    <article id={`recent-check-${check.id}`} class="recent-check-card relative overflow-hidden p-4">
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
           <p class="truncate font-semibold text-slate-50">

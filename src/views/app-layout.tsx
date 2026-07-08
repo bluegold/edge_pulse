@@ -176,7 +176,8 @@ export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, res
         }
         .section-head::before,
         .subpanel::before,
-        .incident-history::before {
+        .incident-history::before,
+        .recent-check-card::before {
           content: "";
           position: absolute;
           left: 0;
@@ -912,6 +913,12 @@ export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, res
           position: relative;
           border: 0;
           background: transparent;
+        }
+        .recent-check-card {
+          position: relative;
+          border: 1px solid rgba(148, 163, 184, 0.18);
+          background: linear-gradient(180deg, rgba(12, 27, 52, 0.88), rgba(8, 19, 38, 0.72));
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
         }
         .panel-title { color: #f8fafc; letter-spacing: -0.02em; }
         .table-wrap {
