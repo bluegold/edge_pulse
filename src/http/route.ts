@@ -1,3 +1,4 @@
+import { csrf } from "hono/csrf";
 import { app } from "./app";
 import {
   handleApiCreateCheck,
@@ -31,6 +32,9 @@ app.use("/api/*", async (c, next) => {
   if (tokenCheck) return tokenCheck;
   await next();
 });
+
+app.use("/checks", csrf());
+app.use("/checks/*", csrf());
 
 app.get("/", async (c) => handleDashboardRequest(c.req.raw, c.env));
 app.get("/assets/*", async (c) => {

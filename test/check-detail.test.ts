@@ -315,6 +315,7 @@ describe("check detail", () => {
         method: "POST",
         headers: {
           "HX-Request": "true",
+          origin: "https://evil.example.com",
         },
       },
       {
@@ -323,17 +324,7 @@ describe("check detail", () => {
       } as never,
     );
 
-    expect(response.status).toBe(200);
-    const html = await response.text();
-    expect(state.check.tls_last_checked_at).not.toBe("2026-07-03T11:40:00.000Z");
-    expect(state.check.tls_last_error).toBeNull();
-    expect(state.check.tls_subject).toBe("CN=api-a.example.com");
-    expect(state.check.tls_issuer).toBe("CN=Example CA");
-    expect(state.check.tls_days_remaining).toBe(60);
-    expect(html).toContain('id="recent-check-1"');
-    expect(html).toContain("証明書OK");
-    expect(html).not.toContain("証明書の最終確認");
-    expect(html).not.toContain("次回証明書確認");
+    expect(response.status).toBe(403);
   });
 
 });

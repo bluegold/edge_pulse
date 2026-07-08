@@ -438,6 +438,42 @@ describe("api checks", () => {
     expect(payload.check?.name).toBe("billing.example.com");
     expect(state.checks).toHaveLength(1);
   });
+
+  it("rejects browser form posts without a csrf token", async () => {
+    const { token, jwk } = await createAccessToken();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ keys: [jwk] }), {
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+        },
+      }),
+    );
+
+    const response = await app.request(
+      "http://localhost/checks",
+      {
+        method: "POST",
+        headers: {
+          "cf-access-jwt-assertion": token,
+          "content-type": "application/x-www-form-urlencoded",
+          origin: "https://evil.example.com",
+          "sec-fetch-site": "cross-site",
+        },
+        body: new URLSearchParams({
+          name: "csrf.example.com",
+          url: "https://csrf.example.com",
+          enabled: "1",
+          interval_minutes: "5",
+          fail_threshold: "2",
+          recovery_threshold: "1",
+        }),
+      },
+      makeEnv({ checks: [], nextId: 1 }),
+    );
+
+    expect(response.status).toBe(403);
+  });
 });
 
 describe("hx navigation", () => {
