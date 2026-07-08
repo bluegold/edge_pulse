@@ -360,6 +360,30 @@ export const persistCheckResult = async (
     }
   }
 
+  if (evaluated.transition.kind === "state-initialized") {
+    statements.push(
+      db
+        .prepare(
+          `
+          INSERT OR IGNORE INTO status_events (
+            check_id, check_run_id, from_state, to_state, reason, status_code, error, latency_ms, occurred_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        )
+        .bind(
+          check.id,
+          run.id,
+          check.last_state,
+          evaluated.transition.nextState,
+          result.reason,
+          result.statusCode,
+          result.error,
+          result.latencyMs,
+          result.checkedAt,
+        ),
+    );
+  }
+
   if (evaluated.transition.kind === "incident-opened") {
     statements.push(
       db

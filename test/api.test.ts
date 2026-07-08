@@ -105,7 +105,7 @@ const createDb = (state: MockState) => ({
           return { id } as T;
         }
 
-        if (normalized === "SELECT * FROM checks WHERE id = ? LIMIT 1") {
+        if (normalized.includes("FROM checks c WHERE c.id = ?")) {
           const [id] = params as [number];
           return (state.checks.find((check) => check.id === id) ?? null) as T;
         }

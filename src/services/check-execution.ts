@@ -145,7 +145,7 @@ export const runCheck = async (env: Bindings, job: CheckJob, ctx?: ExecutionCont
   });
 
   const transition = await persistCheckResult(env["pulse-db"], check, result, certificate, run);
-  if (!transition || transition.kind === "none") return;
+  if (!transition || transition.kind === "none" || transition.kind === "state-initialized") return;
   if (isMaintenanceWindowActive(check.maintenance_enabled)) return;
 
   const notification = dispatchNotifications(env, {

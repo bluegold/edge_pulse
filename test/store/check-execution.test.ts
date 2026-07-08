@@ -563,9 +563,11 @@ describe("check execution store", () => {
     expect(insertStatement).toBeDefined();
     expect(state.statements.some((entry) => entry.sql.startsWith("UPDATE checks"))).toBe(true);
     expect(state.statements.some((entry) => entry.sql.startsWith("INSERT OR IGNORE INTO incidents"))).toBe(false);
-    expect(state.statements.some((entry) => entry.sql.startsWith("INSERT INTO status_events"))).toBe(false);
+    expect(state.statements.some((entry) => entry.sql.startsWith("INSERT INTO status_events") || entry.sql.startsWith("INSERT OR IGNORE INTO status_events"))).toBe(true);
     expect(state.checkRuns[0]?.finished_at).toBe("2026-06-22T00:11:00.000Z");
-    expect(transition).toMatchObject({ kind: "none", nextState: "ok" });
+    expect(state.events).toHaveLength(1);
+    expect(state.events[0]?.params.slice(2, 4)).toEqual(["unknown", "ok"]);
+    expect(transition).toMatchObject({ kind: "state-initialized", nextState: "ok" });
   });
 
   it("claims a check run with a lease before persisting the result", async () => {

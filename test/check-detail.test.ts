@@ -153,11 +153,8 @@ const createDb = (result: CheckDetailData | null): D1Database => ({
         return statement(nextParams);
       },
       async first<T>() {
-        if (normalized === "SELECT * FROM checks WHERE id = ? LIMIT 1") {
+        if (normalized === "SELECT * FROM checks WHERE id = ? LIMIT 1" || normalized.includes("FROM checks c WHERE c.id = ?")) {
           return (result?.check ?? null) as T;
-        }
-        if (normalized === "SELECT * FROM checks ORDER BY created_at DESC, id DESC") {
-          return ({ results: result ? [result.check] : [] } as unknown) as T;
         }
         if (normalized.includes("COUNT(*) AS checks24h")) {
           return (result ? result.report : null) as T;

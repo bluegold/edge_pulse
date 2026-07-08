@@ -241,7 +241,7 @@ describe("evaluateTransition", () => {
   it("moves unknown to ok on first success", () => {
     const transition = evaluateTransition(baseCheck, okResult());
     expect(transition.nextCheck.last_state).toBe("ok");
-    expect(transition.transition.kind).toBe("none");
+    expect(transition.transition.kind).toBe("state-initialized");
   });
 
   it("moves unknown to fail only after the failure threshold", () => {

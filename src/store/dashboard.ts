@@ -2,6 +2,10 @@ import type { D1Database } from "../lib/cloudflare";
 import { calculateCertificateDaysRemaining, isCertificateExpiringSoon, type CheckRow, type CheckState } from "../lib/checks";
 import { summarizeChecks } from "../lib/checks-summary";
 
+export type DashboardCheckRow = CheckRow & {
+  uptime_started_at?: string | null;
+};
+
 export type IncidentRow = {
   id: number;
   check_id: number;
@@ -45,8 +49,8 @@ export type StatusEventRow = {
 };
 
 export type DashboardData = {
-  checks: CheckRow[];
-  recentChecks: CheckRow[];
+  checks: DashboardCheckRow[];
+  recentChecks: DashboardCheckRow[];
   currentIncidents: IncidentRow[];
   recentIncidents: IncidentRow[];
   recentResults: CheckResultRow[];
@@ -92,7 +96,22 @@ export const loadDashboardData = async (db: D1Database): Promise<DashboardData> 
   const dayAgo = new Date(now.getTime() - 24 * 60 * 60_000).toISOString();
 
   const [checks, currentIncidents, recentIncidents, recentResults, recentEvents, incidents24h] = await Promise.all([
-    db.prepare(`SELECT * FROM checks ORDER BY created_at DESC, id DESC`).all<CheckRow>(),
+    db
+      .prepare(
+        `
+        SELECT
+          c.*,
+          (
+            SELECT MAX(e.occurred_at)
+            FROM status_events e
+            WHERE e.check_id = c.id
+              AND e.to_state = 'ok'
+          ) AS uptime_started_at
+        FROM checks c
+        ORDER BY c.created_at DESC, c.id DESC
+      `,
+      )
+      .all<DashboardCheckRow>(),
     db
       .prepare(
         `

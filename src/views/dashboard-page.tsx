@@ -99,10 +99,11 @@ const IncidentCard = ({ incident }: { incident: IncidentRow }) => (
   </div>
 );
 
-const RecentCheckCard = ({ check }: { check: CheckRow }) => {
+const RecentCheckCard = ({ check, generatedAt }: { check: DashboardData["checks"][number]; generatedAt: string }) => {
   const maintenanceBadge = describeMaintenanceBadge(check);
   const daysRemaining = calculateCertificateDaysRemaining(check.tls_valid_to);
   const shouldShowCertificateRecheck = Boolean(check.tls_last_error) || (daysRemaining !== null && daysRemaining <= 30);
+  const uptimeStartedAt = check.last_state === "ok" ? check.uptime_started_at ?? null : null;
   return (
     <article id={`recent-check-${check.id}`} class="recent-check-card relative overflow-hidden p-4">
       <div class="flex items-start justify-between gap-3">
@@ -146,6 +147,18 @@ const RecentCheckCard = ({ check }: { check: CheckRow }) => {
               <dt class="font-bold text-slate-200">エラー</dt>
               <dd class="mt-2 break-words text-rose-200">{check.tls_last_error ?? "-"}</dd>
             </div>
+            {uptimeStartedAt ? (
+              <div class="cert-recheck-item">
+                <dt class="font-bold text-slate-200">稼働開始日時</dt>
+                <dd class="mt-2"><LocalTime iso={uptimeStartedAt} class="whitespace-nowrap" seconds={false} /></dd>
+              </div>
+            ) : null}
+            {uptimeStartedAt ? (
+              <div class="cert-recheck-item">
+                <dt class="font-bold text-slate-200">連続稼働時間</dt>
+                <dd class="mt-2 text-right tabular-nums">{formatDuration(uptimeStartedAt, generatedAt)}</dd>
+              </div>
+            ) : null}
           </dl>
           <div class="mt-4 flex justify-end">
             <form
@@ -188,13 +201,21 @@ const RecentCheckCard = ({ check }: { check: CheckRow }) => {
               </dd>
             </div>
             <div>
-              <dt class="text-slate-500">間隔</dt>
-              <dd class="mt-1">{check.interval_minutes} 分</dd>
-            </div>
-            <div>
               <dt class="text-slate-500">追加</dt>
               <dd class="mt-1"><LocalTime iso={check.created_at} class="whitespace-nowrap" /></dd>
             </div>
+            {uptimeStartedAt ? (
+              <div>
+                <dt class="text-slate-500">稼働開始日時</dt>
+                <dd class="mt-1"><LocalTime iso={uptimeStartedAt} class="whitespace-nowrap" seconds={false} /></dd>
+              </div>
+            ) : null}
+            {uptimeStartedAt ? (
+              <div>
+                <dt class="text-slate-500">連続稼働時間</dt>
+                <dd class="mt-1 text-right tabular-nums">{formatDuration(uptimeStartedAt, generatedAt)}</dd>
+              </div>
+            ) : null}
           </dl>
         </>
       )}
@@ -202,7 +223,7 @@ const RecentCheckCard = ({ check }: { check: CheckRow }) => {
   );
 };
 
-export const renderRecentCheckCard = (check: CheckRow): string => renderToString(<RecentCheckCard check={check} />);
+export const renderRecentCheckCard = (check: DashboardData["checks"][number]): string => renderToString(<RecentCheckCard check={check} generatedAt={new Date().toISOString()} />);
 
 const ResultRow = ({ result }: { result: DashboardData["recentResults"][number] }) => (
   <tr id={`check-result-${result.id}`}>
@@ -422,7 +443,7 @@ const DashboardShell = ({ data }: { data: DashboardData }) => {
               最近の監視対象
             </h2>
             <div id="recent-checks-list" class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {recentChecks.map((check) => <RecentCheckCard check={check} />)}
+              {recentChecks.map((check) => <RecentCheckCard check={check} generatedAt={data.generatedAt} />)}
             </div>
           </section>
         ) : null}

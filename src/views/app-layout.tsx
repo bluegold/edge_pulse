@@ -445,8 +445,13 @@ export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, res
           border-collapse: separate;
           border-spacing: 0 0.25rem;
         }
+        .checks-table col.check-main-col {
+          width: 34%;
+          min-width: 22rem;
+        }
         .checks-table col.check-actions-col {
-          width: 8.25rem;
+          width: 5.5rem;
+          max-width: 5.5rem;
         }
         .checks-table thead th {
           padding: 0.75rem 1rem 1rem;
@@ -486,13 +491,14 @@ export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, res
         .check-main-cell {
           padding-inline: 0.7rem 1rem;
           padding-block: 1.15rem;
+          min-width: 22rem;
           background: linear-gradient(180deg, rgba(14, 33, 60, 0.96), rgba(7, 16, 31, 0.94));
           border-left: 1px solid rgba(148, 163, 184, 0.14);
           text-align: left;
         }
         .check-actions-cell {
-          width: 8.25rem;
-          min-width: 8.25rem;
+          width: 5.5rem;
+          max-width: 5.5rem;
           border-right: 1px solid rgba(148, 163, 184, 0.14);
           white-space: nowrap;
           text-align: right;

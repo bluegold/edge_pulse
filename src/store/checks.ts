@@ -3,8 +3,12 @@ import type { CheckInput, CheckRow } from "../lib/checks";
 import { buildCheckOrderByClause, buildChecksSearchWhereClause } from "../lib/checks-search";
 import { summarizeChecks } from "../lib/checks-summary";
 
+export type ChecksPageRow = CheckRow & {
+  uptime_started_at?: string | null;
+};
+
 export type ChecksPageData = {
-  checks: CheckRow[];
+  checks: ChecksPageRow[];
   page: number;
   pageSize: number;
   totalChecks: number;
@@ -20,8 +24,25 @@ export type ChecksPageData = {
   generatedAt: string;
 };
 
-export const getCheckById = async (db: D1Database, id: number): Promise<CheckRow | null> => {
-  return db.prepare(`SELECT * FROM checks WHERE id = ? LIMIT 1`).bind(id).first<CheckRow>();
+export const getCheckById = async (db: D1Database, id: number): Promise<ChecksPageRow | null> => {
+  return db
+    .prepare(
+      `
+      SELECT
+        c.*,
+        (
+          SELECT MAX(e.occurred_at)
+          FROM status_events e
+          WHERE e.check_id = c.id
+            AND e.to_state = 'ok'
+        ) AS uptime_started_at
+      FROM checks c
+      WHERE c.id = ?
+      LIMIT 1
+    `,
+    )
+    .bind(id)
+    .first<ChecksPageRow>();
 };
 
 export const insertCheck = async (db: D1Database, input: CheckInput, now: string): Promise<number> => {
@@ -127,15 +148,22 @@ export const loadChecksPageData = async (
   const currentPage = Math.min(normalizePage(page), totalPages);
   const offset = (currentPage - 1) * pageSize;
   const dataQuery = `
-        SELECT c.*
+        SELECT
+          c.*,
+          (
+            SELECT MAX(e.occurred_at)
+            FROM status_events e
+            WHERE e.check_id = c.id
+              AND e.to_state = 'ok'
+          ) AS uptime_started_at
         FROM checks c
         ${whereClause}
         ORDER BY ${orderBySql}
         LIMIT ? OFFSET ?
       `;
   const checksResult = searchError
-    ? { results: [] as CheckRow[] }
-    : await db.prepare(dataQuery).bind(...whereParams, pageSize, offset).all<CheckRow>();
+    ? { results: [] as ChecksPageRow[] }
+    : await db.prepare(dataQuery).bind(...whereParams, pageSize, offset).all<ChecksPageRow>();
   const checks = checksResult.results;
 
   const summary = summarizeChecks(summaryChecks.results);

@@ -48,13 +48,23 @@
     return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
   };
 
+  const formatLocalDateTimeWithoutSeconds = (date) => {
+    const year = String(date.getFullYear()).padStart(4, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
+  };
+
   const renderLocalTimes = (root = document) => {
     for (const element of root.querySelectorAll("[data-utc-time]")) {
       const iso = element.getAttribute("data-utc-time");
       if (!iso) continue;
       const date = new Date(iso);
       if (Number.isNaN(date.getTime())) continue;
-      element.textContent = formatLocalDateTime(date);
+      const withSeconds = element.getAttribute("data-utc-seconds") !== "false";
+      element.textContent = withSeconds ? formatLocalDateTime(date) : formatLocalDateTimeWithoutSeconds(date);
       element.title = iso;
       element.setAttribute("data-localized", "true");
     }

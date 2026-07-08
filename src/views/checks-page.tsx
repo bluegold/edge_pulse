@@ -4,6 +4,7 @@ import type { ChecksPageData as ChecksPageDataType } from "../store/checks";
 import { buildCheckOrderWithTerm, buildChecksUrl, getCheckOrderDirection } from "../lib/checks-search";
 import { LocalTime } from "./time.tsx";
 import { formatNullable } from "../presenters/common";
+import { formatDuration } from "../presenters/dashboard";
 import { describeCertificateBadge, describeCheckState, describeMaintenanceBadge } from "../presenters/checks";
 
 export type ChecksPageData = ChecksPageDataType;
@@ -164,6 +165,7 @@ const ViewCard = ({
   q,
   filter,
   order,
+  generatedAt,
   highlighted,
 }: {
   check: ChecksPageData["checks"][number];
@@ -171,6 +173,7 @@ const ViewCard = ({
   q: string;
   filter: string;
   order: string;
+  generatedAt: string;
   highlighted: boolean;
 }) => (
   <tr id={`check-item-${check.id}`} class={`check-row ${check.enabled ? "" : "off"} ${highlighted ? "check-row-highlight" : ""}`}>
@@ -190,29 +193,30 @@ const ViewCard = ({
       <div class="check-meta-value"><LocalTime iso={check.last_checked_at} class="whitespace-nowrap" /></div>
     </td>
     <td class="check-meta-cell">
-      <div class="metric-stack">
-        <div class="metric-line">
-          <span class="metric-label">HTTP</span>
-          <span class="metric-value">{formatNullable(check.last_status_code)}</span>
+      <div class="grid gap-3">
+        <div>
+          <p class="check-meta-label">HTTP</p>
+          <div class="check-meta-value text-right tabular-nums">{formatNullable(check.last_status_code)}</div>
         </div>
-        <div class="metric-line">
-          <span class="metric-label">応答時間</span>
-          <span class="metric-value">{check.last_latency_ms === null ? "-" : `${check.last_latency_ms}ms`}</span>
+        <div>
+          <p class="check-meta-label">応答時間</p>
+          <div class="check-meta-value text-right tabular-nums">{check.last_latency_ms === null ? "-" : `${check.last_latency_ms}ms`}</div>
         </div>
       </div>
     </td>
     <td class="check-meta-cell">
-      <div class="check-meta-value text-right">{check.interval_minutes} 分</div>
-    </td>
-    <td class="check-meta-cell">
-      <div class="metric-stack">
-        <div class="metric-line">
-          <span class="metric-label">失敗</span>
-          <span class="metric-value">{check.fail_threshold}</span>
+      <div class="grid gap-3">
+        <div>
+          <p class="check-meta-label">稼働開始日時</p>
+          <div class="check-meta-value text-right">
+            <LocalTime iso={check.last_state === "ok" ? check.uptime_started_at ?? null : null} class="whitespace-nowrap" seconds={false} />
+          </div>
         </div>
-        <div class="metric-line">
-          <span class="metric-label">復旧</span>
-          <span class="metric-value">{check.recovery_threshold}</span>
+        <div>
+          <p class="check-meta-label">連続稼働時間</p>
+          <div class="check-meta-value text-right tabular-nums">
+            {check.last_state === "ok" && check.uptime_started_at ? formatDuration(check.uptime_started_at, generatedAt) : "-"}
+          </div>
         </div>
       </div>
     </td>
@@ -250,7 +254,7 @@ const EditCard = ({
   order: string;
 }) => (
   <tr id={`check-item-${check.id}`} class="check-row check-row-edit">
-    <td colSpan={7} class="check-edit-cell">
+    <td colSpan={6} class="check-edit-cell">
       <form
         id={`check-item-${check.id}-form`}
         class="check-edit-form"
@@ -545,7 +549,7 @@ const ChecksShell = ({ data }: { data: ChecksPageData }) => (
             <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <h2 class="panel-title text-lg font-black tracking-tight">監視対象</h2>
-                <p class="mt-1 text-sm muted">直近の状態、HTTP、応答時間、間隔、しきい値だけを表示します。</p>
+                <p class="mt-1 text-sm muted">直近の状態、HTTP、応答時間、稼働、証明書だけを表示します。</p>
               </div>
               <span class="count-badge">{data.totalChecks} 件</span>
             </div>
@@ -554,8 +558,7 @@ const ChecksShell = ({ data }: { data: ChecksPageData }) => (
               {data.checks.length > 0 ? (
                 <table class="checks-table">
                   <colgroup>
-                    <col />
-                    <col />
+                    <col class="check-main-col" />
                     <col />
                     <col />
                     <col />
@@ -567,8 +570,7 @@ const ChecksShell = ({ data }: { data: ChecksPageData }) => (
                       <SortHeader label="監視対象" orderKey="name" order={data.order} q={data.q} filter={data.filter} />
                       <SortHeader label="最終確認" orderKey="checked_at" order={data.order} q={data.q} filter={data.filter} />
                       <th scope="col">HTTP / 応答時間</th>
-                      <th scope="col">間隔</th>
-                      <th scope="col">しきい値</th>
+                      <th scope="col">稼働</th>
                       <SortHeader label="証明書" orderKey="certificate_remain" order={data.order} q={data.q} filter={data.filter} />
                       <th scope="col">操作</th>
                     </tr>
@@ -584,6 +586,7 @@ const ChecksShell = ({ data }: { data: ChecksPageData }) => (
                           q={data.q}
                           filter={data.filter}
                           order={data.order}
+                          generatedAt={data.generatedAt}
                           highlighted={data.highlightId === check.id}
                         />
                       ),

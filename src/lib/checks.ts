@@ -182,6 +182,10 @@ export type TransitionChange =
       nextState: CheckState;
     }
   | {
+      kind: "state-initialized";
+      nextState: "ok";
+    }
+  | {
       kind: "incident-opened";
       nextState: "fail";
       startedAt: string;
@@ -310,6 +314,7 @@ export const evaluateTransition = (
       nextCheck.last_state = "ok";
       nextCheck.consecutive_successes = 0;
       nextCheck.first_success_at = null;
+      transitionKind = "state-initialized";
       transitionNextState = "ok";
     } else {
       nextCheck.consecutive_successes = 0;
@@ -340,9 +345,11 @@ export const evaluateTransition = (
   }
 
   const transition: TransitionChange =
-    transitionKind === "incident-opened"
-      ? { kind: "incident-opened", nextState: "fail", startedAt: startedAt ?? result.checkedAt }
-      : transitionKind === "incident-resolved"
+    transitionKind === "state-initialized"
+      ? { kind: "state-initialized", nextState: "ok" }
+      : transitionKind === "incident-opened"
+        ? { kind: "incident-opened", nextState: "fail", startedAt: startedAt ?? result.checkedAt }
+        : transitionKind === "incident-resolved"
         ? { kind: "incident-resolved", nextState: "ok", resolvedAt: resolvedAt ?? result.checkedAt }
         : { kind: "none", nextState: transitionNextState };
 
