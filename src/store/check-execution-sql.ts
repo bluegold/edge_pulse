@@ -1,8 +1,8 @@
-import type { D1Database } from "../lib/cloudflare";
 import type { CertProbeResponse } from "../lib/cert-probe";
 import type { CheckRow, CheckRunRow, TransitionChange, CheckResult } from "../lib/checks";
+import type { Database } from "../lib/database";
 
-export const buildUpdateCheckStatement = (db: D1Database, nextCheck: CheckRow, certificate: CertProbeResponse | null, checkedAt: string) => {
+export const buildUpdateCheckStatement = (db: Database, nextCheck: CheckRow, certificate: CertProbeResponse | null, checkedAt: string) => {
   if (certificate) {
     return db.prepare(`
       UPDATE checks
@@ -40,7 +40,7 @@ export const buildUpdateCheckStatement = (db: D1Database, nextCheck: CheckRow, c
 };
 
 export const buildStatusEventStatement = (
-  db: D1Database, 
+  db: Database, 
   check: CheckRow, 
   run: CheckRunRow, 
   result: CheckResult, 

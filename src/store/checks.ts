@@ -1,7 +1,7 @@
-import type { D1Database } from "../lib/cloudflare";
 import type { CheckInput, CheckRow } from "../lib/checks";
 import { buildCheckOrderByClause, buildChecksSearchWhereClause } from "../lib/checks-search";
 import { summarizeChecks } from "../lib/checks-summary";
+import type { Database } from "../lib/database";
 
 export type ChecksPageRow = CheckRow & {
   uptime_started_at?: string | null;
@@ -24,7 +24,7 @@ export type ChecksPageData = {
   generatedAt: string;
 };
 
-export const getCheckById = async (db: D1Database, id: number): Promise<ChecksPageRow | null> => {
+export const getCheckById = async (db: Database, id: number): Promise<ChecksPageRow | null> => {
   return db
     .prepare(
       `
@@ -52,7 +52,7 @@ export const getCheckById = async (db: D1Database, id: number): Promise<ChecksPa
     .first<ChecksPageRow>();
 };
 
-export const insertCheck = async (db: D1Database, input: CheckInput, now: string): Promise<number> => {
+export const insertCheck = async (db: Database, input: CheckInput, now: string): Promise<number> => {
   const inserted = await db
     .prepare(
       `
@@ -88,7 +88,7 @@ export const insertCheck = async (db: D1Database, input: CheckInput, now: string
   return inserted?.id ?? 0;
 };
 
-export const updateCheck = async (db: D1Database, id: number, input: CheckInput, now: string): Promise<void> => {
+export const updateCheck = async (db: Database, id: number, input: CheckInput, now: string): Promise<void> => {
   await db
     .prepare(
       `
@@ -119,7 +119,7 @@ export const updateCheck = async (db: D1Database, id: number, input: CheckInput,
 };
 
 export const loadChecksPageData = async (
-  db: D1Database,
+  db: Database,
   page: number,
   editId: number | null = null,
   highlightId: number | null = null,

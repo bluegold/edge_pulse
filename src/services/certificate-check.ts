@@ -1,17 +1,16 @@
 import { getContainer } from "@cloudflare/containers";
-import type { Bindings } from "../lib/bindings";
 import { isCertificateExpiringSoon, type CheckRow, validateMonitorUrl } from "../lib/checks";
 import { fetchCertificateSnapshot, snapshotToCheckFields, type CertProbeResponse } from "../lib/cert-probe";
 
 export const CERT_EXPIRY_THRESHOLD_DAYS = 30;
 
-export const probeCertificateSnapshot = async (env: Bindings, check: CheckRow): Promise<CertProbeResponse | null> => {
+export const probeCertificateSnapshot = async (env: Env, check: CheckRow): Promise<CertProbeResponse | null> => {
   const parsed = new URL(check.url);
   if (parsed.protocol !== "https:") return null;
 
   const port = parsed.port ? Number(parsed.port) : 443;
   const serverName = parsed.hostname;
-  const containerBinding = env.CertProbeContainer ?? env.CERT_PROBE_CONTAINER;
+  const containerBinding = env.CertProbeContainer;
   if (!containerBinding) return null;
 
   const container = getContainer(containerBinding);
@@ -19,7 +18,7 @@ export const probeCertificateSnapshot = async (env: Bindings, check: CheckRow): 
 };
 
 export const refreshCertificateSnapshot = async (
-  env: Bindings,
+  env: Env,
   check: CheckRow,
 ): Promise<{ ok: true; checkedAt: string; snapshot: CertProbeResponse } | { ok: false; status: number; error: string }> => {
   const validation = validateMonitorUrl(check.url);

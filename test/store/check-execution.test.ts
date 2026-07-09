@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildCheckResult, type CheckJob, type CheckRow, type CheckRunRow } from "../../src/lib/checks";
+import type { Database } from "../../src/lib/database";
 import {
   claimScheduledCheckRun,
   ensureCheckRunForExecution,
@@ -7,7 +8,6 @@ import {
   finishCheckRun,
   persistCheckResult,
 } from "../../src/store/check-execution";
-import type { D1Database } from "../../src/lib/cloudflare";
 
 type Statement = {
   sql: string;
@@ -310,7 +310,7 @@ const makeDb = (overrides: Partial<TestState> = {}) => {
     }
   };
 
-  const db: D1Database = {
+  const db: Database = {
     prepare(sql: string) {
       const normalized = normalizeSql(sql);
       const statement = {
@@ -445,9 +445,9 @@ const makeDb = (overrides: Partial<TestState> = {}) => {
         return { success: true };
       },
       };
-      return statement as unknown as ReturnType<D1Database["prepare"]>;
+      return statement as unknown as ReturnType<Database["prepare"]>;
     },
-    async batch<T>(statements: ReturnType<D1Database["prepare"]>[]) {
+    async batch<T>(statements: ReturnType<Database["prepare"]>[]) {
       if (state.batchFailuresRemaining > 0) {
         state.batchFailuresRemaining -= 1;
         throw new Error("batch failed");

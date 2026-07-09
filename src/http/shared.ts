@@ -1,4 +1,3 @@
-import type { Bindings } from "../lib/bindings";
 import type { CheckInput } from "../lib/checks";
 
 export const respondHtml = (body: string, status = 200) =>
@@ -288,7 +287,7 @@ export const readCloudflareAccessIdentity = (request: Request): CloudflareAccess
   };
 };
 
-export const requireCloudflareAccess = async (request: Request, env: Pick<Bindings, "CF_ACCESS_TEAM_DOMAIN" | "CF_ACCESS_AUDIENCE">): Promise<Response | null> => {
+export const requireCloudflareAccess = async (request: Request, env: Pick<Env, "CF_ACCESS_TEAM_DOMAIN" | "CF_ACCESS_AUDIENCE">): Promise<Response | null> => {
   const { hostname } = new URL(request.url);
   if (isLocalDevHost(hostname)) {
     return null;
@@ -322,7 +321,7 @@ export const requireCloudflareAccess = async (request: Request, env: Pick<Bindin
   return null;
 };
 
-export const requireApiToken = async (request: Request, env: Bindings): Promise<Response | null> => {
+export const requireApiToken = async (request: Request, env: Env): Promise<Response | null> => {
   const expected = env.ADMIN_API_TOKEN.trim();
   if (!expected) {
     return respondJson({ error: "API token is not configured" }, 500);

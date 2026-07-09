@@ -1,5 +1,5 @@
-import type { D1Database } from "../lib/cloudflare";
 import type { CheckRow } from "../lib/checks";
+import type { Database } from "../lib/database";
 import type { IncidentRow, CheckResultRow, StatusEventRow } from "./dashboard";
 
 export type CheckDetailReport = {
@@ -21,7 +21,7 @@ export type CheckDetailData = {
   generatedAt: string;
 };
 
-export const loadCheckDetailData = async (db: D1Database, id: number): Promise<CheckDetailData | null> => {
+export const loadCheckDetailData = async (db: Database, id: number): Promise<CheckDetailData | null> => {
   const check = await db.prepare(`SELECT * FROM checks WHERE id = ? LIMIT 1`).bind(id).first<CheckRow>();
   if (!check) return null;
 

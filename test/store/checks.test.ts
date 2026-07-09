@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { loadChecksPageData } from "../../src/store/checks";
-import type { D1Database } from "../../src/lib/cloudflare";
+import type { Database } from "../../src/lib/database";
 import {
   buildCheckSearchAttributes,
   evaluateCheckSearchFilter,
@@ -15,7 +15,7 @@ const makeDb = (
     incidents: Array<{ check_id: number }>;
   },
   search: { q?: string; filter?: string; order?: string } = {},
-): D1Database => {
+): Database => {
   const recentIncidentCheckIds = new Set(rows.incidents.map((row) => row.check_id));
   const filterAst = search.filter ? parseCheckSearchFilter(search.filter) : null;
 
@@ -107,7 +107,7 @@ const makeDb = (
           return {};
         },
       };
-      return statement as unknown as ReturnType<D1Database["prepare"]>;
+      return statement as unknown as ReturnType<Database["prepare"]>;
     },
     async batch() {
       return [];

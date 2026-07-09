@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { loadDashboardData } from "../../src/store/dashboard";
-import type { D1Database } from "../../src/lib/cloudflare";
+import type { Database } from "../../src/lib/database";
 
-const makeDb = (): D1Database => ({
+const makeDb = (): Database => ({
   prepare(sql: string) {
     const normalized = sql.replaceAll(/\s+/g, " ").trim();
     return {
@@ -57,7 +57,7 @@ const makeDb = (): D1Database => ({
       async run() {
         return {};
       },
-    } as unknown as ReturnType<D1Database["prepare"]>;
+    } as unknown as ReturnType<Database["prepare"]>;
   },
   async batch() {
     return [];

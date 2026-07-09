@@ -29,8 +29,8 @@ vi.mock("@cloudflare/containers", () => ({
 
 import { app } from "../src/index.ts";
 import { loadCheckDetailData, type CheckDetailData } from "../src/store/check-detail";
+import type { Database } from "../src/lib/database";
 import { renderCheckDetailPage } from "../src/views/check-detail-page.tsx";
-import type { D1Database } from "../src/lib/cloudflare";
 import type { CheckRow } from "../src/lib/checks";
 
 const now = "2026-07-03T12:00:00.000Z";
@@ -146,7 +146,7 @@ const detailData: CheckDetailData = {
   generatedAt: now,
 };
 
-const createDb = (result: CheckDetailData | null): D1Database => ({
+const createDb = (result: CheckDetailData | null): Database => ({
   prepare(sql: string) {
     const normalized = sql.replaceAll(/\s+/g, " ").trim();
     const statement = (params: unknown[] = []) => ({

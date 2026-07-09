@@ -1,4 +1,3 @@
-import type { Bindings } from "../lib/bindings";
 import type { CheckResult, CheckRow, TransitionChange } from "../lib/checks";
 
 type NotificationTarget = {
@@ -29,7 +28,7 @@ const splitList = (value: string | undefined): string[] => {
 
 const collectUrls = (...values: Array<string | undefined>): string[] => Array.from(new Set(values.flatMap(splitList)));
 
-const getNotificationTargets = (env: Bindings): NotificationTarget[] => {
+const getNotificationTargets = (env: Env): NotificationTarget[] => {
   const webhookUrls = collectUrls(env.WEBHOOK_URL, env.WEBHOOK_URLS);
   const discordUrls = collectUrls(env.DISCORD_WEBHOOK_URL, env.DISCORD_WEBHOOK_URLS);
 
@@ -140,7 +139,7 @@ const postNotification = async (target: NotificationTarget, context: Notificatio
   }
 };
 
-export const dispatchNotifications = async (env: Bindings, context: NotificationContext): Promise<void> => {
+export const dispatchNotifications = async (env: Env, context: NotificationContext): Promise<void> => {
   const targets = getNotificationTargets(env);
   if (targets.length === 0) return;
 
@@ -155,7 +154,7 @@ export const dispatchNotifications = async (env: Bindings, context: Notification
   }
 };
 
-export const dispatchTestNotifications = async (env: Bindings, context: TestNotificationContext): Promise<number> => {
+export const dispatchTestNotifications = async (env: Env, context: TestNotificationContext): Promise<number> => {
   const targets = getNotificationTargets(env);
   if (targets.length === 0) return 0;
 

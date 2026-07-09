@@ -1,4 +1,3 @@
-import type { Bindings } from "../lib/bindings";
 import { dispatchTestNotifications } from "../services/notifications";
 import { respondJson } from "../http/shared";
 
@@ -21,7 +20,7 @@ const readTestNotificationInput = async (request: Request): Promise<{ title: str
   };
 };
 
-export const handleApiTestNotifications = async (env: Bindings, request: Request): Promise<Response> => {
+export const handleApiTestNotifications = async (env: Env, request: Request): Promise<Response> => {
   const input = await readTestNotificationInput(request);
   const sent = await dispatchTestNotifications(env, {
     ...input,
