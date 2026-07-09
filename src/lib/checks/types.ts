@@ -30,9 +30,7 @@ export type CheckRunRow = {
   updated_at: string;
 };
 
-export type UndispatchedCheckRunRow = CheckRunRow & {
-  interval_minutes: number;
-};
+export type UndispatchedCheckRunRow = Pick<CheckRunRow, "id" | "check_id" | "attempt_id" | "scheduled_at">;
 
 export type CheckResult = {
   state: "ok" | "fail";

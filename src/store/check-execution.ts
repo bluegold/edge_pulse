@@ -9,6 +9,7 @@ import {
   type CheckRunRow,
   type CheckRunResultState,
   type TransitionChange,
+  type UndispatchedCheckRunRow,
 } from "../lib/checks";
 import type { CertProbeResponse } from "../lib/cert-probe";
 import { buildUpdateCheckStatement, buildStatusEventStatement } from "./check-execution-sql";
@@ -91,11 +92,11 @@ export const ensureCheckRunForExecution = async (db: D1Database, job: CheckJob, 
   return { kind: "missing" };
 };
 
-export const loadUndispatchedCheckRuns = async (db: D1Database, now: string): Promise<CheckRunRow[]> => {
+export const loadUndispatchedCheckRuns = async (db: D1Database, now: string): Promise<UndispatchedCheckRunRow[]> => {
   const result = await db
     .prepare(
       `
-      SELECT *
+      SELECT id, check_id, attempt_id, scheduled_at
       FROM check_runs
       WHERE dispatched_at IS NULL
         AND finished_at IS NULL
@@ -105,7 +106,7 @@ export const loadUndispatchedCheckRuns = async (db: D1Database, now: string): Pr
     `,
     )
     .bind(now)
-    .all<CheckRunRow>();
+    .all<UndispatchedCheckRunRow>();
 
   return result.results;
 };
@@ -286,7 +287,7 @@ export type { CheckResult };
 
 export const finishCheckRun = async (
   db: D1Database,
-  run: CheckRunRow,
+  run: Pick<CheckRunRow, "id">,
   now: string,
   resultState: CheckRunResultState,
   skipReason: string | null = null,
