@@ -33,7 +33,12 @@ export const refreshCertificateSnapshot = async (
   try {
     snapshot = await probeCertificateSnapshot(env, check);
   } catch (error) {
-    console.warn("certificate recheck probe failed", error);
+    console.warn(JSON.stringify({
+      message: "certificate recheck probe failed",
+      checkId: check.id,
+      url: check.url,
+      error: error instanceof Error ? error.message : String(error),
+    }));
     return { ok: false, status: 503, error: "証明書再確認の実行基盤の起動に失敗しました" };
   }
   if (!snapshot) {

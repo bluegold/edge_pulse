@@ -17,4 +17,4 @@ export default {
       await runCheck(env, message.body, _ctx);
     }
   },
-};
+} satisfies ExportedHandler<Env, CheckJob>;

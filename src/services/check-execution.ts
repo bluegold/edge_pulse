@@ -122,14 +122,26 @@ export const runCheck = async (env: Env, job: CheckJob, ctx?: ExecutionContext):
   if (ctx) {
     ctx.waitUntil(
       notification.catch((error) => {
-        console.error("notification dispatch failed", error);
+        console.error(JSON.stringify({
+          message: "notification dispatch failed",
+          checkId: check.id,
+          attemptId: run.attempt_id,
+          transition: transition.kind,
+          error: error instanceof Error ? error.message : String(error),
+        }));
       }),
     );
     return;
   }
 
   await notification.catch((error) => {
-    console.error("notification dispatch failed", error);
+    console.error(JSON.stringify({
+      message: "notification dispatch failed",
+      checkId: check.id,
+      attemptId: run.attempt_id,
+      transition: transition.kind,
+      error: error instanceof Error ? error.message : String(error),
+    }));
   });
 };
 

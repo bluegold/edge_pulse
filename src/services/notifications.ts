@@ -1,4 +1,5 @@
 import type { CheckResult, CheckRow, TransitionChange } from "../lib/checks";
+import { readNotificationSecrets, type SecretEnv } from "../lib/secrets";
 
 type NotificationTarget = {
   kind: "webhook" | "discord";
@@ -18,6 +19,8 @@ type TestNotificationContext = {
   sentAt: string;
 };
 
+const toErrorMessage = (error: unknown): string => (error instanceof Error ? error.message : String(error));
+
 const splitList = (value: string | undefined): string[] => {
   if (!value) return [];
   return value
@@ -28,9 +31,12 @@ const splitList = (value: string | undefined): string[] => {
 
 const collectUrls = (...values: Array<string | undefined>): string[] => Array.from(new Set(values.flatMap(splitList)));
 
-const getNotificationTargets = (env: Env): NotificationTarget[] => {
-  const webhookUrls = collectUrls(env.WEBHOOK_URL, env.WEBHOOK_URLS);
-  const discordUrls = collectUrls(env.DISCORD_WEBHOOK_URL, env.DISCORD_WEBHOOK_URLS);
+const getNotificationTargets = (
+  env: Pick<SecretEnv, "DISCORD_WEBHOOK_URL" | "DISCORD_WEBHOOK_URLS" | "WEBHOOK_URL" | "WEBHOOK_URLS">,
+): NotificationTarget[] => {
+  const secrets = readNotificationSecrets(env);
+  const webhookUrls = collectUrls(secrets.webhookUrl, secrets.webhookUrls);
+  const discordUrls = collectUrls(secrets.discordWebhookUrl, secrets.discordWebhookUrls);
 
   return [
     ...webhookUrls.map((url) => ({ kind: "webhook" as const, url })),
@@ -139,7 +145,10 @@ const postNotification = async (target: NotificationTarget, context: Notificatio
   }
 };
 
-export const dispatchNotifications = async (env: Env, context: NotificationContext): Promise<void> => {
+export const dispatchNotifications = async (
+  env: Pick<SecretEnv, "DISCORD_WEBHOOK_URL" | "DISCORD_WEBHOOK_URLS" | "WEBHOOK_URL" | "WEBHOOK_URLS">,
+  context: NotificationContext,
+): Promise<void> => {
   const targets = getNotificationTargets(env);
   if (targets.length === 0) return;
 
@@ -147,14 +156,20 @@ export const dispatchNotifications = async (env: Env, context: NotificationConte
   const rejected = results.filter((result): result is PromiseRejectedResult => result.status === "rejected");
 
   if (rejected.length > 0) {
-    console.error(
-      "notification delivery failed",
-      rejected.map((result) => (result.reason instanceof Error ? result.reason.message : String(result.reason))),
-    );
+    console.error(JSON.stringify({
+      message: "notification delivery failed",
+      errors: rejected.map((result) => toErrorMessage(result.reason)),
+      targetCount: targets.length,
+      checkId: context.check.id,
+      transition: context.transition.kind,
+    }));
   }
 };
 
-export const dispatchTestNotifications = async (env: Env, context: TestNotificationContext): Promise<number> => {
+export const dispatchTestNotifications = async (
+  env: Pick<SecretEnv, "DISCORD_WEBHOOK_URL" | "DISCORD_WEBHOOK_URLS" | "WEBHOOK_URL" | "WEBHOOK_URLS">,
+  context: TestNotificationContext,
+): Promise<number> => {
   const targets = getNotificationTargets(env);
   if (targets.length === 0) return 0;
 
@@ -178,10 +193,12 @@ export const dispatchTestNotifications = async (env: Env, context: TestNotificat
 
   const rejected = results.filter((result): result is PromiseRejectedResult => result.status === "rejected");
   if (rejected.length > 0) {
-    console.error(
-      "notification test delivery failed",
-      rejected.map((result) => (result.reason instanceof Error ? result.reason.message : String(result.reason))),
-    );
+    console.error(JSON.stringify({
+      message: "notification test delivery failed",
+      errors: rejected.map((result) => toErrorMessage(result.reason)),
+      targetCount: targets.length,
+      sentAt: context.sentAt,
+    }));
   }
 
   return results.length - rejected.length;

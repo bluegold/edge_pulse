@@ -1,4 +1,5 @@
 import type { CheckInput } from "../lib/checks";
+import { readAdminApiToken, type SecretEnv } from "../lib/secrets";
 
 export const respondHtml = (body: string, status = 200) =>
   new Response(body, {
@@ -83,20 +84,26 @@ export const readCheckInputFromRequest = async (request: Request): Promise<Check
   return null;
 };
 
-const timingSafeEquals = (left: string, right: string): boolean => {
-  const encoder = new TextEncoder();
-  const leftBytes = encoder.encode(left);
-  const rightBytes = encoder.encode(right);
+const timingSafeEquals = async (left: string, right: string): Promise<boolean> => {
+  const [leftHash, rightHash] = await Promise.all([
+    crypto.subtle.digest("SHA-256", textEncoder.encode(left)),
+    crypto.subtle.digest("SHA-256", textEncoder.encode(right)),
+  ]);
 
-  if (leftBytes.length !== rightBytes.length) {
-    return false;
+  const subtleCrypto = crypto.subtle as SubtleCrypto & {
+    timingSafeEqual?: (a: ArrayBuffer | ArrayBufferView, b: ArrayBuffer | ArrayBufferView) => boolean;
+  };
+
+  if (typeof subtleCrypto.timingSafeEqual === "function") {
+    return subtleCrypto.timingSafeEqual(leftHash, rightHash);
   }
 
+  const leftBytes = new Uint8Array(leftHash);
+  const rightBytes = new Uint8Array(rightHash);
   let diff = 0;
   for (let index = 0; index < leftBytes.length; index += 1) {
     diff |= leftBytes[index] ^ rightBytes[index];
   }
-
   return diff === 0;
 };
 
@@ -321,10 +328,16 @@ export const requireCloudflareAccess = async (request: Request, env: Pick<Env, "
   return null;
 };
 
-export const requireApiToken = async (request: Request, env: Env): Promise<Response | null> => {
-  const expected = env.ADMIN_API_TOKEN.trim();
+export const requireApiToken = async (
+  request: Request,
+  env: Pick<SecretEnv, "ADMIN_API_TOKEN">,
+): Promise<Response | null> => {
+  const expected = readAdminApiToken(env);
   if (!expected) {
-    return respondJson({ error: "API token is not configured" }, 500);
+    console.error(JSON.stringify({
+      message: "admin api token is not configured",
+    }));
+    return respondJson({ error: "Unauthorized" }, 401);
   }
 
   const authorization = request.headers.get("authorization") ?? "";
@@ -333,7 +346,7 @@ export const requireApiToken = async (request: Request, env: Env): Promise<Respo
   }
 
   const token = authorization.slice("Bearer ".length);
-  if (!timingSafeEquals(token, expected)) {
+  if (!(await timingSafeEquals(token, expected))) {
     return respondJson({ error: "Unauthorized" }, 401);
   }
 
