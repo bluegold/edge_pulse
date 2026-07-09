@@ -27,7 +27,7 @@ const makeDb = (): D1Database => ({
         return null as T;
       },
       async all<T>() {
-        if (normalized.includes("FROM checks c ORDER BY c.created_at DESC, c.id DESC")) {
+        if (normalized.includes("FROM checks c") && normalized.includes("ORDER BY c.created_at DESC, c.id DESC")) {
           return {
             results: [
               { id: 1, name: "api", last_state: "ok", enabled: 1, last_latency_ms: 10, tls_valid_to: "2026-07-20T00:00:00.000Z", maintenance_enabled: 0 },

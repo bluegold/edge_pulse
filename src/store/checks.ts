@@ -29,12 +29,7 @@ export const getCheckById = async (db: D1Database, id: number): Promise<ChecksPa
       `
       SELECT
         c.*,
-        (
-          SELECT MAX(e.occurred_at)
-          FROM status_events e
-          WHERE e.check_id = c.id
-            AND e.to_state = 'ok'
-        ) AS uptime_started_at,
+        uptime.uptime_started_at,
         (
           SELECT r.x_runtime_ms
           FROM check_results r
@@ -43,6 +38,14 @@ export const getCheckById = async (db: D1Database, id: number): Promise<ChecksPa
           LIMIT 1
         ) AS last_runtime_ms
       FROM checks c
+      LEFT JOIN (
+        SELECT
+          check_id,
+          MAX(occurred_at) AS uptime_started_at
+        FROM status_events
+        WHERE to_state = 'ok'
+        GROUP BY check_id
+      ) AS uptime ON uptime.check_id = c.id
       WHERE c.id = ?
       LIMIT 1
     `,
@@ -156,12 +159,7 @@ export const loadChecksPageData = async (
   const dataQuery = `
         SELECT
           c.*,
-          (
-            SELECT MAX(e.occurred_at)
-            FROM status_events e
-            WHERE e.check_id = c.id
-              AND e.to_state = 'ok'
-          ) AS uptime_started_at,
+          uptime.uptime_started_at,
           (
             SELECT r.x_runtime_ms
             FROM check_results r
@@ -170,6 +168,14 @@ export const loadChecksPageData = async (
             LIMIT 1
           ) AS last_runtime_ms
         FROM checks c
+        LEFT JOIN (
+          SELECT
+            check_id,
+            MAX(occurred_at) AS uptime_started_at
+          FROM status_events
+          WHERE to_state = 'ok'
+          GROUP BY check_id
+        ) AS uptime ON uptime.check_id = c.id
         ${whereClause}
         ORDER BY ${orderBySql}
         LIMIT ? OFFSET ?

@@ -100,13 +100,16 @@ export const loadDashboardData = async (db: D1Database): Promise<DashboardData> 
         `
         SELECT
           c.*,
-          (
-            SELECT MAX(e.occurred_at)
-            FROM status_events e
-            WHERE e.check_id = c.id
-              AND e.to_state = 'ok'
-          ) AS uptime_started_at
+          uptime.uptime_started_at
         FROM checks c
+        LEFT JOIN (
+          SELECT
+            check_id,
+            MAX(occurred_at) AS uptime_started_at
+          FROM status_events
+          WHERE to_state = 'ok'
+          GROUP BY check_id
+        ) AS uptime ON uptime.check_id = c.id
         ORDER BY c.created_at DESC, c.id DESC
       `,
       )
