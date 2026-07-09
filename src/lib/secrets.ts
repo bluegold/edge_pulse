@@ -4,6 +4,7 @@ export type SecretEnv = {
   DISCORD_WEBHOOK_URLS?: string;
   WEBHOOK_URL?: string;
   WEBHOOK_URLS?: string;
+  NOTIFICATION_SOURCE?: string;
 };
 
 export const readAdminApiToken = (env: Pick<SecretEnv, "ADMIN_API_TOKEN">): string => {
@@ -11,12 +12,13 @@ export const readAdminApiToken = (env: Pick<SecretEnv, "ADMIN_API_TOKEN">): stri
 };
 
 export const readNotificationSecrets = (
-  env: Pick<SecretEnv, "DISCORD_WEBHOOK_URL" | "DISCORD_WEBHOOK_URLS" | "WEBHOOK_URL" | "WEBHOOK_URLS">,
+  env: Pick<SecretEnv, "DISCORD_WEBHOOK_URL" | "DISCORD_WEBHOOK_URLS" | "WEBHOOK_URL" | "WEBHOOK_URLS" | "NOTIFICATION_SOURCE">,
 ) => {
   return {
     webhookUrl: env.WEBHOOK_URL,
     webhookUrls: env.WEBHOOK_URLS,
     discordWebhookUrl: env.DISCORD_WEBHOOK_URL,
     discordWebhookUrls: env.DISCORD_WEBHOOK_URLS,
+    notificationSource: env.NOTIFICATION_SOURCE?.trim() || null,
   };
 };

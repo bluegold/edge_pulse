@@ -6,6 +6,11 @@ type NotificationTarget = {
   url: string;
 };
 
+type NotificationSecrets = Pick<
+  SecretEnv,
+  "DISCORD_WEBHOOK_URL" | "DISCORD_WEBHOOK_URLS" | "WEBHOOK_URL" | "WEBHOOK_URLS" | "NOTIFICATION_SOURCE"
+>;
+
 type NotificationContext = {
   check: CheckRow;
   result: CheckResult;
@@ -31,17 +36,38 @@ const splitList = (value: string | undefined): string[] => {
 
 const collectUrls = (...values: Array<string | undefined>): string[] => Array.from(new Set(values.flatMap(splitList)));
 
-const getNotificationTargets = (
-  env: Pick<SecretEnv, "DISCORD_WEBHOOK_URL" | "DISCORD_WEBHOOK_URLS" | "WEBHOOK_URL" | "WEBHOOK_URLS">,
-): NotificationTarget[] => {
+const normalizeTargetUrl = (value: string): string => {
+  try {
+    const url = new URL(value);
+    url.hash = "";
+    if ((url.protocol === "https:" && url.port === "443") || (url.protocol === "http:" && url.port === "80")) {
+      url.port = "";
+    }
+    return url.toString();
+  } catch {
+    return value.trim();
+  }
+};
+
+const getNotificationTargets = (env: NotificationSecrets): NotificationTarget[] => {
   const secrets = readNotificationSecrets(env);
   const webhookUrls = collectUrls(secrets.webhookUrl, secrets.webhookUrls);
   const discordUrls = collectUrls(secrets.discordWebhookUrl, secrets.discordWebhookUrls);
+  const targets = new Map<string, NotificationTarget>();
 
-  return [
-    ...webhookUrls.map((url) => ({ kind: "webhook" as const, url })),
-    ...discordUrls.map((url) => ({ kind: "discord" as const, url })),
-  ];
+  for (const url of webhookUrls) {
+    targets.set(normalizeTargetUrl(url), { kind: "webhook", url });
+  }
+
+  for (const url of discordUrls) {
+    targets.set(normalizeTargetUrl(url), { kind: "discord", url });
+  }
+
+  return Array.from(targets.values());
+};
+
+const getNotificationSource = (env: NotificationSecrets): string | null => {
+  return readNotificationSecrets(env).notificationSource;
 };
 
 const buildTitle = (transition: NotificationContext["transition"] | TestNotificationContext): string => {
@@ -55,8 +81,12 @@ const buildSeverity = (transition: NotificationContext["transition"] | TestNotif
   return transition.kind === "incident-opened" ? "danger" : "good";
 };
 
-const buildWebhookPayload = ({ check, result, transition }: NotificationContext) => ({
+const buildWebhookPayload = (
+  { check, result, transition }: NotificationContext,
+  notificationSource: string | null,
+) => ({
   event: transition.kind,
+  source: notificationSource,
   check: {
     id: check.id,
     name: check.name,
@@ -84,12 +114,16 @@ const buildWebhookPayload = ({ check, result, transition }: NotificationContext)
         },
 });
 
-const buildDiscordPayload = ({ check, result, transition }: NotificationContext) => {
+const buildDiscordPayload = (
+  { check, result, transition }: NotificationContext,
+  notificationSource: string | null,
+) => {
   const title = buildTitle(transition);
   const color = buildSeverity(transition) === "danger" ? 0xef4444 : 0x22c55e;
+  const sourceLabel = notificationSource ? `[${notificationSource}] ` : "";
 
   return {
-    content: `${title}: ${check.name}`,
+    content: `${sourceLabel}${title}: ${check.name}`,
     allowed_mentions: { parse: [] as string[] },
     embeds: [
       {
@@ -103,6 +137,7 @@ const buildDiscordPayload = ({ check, result, transition }: NotificationContext)
           { name: "理由", value: result.reason ?? "-", inline: false },
           { name: "HTTP", value: result.statusCode === null ? "-" : String(result.statusCode), inline: true },
           { name: "応答時間", value: result.latencyMs === null ? "-" : `${result.latencyMs}ms`, inline: true },
+          ...(notificationSource ? [{ name: "通知元", value: notificationSource, inline: true }] : []),
           { name: "URL", value: check.url, inline: false },
         ],
       },
@@ -110,27 +145,37 @@ const buildDiscordPayload = ({ check, result, transition }: NotificationContext)
   };
 };
 
-const buildTestWebhookPayload = (context: TestNotificationContext) => ({
+const buildTestWebhookPayload = (context: TestNotificationContext, notificationSource: string | null) => ({
   event: "test",
+  source: notificationSource,
   message: context.message,
   sentAt: context.sentAt,
 });
 
-const buildTestDiscordPayload = (context: TestNotificationContext) => ({
-  content: `${context.title}: ${context.message}`,
+const buildTestDiscordPayload = (context: TestNotificationContext, notificationSource: string | null) => ({
+  content: `${notificationSource ? `[${notificationSource}] ` : ""}${context.title}: ${context.message}`,
   allowed_mentions: { parse: [] as string[] },
   embeds: [
     {
       title: context.title,
       color: context.severity === "danger" ? 0xef4444 : 0x22c55e,
       timestamp: context.sentAt,
-      fields: [{ name: "メッセージ", value: context.message, inline: false }],
+      fields: [
+        ...(notificationSource ? [{ name: "通知元", value: notificationSource, inline: true }] : []),
+        { name: "メッセージ", value: context.message, inline: false },
+      ],
     },
   ],
 });
 
-const postNotification = async (target: NotificationTarget, context: NotificationContext): Promise<void> => {
-  const payload = target.kind === "discord" ? buildDiscordPayload(context) : buildWebhookPayload(context);
+const postNotification = async (
+  target: NotificationTarget,
+  context: NotificationContext,
+  notificationSource: string | null,
+): Promise<void> => {
+  const payload = target.kind === "discord"
+    ? buildDiscordPayload(context, notificationSource)
+    : buildWebhookPayload(context, notificationSource);
   const response = await fetch(target.url, {
     method: "POST",
     headers: {
@@ -146,13 +191,14 @@ const postNotification = async (target: NotificationTarget, context: Notificatio
 };
 
 export const dispatchNotifications = async (
-  env: Pick<SecretEnv, "DISCORD_WEBHOOK_URL" | "DISCORD_WEBHOOK_URLS" | "WEBHOOK_URL" | "WEBHOOK_URLS">,
+  env: NotificationSecrets,
   context: NotificationContext,
 ): Promise<void> => {
   const targets = getNotificationTargets(env);
   if (targets.length === 0) return;
+  const notificationSource = getNotificationSource(env);
 
-  const results = await Promise.allSettled(targets.map((target) => postNotification(target, context)));
+  const results = await Promise.allSettled(targets.map((target) => postNotification(target, context, notificationSource)));
   const rejected = results.filter((result): result is PromiseRejectedResult => result.status === "rejected");
 
   if (rejected.length > 0) {
@@ -167,15 +213,18 @@ export const dispatchNotifications = async (
 };
 
 export const dispatchTestNotifications = async (
-  env: Pick<SecretEnv, "DISCORD_WEBHOOK_URL" | "DISCORD_WEBHOOK_URLS" | "WEBHOOK_URL" | "WEBHOOK_URLS">,
+  env: NotificationSecrets,
   context: TestNotificationContext,
 ): Promise<number> => {
   const targets = getNotificationTargets(env);
   if (targets.length === 0) return 0;
+  const notificationSource = getNotificationSource(env);
 
   const results = await Promise.allSettled(
     targets.map(async (target) => {
-      const payload = target.kind === "discord" ? buildTestDiscordPayload(context) : buildTestWebhookPayload(context);
+      const payload = target.kind === "discord"
+        ? buildTestDiscordPayload(context, notificationSource)
+        : buildTestWebhookPayload(context, notificationSource);
       const response = await fetch(target.url, {
         method: "POST",
         headers: {

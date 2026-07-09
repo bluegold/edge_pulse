@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { dispatchNotifications } from "../../src/services/notifications";
 import type { CheckRow } from "../../src/lib/checks";
 
@@ -39,6 +39,10 @@ const result = {
   checkedAt: "2026-06-22T00:01:00.000Z",
 };
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe("dispatchNotifications", () => {
   it("sends webhook and discord notifications to every configured endpoint", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("", { status: 200 }));
@@ -48,6 +52,7 @@ describe("dispatchNotifications", () => {
         WEBHOOK_URLS: "https://hooks.example.com/a, https://hooks.example.com/b",
         DISCORD_WEBHOOK_URL: "https://discord.com/api/webhooks/1/2",
         DISCORD_WEBHOOK_URLS: "https://discord.com/api/webhooks/3/4",
+        NOTIFICATION_SOURCE: "production",
       } as never,
       {
         check,
@@ -71,6 +76,7 @@ describe("dispatchNotifications", () => {
     const webhookPayload = JSON.parse(String(fetchSpy.mock.calls[0]?.[1]?.body));
     expect(webhookPayload).toMatchObject({
       event: "incident-opened",
+      source: "production",
       check: {
         id: 1,
         name: "api",
@@ -89,6 +95,36 @@ describe("dispatchNotifications", () => {
     });
 
     const discordPayload = JSON.parse(String(fetchSpy.mock.calls[2]?.[1]?.body));
+    expect(discordPayload).toMatchObject({
+      content: "[production] 障害発生: api",
+      allowed_mentions: { parse: [] },
+    });
+    expect(discordPayload.embeds[0].fields).toEqual(
+      expect.arrayContaining([{ name: "通知元", value: "production", inline: true }]),
+    );
+  });
+
+  it("deduplicates the same discord webhook url across generic and discord settings", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("", { status: 200 }));
+
+    await dispatchNotifications(
+      {
+        WEBHOOK_URLS: "https://discord.com/api/webhooks/1/2",
+        DISCORD_WEBHOOK_URL: "https://discord.com/api/webhooks/1/2",
+      } as never,
+      {
+        check,
+        result,
+        transition: {
+          kind: "incident-opened",
+          nextState: "fail",
+          startedAt: "2026-06-22T00:00:00.000Z",
+        },
+      },
+    );
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const discordPayload = JSON.parse(String(fetchSpy.mock.calls[0]?.[1]?.body));
     expect(discordPayload).toMatchObject({
       content: "障害発生: api",
       allowed_mentions: { parse: [] },

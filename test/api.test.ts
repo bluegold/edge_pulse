@@ -264,6 +264,7 @@ describe("notification test api", () => {
         ...makeEnv({ checks: [], nextId: 1 }),
         WEBHOOK_URLS: "https://hooks.example.com/a",
         DISCORD_WEBHOOK_URL: "https://discord.com/api/webhooks/1/2",
+        NOTIFICATION_SOURCE: "staging",
       },
     );
 
