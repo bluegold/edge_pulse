@@ -1,4 +1,5 @@
 import { validateCheckInput, type CheckInput } from "../lib/checks";
+import { JsonBodyError } from "../lib/json-body";
 import { getCheckById, insertCheck, loadChecksPageData, updateCheck } from "../store/checks";
 import { loadDashboardData } from "../store/dashboard";
 import { loadCheckDetailData } from "../store/check-detail";
@@ -39,13 +40,39 @@ const getSearchParamsFromRequest = (request: Request): { q: string; filter: stri
   };
 };
 
+const logRejectedRequestBody = (request: Request, error: JsonBodyError): void => {
+  console.warn(JSON.stringify({
+    message: "request body rejected",
+    path: new URL(request.url).pathname,
+    method: request.method,
+    contentType: request.headers.get("content-type"),
+    contentLength: request.headers.get("content-length"),
+    reason: error.message,
+    status: error.status,
+  }));
+};
+
 const readValidatedCheckInput = async (
   request: Request,
 ): Promise<
   | { ok: true; input: CheckInput }
   | { ok: false; response: Response; error: string; status: number }
 > => {
-  const input = await readCheckInputFromRequest(request);
+  let input: CheckInput | null;
+  try {
+    input = await readCheckInputFromRequest(request);
+  } catch (error) {
+    if (error instanceof JsonBodyError) {
+      logRejectedRequestBody(request, error);
+      const response =
+        error.status === 413
+          ? invalidInputResponse("request_too_large")
+          : invalidInputResponse(error.message);
+      return { ok: false, response, error: error.message, status: error.status };
+    }
+    throw error;
+  }
+
   if (!input) {
     return { ok: false, response: unsupportedContentTypeResponse(), error: "unsupported_media_type", status: 415 };
   }

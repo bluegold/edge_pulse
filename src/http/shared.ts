@@ -1,4 +1,5 @@
 import type { CheckInput } from "../lib/checks";
+import { JsonBodyError, readJsonWithLimit } from "../lib/json-body";
 import { readAdminApiToken, type SecretEnv } from "../lib/secrets";
 
 export const respondHtml = (body: string, status = 200) =>
@@ -63,7 +64,7 @@ export const readFormCheckInput = async (request: Request): Promise<CheckInput> 
 };
 
 export const readJsonCheckInput = async (request: Request): Promise<CheckInput> => {
-  const body = (await request.json()) as Record<string, unknown>;
+  const body = await readJsonWithLimit<Record<string, unknown>>(request);
   return readCheckInput(body);
 };
 
@@ -235,7 +236,17 @@ const verifyAccessJwtSignature = async (
     return false;
   }
 
-  const certPayload = extractAccessKeys((await certResponse.json()) as unknown);
+  let certPayloadRaw: unknown;
+  try {
+    certPayloadRaw = await readJsonWithLimit<unknown>(certResponse);
+  } catch (error) {
+    if (error instanceof JsonBodyError) {
+      return false;
+    }
+    throw error;
+  }
+
+  const certPayload = extractAccessKeys(certPayloadRaw);
   if (certPayload.length === 0) {
     return false;
   }

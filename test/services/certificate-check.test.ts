@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { fetchCertificateSnapshot } from "../../src/lib/cert-probe";
 
 vi.mock("@cloudflare/containers", () => ({
   getContainer: () => ({
@@ -63,5 +64,28 @@ describe("certificate check service", () => {
         error: null,
       }),
     ).toBeNull();
+  });
+
+  it("treats oversized cert probe responses as an error result", async () => {
+    const oversizedJson = JSON.stringify({ payload: "x".repeat(20_000) });
+
+    const snapshot = await fetchCertificateSnapshot(
+      {
+        fetch: async () =>
+          new Response(oversizedJson, {
+            status: 200,
+            headers: {
+              "content-type": "application/json",
+              "content-length": String(oversizedJson.length),
+            },
+          }),
+      },
+      "api.example.com",
+      443,
+      "api.example.com",
+    );
+
+    expect(snapshot.error).toBe("request_too_large");
+    expect(snapshot.subject).toBeNull();
   });
 });

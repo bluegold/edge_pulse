@@ -277,6 +277,24 @@ describe("notification test api", () => {
       severity: "danger",
     });
   });
+
+  it("returns 400 when the notification test body is invalid json", async () => {
+    const response = await app.request(
+      "https://edge-pulse.example.com/api/notifications/test",
+      {
+        method: "POST",
+        headers: {
+          authorization: "Bearer secret-token",
+          "content-type": "application/json",
+        },
+        body: "{invalid",
+      },
+      makeEnv({ checks: [], nextId: 1 }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "invalid_json" });
+  });
 });
 
 describe("cloudflare access gate", () => {
@@ -405,6 +423,29 @@ describe("api checks", () => {
     expect(payload.check?.id).toBe(1);
     expect(payload.check?.name).toBe("payments.example.com");
     expect(state.checks).toHaveLength(1);
+  });
+
+  it("returns 413 when the create check body exceeds the json limit", async () => {
+    const state: MockState = { checks: [], nextId: 1 };
+
+    const response = await app.request(
+      "http://localhost/api/checks",
+      {
+        method: "POST",
+        headers: {
+          authorization: "Bearer secret-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          name: "x".repeat(20_000),
+          url: "https://payments.example.com",
+        }),
+      },
+      makeEnv(state),
+    );
+
+    expect(response.status).toBe(413);
+    await expect(response.json()).resolves.toEqual({ error: "request_too_large" });
   });
 
   it("creates a check from form data", async () => {

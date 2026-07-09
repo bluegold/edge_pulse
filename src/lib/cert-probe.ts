@@ -1,3 +1,4 @@
+import { JsonBodyError, readJsonWithLimit } from "./json-body";
 import type { CheckRow } from "./checks";
 
 export type CertProbeResponse = {
@@ -150,7 +151,28 @@ export const fetchCertificateSnapshot = async (
         signal: controller.signal,
       });
 
-      const payload = (await response.json()) as CertProbeApiResponse;
+      let payload: CertProbeApiResponse;
+      try {
+        payload = await readJsonWithLimit<CertProbeApiResponse>(response);
+      } catch (error) {
+        if (error instanceof JsonBodyError) {
+          return {
+            host,
+            port,
+            serverName,
+            subject: null,
+            issuer: null,
+            class: null,
+            validFrom: null,
+            validTo: null,
+            daysRemaining: null,
+            dnsNames: null,
+            error: error.message,
+          };
+        }
+        throw error;
+      }
+
       return {
         host: payload.host ?? host,
         port: payload.port ?? port,
