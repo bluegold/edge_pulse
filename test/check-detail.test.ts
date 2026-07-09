@@ -29,9 +29,20 @@ vi.mock("@cloudflare/containers", () => ({
 
 import { app } from "../src/index.ts";
 import { loadCheckDetailData, type CheckDetailData } from "../src/store/check-detail";
-import type { Database } from "../src/lib/database";
 import { renderCheckDetailPage } from "../src/views/check-detail-page.tsx";
 import type { CheckRow } from "../src/lib/checks";
+
+const d1Meta: D1Meta & Record<string, unknown> = {
+  duration: 0,
+  size_after: 0,
+  rows_read: 0,
+  rows_written: 0,
+  last_row_id: 0,
+  changed_db: false,
+  changes: 0,
+};
+
+const emptyResult = <T>(): D1Result<T> => ({ success: true as const, meta: d1Meta, results: [] as T[] });
 
 const now = "2026-07-03T12:00:00.000Z";
 
@@ -146,7 +157,7 @@ const detailData: CheckDetailData = {
   generatedAt: now,
 };
 
-const createDb = (result: CheckDetailData | null): Database => ({
+const createDb = (result: CheckDetailData | null): D1Database => ({
   prepare(sql: string) {
     const normalized = sql.replaceAll(/\s+/g, " ").trim();
     const statement = (params: unknown[] = []) => ({
@@ -227,13 +238,24 @@ const createDb = (result: CheckDetailData | null): Database => ({
           }
         }
 
-        return { success: true };
+        return emptyResult();
+      },
+      async raw(options?: { columnNames?: boolean }) {
+        if (options?.columnNames) {
+          return [[]] as [string[], ...unknown[][]];
+        }
+        return [] as unknown[][];
       },
     });
 
-    return statement();
+    return statement() as D1PreparedStatement;
   },
   batch: async <T>() => [] as T[],
+  exec: async () => ({ count: 0, duration: 0 }),
+  withSession: () => {
+    throw new Error("not implemented");
+  },
+  dump: async () => new ArrayBuffer(0),
 });
 
 describe("check detail", () => {

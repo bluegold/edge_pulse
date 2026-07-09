@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { buildCheckResult, type CheckJob, type CheckRow, type CheckRunRow } from "../../src/lib/checks";
-import type { Database } from "../../src/lib/database";
 import {
   claimScheduledCheckRun,
   ensureCheckRunForExecution,
@@ -13,6 +12,20 @@ type Statement = {
   sql: string;
   params: unknown[];
 };
+
+type MockStatement = D1PreparedStatement & Statement;
+
+const d1Meta: D1Meta & Record<string, unknown> = {
+  duration: 0,
+  size_after: 0,
+  rows_read: 0,
+  rows_written: 0,
+  last_row_id: 0,
+  changed_db: false,
+  changes: 0,
+};
+
+const emptyResult = <T>(): D1Result<T> => ({ success: true as const, meta: d1Meta, results: [] as T[] });
 
 type TestState = {
   check: CheckRow;
@@ -310,10 +323,10 @@ const makeDb = (overrides: Partial<TestState> = {}) => {
     }
   };
 
-  const db: Database = {
+  const db: D1Database = {
     prepare(sql: string) {
       const normalized = normalizeSql(sql);
-      const statement = {
+      const statement: MockStatement = {
         sql: normalized,
         params: [] as unknown[],
         bind(...params: unknown[]) {
@@ -440,23 +453,38 @@ const makeDb = (overrides: Partial<TestState> = {}) => {
         async all<T>() {
           return { results: [] } as T;
         },
-      async run() {
-        applyStatement(normalized, statement.params);
-        return { success: true };
-      },
+        async run() {
+          applyStatement(normalized, statement.params);
+          return emptyResult();
+        },
+        raw: (async (options?: { columnNames?: boolean }) => {
+          if (options?.columnNames) {
+            return [[]] as [string[], ...unknown[][]];
+          }
+          return [] as unknown[][];
+        }) as D1PreparedStatement["raw"],
       };
-      return statement as unknown as ReturnType<Database["prepare"]>;
+      return statement;
     },
-    async batch<T>(statements: ReturnType<Database["prepare"]>[]) {
+    async batch<T>(statements: D1PreparedStatement[]) {
       if (state.batchFailuresRemaining > 0) {
         state.batchFailuresRemaining -= 1;
         throw new Error("batch failed");
       }
 
-      for (const statement of statements as unknown as Array<{ sql: string; params: unknown[] }>) {
+      for (const statement of statements as MockStatement[]) {
         applyStatement(statement.sql, statement.params);
       }
       return [] as T[];
+    },
+    async exec() {
+      return { count: 0, duration: 0 };
+    },
+    withSession() {
+      throw new Error("not implemented");
+    },
+    async dump() {
+      return new ArrayBuffer(0);
     },
   };
 

@@ -1,6 +1,5 @@
 import { calculateCertificateDaysRemaining, isCertificateExpiringSoon, type CheckRow, type CheckState } from "../lib/checks";
 import { summarizeChecks } from "../lib/checks-summary";
-import type { Database } from "../lib/database";
 
 export type DashboardCheckRow = CheckRow & {
   uptime_started_at?: string | null;
@@ -91,7 +90,7 @@ const isAttentionCheck = (check: CheckRow, now: Date): boolean =>
   isCertificateExpiringSoon(calculateCertificateDaysRemaining(check.tls_valid_to, now)) ||
   Boolean(check.maintenance_enabled);
 
-export const loadDashboardData = async (db: Database): Promise<DashboardData> => {
+export const loadDashboardData = async (db: D1Database): Promise<DashboardData> => {
   const now = new Date();
   const dayAgo = new Date(now.getTime() - 24 * 60 * 60_000).toISOString();
 

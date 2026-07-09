@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { loadChecksPageData } from "../../src/store/checks";
-import type { Database } from "../../src/lib/database";
 import {
   buildCheckSearchAttributes,
   evaluateCheckSearchFilter,
@@ -9,13 +8,30 @@ import {
   matchesCheckTextQuery,
 } from "../../src/lib/checks-search";
 
+type MockStatement = D1PreparedStatement & {
+  sql: string;
+  params: unknown[];
+};
+
+const d1Meta: D1Meta & Record<string, unknown> = {
+  duration: 0,
+  size_after: 0,
+  rows_read: 0,
+  rows_written: 0,
+  last_row_id: 0,
+  changed_db: false,
+  changes: 0,
+};
+
+const emptyResult = <T>(): D1Result<T> => ({ success: true as const, meta: d1Meta, results: [] as T[] });
+
 const makeDb = (
   rows: {
     checks: Array<Record<string, unknown>>;
     incidents: Array<{ check_id: number }>;
   },
   search: { q?: string; filter?: string; order?: string } = {},
-): Database => {
+): D1Database => {
   const recentIncidentCheckIds = new Set(rows.incidents.map((row) => row.check_id));
   const filterAst = search.filter ? parseCheckSearchFilter(search.filter) : null;
 
@@ -71,9 +87,12 @@ const makeDb = (
     prepare(sql: string) {
       const normalized = sql.replaceAll(/\s+/g, " ").trim();
       let boundArgs: unknown[] = [];
-      const statement = {
+      const statement: MockStatement = {
+        sql: normalized,
+        params: boundArgs,
         bind(...args: unknown[]) {
           boundArgs = args;
+          statement.params = args;
           return statement;
         },
         async first<T>() {
@@ -104,13 +123,28 @@ const makeDb = (
           return { results: [] } as T;
         },
         async run() {
-          return {};
+          return emptyResult();
         },
+        raw: (async (options?: { columnNames?: boolean }) => {
+          if (options?.columnNames) {
+            return [[]] as [string[], ...unknown[][]];
+          }
+          return [] as unknown[][];
+        }) as D1PreparedStatement["raw"],
       };
-      return statement as unknown as ReturnType<Database["prepare"]>;
+      return statement;
     },
     async batch() {
       return [];
+    },
+    async exec() {
+      return { count: 0, duration: 0 };
+    },
+    withSession() {
+      throw new Error("not implemented");
+    },
+    async dump() {
+      return new ArrayBuffer(0);
     },
   };
 };

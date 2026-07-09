@@ -1,5 +1,4 @@
 import { validateCheckInput, type CheckInput } from "../lib/checks";
-import { toDatabase } from "../lib/database";
 import { getCheckById, insertCheck, loadChecksPageData, updateCheck } from "../store/checks";
 import { loadDashboardData } from "../store/dashboard";
 import { loadCheckDetailData } from "../store/check-detail";
@@ -69,12 +68,12 @@ const renderChecksPageResponse = async (
   filter = "",
   order = "",
 ): Promise<Response> => {
-  const data = await loadChecksPageData(toDatabase(env["pulse-db"]), page, editId, highlightId, q, filter, order);
+  const data = await loadChecksPageData(env["pulse-db"], page, editId, highlightId, q, filter, order);
   return respondHxOrHtml(request, () => renderChecksShell(data), () => renderChecksPage(data));
 };
 
 const renderCheckDetailPageResponse = async (request: Request, env: Env, id: number): Promise<Response> => {
-  const data = await loadCheckDetailData(toDatabase(env["pulse-db"]), id);
+  const data = await loadCheckDetailData(env["pulse-db"], id);
   if (!data) {
     return notFoundResponse();
   }
@@ -83,7 +82,7 @@ const renderCheckDetailPageResponse = async (request: Request, env: Env, id: num
 };
 
 const renderDashboardPageResponse = async (request: Request, env: Env): Promise<Response> => {
-  const data = await loadDashboardData(toDatabase(env["pulse-db"]));
+  const data = await loadDashboardData(env["pulse-db"]);
   const accessIdentity = readCloudflareAccessIdentity(request);
   return respondHxOrHtml(request, () => renderDashboardShell(data), () => renderDashboardPage(data, accessIdentity));
 };
@@ -113,7 +112,7 @@ export const handleCreateCheck = async (request: Request, env: Env): Promise<Res
   const input = inputResult.input;
 
   const now = new Date().toISOString();
-  await insertCheck(toDatabase(env["pulse-db"]), input, now);
+  await insertCheck(env["pulse-db"], input, now);
   return renderChecksPageResponse(request, env, page, null, null, q, filter, order);
 };
 
@@ -127,12 +126,12 @@ export const handleUpdateCheck = async (request: Request, env: Env, id: number):
   const input = inputResult.input;
 
   const now = new Date().toISOString();
-  await updateCheck(toDatabase(env["pulse-db"]), id, input, now);
+  await updateCheck(env["pulse-db"], id, input, now);
   return renderChecksPageResponse(request, env, page, null, id, q, filter, order);
 };
 
 export const handleCertificateRecheck = async (request: Request, env: Env, id: number): Promise<Response> => {
-  const check = await getCheckById(toDatabase(env["pulse-db"]), id);
+  const check = await getCheckById(env["pulse-db"], id);
   if (!check) {
     return notFoundResponse();
   }
@@ -146,7 +145,7 @@ export const handleCertificateRecheck = async (request: Request, env: Env, id: n
   }
 
   if (isHxRequest(request)) {
-    const updatedCheck = await getCheckById(toDatabase(env["pulse-db"]), id);
+    const updatedCheck = await getCheckById(env["pulse-db"], id);
     if (!updatedCheck) {
       return notFoundResponse();
     }
@@ -160,7 +159,7 @@ export const handleCertificateRecheck = async (request: Request, env: Env, id: n
 export const handleApiListChecks = async (env: Env, request: Request): Promise<Response> => {
   const page = getPageFromRequest(request);
   const { q, filter, order } = getSearchParamsFromRequest(request);
-  const data = await loadChecksPageData(toDatabase(env["pulse-db"]), page, null, null, q, filter, order);
+  const data = await loadChecksPageData(env["pulse-db"], page, null, null, q, filter, order);
   return respondJson({
     checks: data.checks,
     page: data.page,
@@ -178,8 +177,8 @@ export const handleApiCreateCheck = async (env: Env, request: Request): Promise<
   const input = inputResult.input;
 
   const now = new Date().toISOString();
-  const id = await insertCheck(toDatabase(env["pulse-db"]), input, now);
-  const check = await getCheckById(toDatabase(env["pulse-db"]), id);
+  const id = await insertCheck(env["pulse-db"], input, now);
+  const check = await getCheckById(env["pulse-db"], id);
   return respondJson({ check }, 201);
 };
 
@@ -191,8 +190,8 @@ export const handleApiUpdateCheck = async (env: Env, id: number, request: Reques
   const input = inputResult.input;
 
   const now = new Date().toISOString();
-  await updateCheck(toDatabase(env["pulse-db"]), id, input, now);
-  const check = await getCheckById(toDatabase(env["pulse-db"]), id);
+  await updateCheck(env["pulse-db"], id, input, now);
+  const check = await getCheckById(env["pulse-db"], id);
   if (!check) {
     return respondJson({ error: "not_found" }, 404);
   }
@@ -201,7 +200,7 @@ export const handleApiUpdateCheck = async (env: Env, id: number, request: Reques
 };
 
 export const handleApiGetCheck = async (env: Env, id: number): Promise<Response> => {
-  const check = await getCheckById(toDatabase(env["pulse-db"]), id);
+  const check = await getCheckById(env["pulse-db"], id);
   if (!check) {
     return respondJson({ error: "not_found" }, 404);
   }

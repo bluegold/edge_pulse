@@ -1,8 +1,7 @@
 import type { CertProbeResponse } from "../lib/cert-probe";
 import type { CheckRow, CheckRunRow, TransitionChange, CheckResult } from "../lib/checks";
-import type { Database } from "../lib/database";
 
-export const buildUpdateCheckStatement = (db: Database, nextCheck: CheckRow, certificate: CertProbeResponse | null, checkedAt: string) => {
+export const buildUpdateCheckStatement = (db: D1Database, nextCheck: CheckRow, certificate: CertProbeResponse | null, checkedAt: string) => {
   if (certificate) {
     return db.prepare(`
       UPDATE checks
@@ -40,7 +39,7 @@ export const buildUpdateCheckStatement = (db: Database, nextCheck: CheckRow, cer
 };
 
 export const buildStatusEventStatement = (
-  db: Database, 
+  db: D1Database, 
   check: CheckRow, 
   run: CheckRunRow, 
   result: CheckResult, 

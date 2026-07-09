@@ -11,7 +11,6 @@ import {
   type UndispatchedCheckRunRow,
 } from "../lib/checks";
 import type { CertProbeResponse } from "../lib/cert-probe";
-import type { Database } from "../lib/database";
 import { buildUpdateCheckStatement, buildStatusEventStatement } from "./check-execution-sql";
 const CHECK_RUN_LEASE_MS = 5 * 60_000;
 
@@ -19,11 +18,11 @@ const addMilliseconds = (iso: string, ms: number): string => {
   return new Date(new Date(iso).getTime() + ms).toISOString();
 };
 
-export const getCheckForExecution = async (db: Database, id: number): Promise<CheckRow | null> => {
+export const getCheckForExecution = async (db: D1Database, id: number): Promise<CheckRow | null> => {
   return db.prepare(`SELECT * FROM checks WHERE id = ? LIMIT 1`).bind(id).first<CheckRow>();
 };
 
-export const claimScheduledCheckRun = async (db: Database, job: CheckJob, now: string): Promise<boolean> => {
+export const claimScheduledCheckRun = async (db: D1Database, job: CheckJob, now: string): Promise<boolean> => {
   const inserted = await db
     .prepare(
       `
@@ -40,7 +39,7 @@ export const claimScheduledCheckRun = async (db: Database, job: CheckJob, now: s
   return Boolean(inserted);
 };
 
-export const ensureCheckRunForExecution = async (db: Database, job: CheckJob, now: string): Promise<CheckRunClaim> => {
+export const ensureCheckRunForExecution = async (db: D1Database, job: CheckJob, now: string): Promise<CheckRunClaim> => {
   const leaseUntil = addMilliseconds(now, CHECK_RUN_LEASE_MS);
   const claimed = await db
     .prepare(
@@ -92,7 +91,7 @@ export const ensureCheckRunForExecution = async (db: Database, job: CheckJob, no
   return { kind: "missing" };
 };
 
-export const loadUndispatchedCheckRuns = async (db: Database, now: string): Promise<UndispatchedCheckRunRow[]> => {
+export const loadUndispatchedCheckRuns = async (db: D1Database, now: string): Promise<UndispatchedCheckRunRow[]> => {
   const result = await db
     .prepare(
       `
@@ -111,7 +110,7 @@ export const loadUndispatchedCheckRuns = async (db: Database, now: string): Prom
   return result.results;
 };
 
-export const loadStaleCheckRuns = async (db: Database, now: string): Promise<CheckRunRow[]> => {
+export const loadStaleCheckRuns = async (db: D1Database, now: string): Promise<CheckRunRow[]> => {
   const result = await db
     .prepare(
       `
@@ -131,7 +130,7 @@ export const loadStaleCheckRuns = async (db: Database, now: string): Promise<Che
   return result.results;
 };
 
-export const markCheckRunDispatched = async (db: Database, attemptId: string, now: string): Promise<void> => {
+export const markCheckRunDispatched = async (db: D1Database, attemptId: string, now: string): Promise<void> => {
   await db
     .prepare(
       `
@@ -145,7 +144,7 @@ export const markCheckRunDispatched = async (db: Database, attemptId: string, no
     .run();
 };
 
-export const clearCheckRunLease = async (db: Database, attemptId: string, now: string): Promise<void> => {
+export const clearCheckRunLease = async (db: D1Database, attemptId: string, now: string): Promise<void> => {
   await db
     .prepare(
       `
@@ -159,7 +158,7 @@ export const clearCheckRunLease = async (db: Database, attemptId: string, now: s
     .run();
 };
 
-export const finishCheckRunSkipped = async (db: Database, run: CheckRunRow, now: string, skipReason: string): Promise<void> => {
+export const finishCheckRunSkipped = async (db: D1Database, run: CheckRunRow, now: string, skipReason: string): Promise<void> => {
   await db
     .prepare(
       `
@@ -173,7 +172,7 @@ export const finishCheckRunSkipped = async (db: Database, run: CheckRunRow, now:
     .run();
 };
 
-export const getLatestRecoveryAt = async (db: Database, check: CheckRow): Promise<string | null> => {
+export const getLatestRecoveryAt = async (db: D1Database, check: CheckRow): Promise<string | null> => {
   if (!(check.last_state === "ok" && check.tls_last_error)) {
     return null;
   }
@@ -197,7 +196,7 @@ export const getLatestRecoveryAt = async (db: Database, check: CheckRow): Promis
 };
 
 export const persistCheckResult = async (
-  db: Database,
+  db: D1Database,
   check: CheckRow,
   result: ReturnType<typeof buildCheckResult>,
   certificate: CertProbeResponse | null,
@@ -286,7 +285,7 @@ export const persistCheckResult = async (
 export type { CheckResult };
 
 export const finishCheckRun = async (
-  db: Database,
+  db: D1Database,
   run: Pick<CheckRunRow, "id">,
   now: string,
   resultState: CheckRunResultState,

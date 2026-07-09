@@ -1,8 +1,19 @@
 import { describe, expect, it } from "vitest";
 import { loadDashboardData } from "../../src/store/dashboard";
-import type { Database } from "../../src/lib/database";
 
-const makeDb = (): Database => ({
+const d1Meta: D1Meta & Record<string, unknown> = {
+  duration: 0,
+  size_after: 0,
+  rows_read: 0,
+  rows_written: 0,
+  last_row_id: 0,
+  changed_db: false,
+  changes: 0,
+};
+
+const emptyResult = <T>(): D1Result<T> => ({ success: true as const, meta: d1Meta, results: [] });
+
+const makeDb = (): D1Database => ({
   prepare(sql: string) {
     const normalized = sql.replaceAll(/\s+/g, " ").trim();
     return {
@@ -55,12 +66,27 @@ const makeDb = (): Database => ({
         return { results: [] } as T;
       },
       async run() {
-        return {};
+        return emptyResult();
       },
-    } as unknown as ReturnType<Database["prepare"]>;
+      async raw(options?: { columnNames?: boolean }) {
+        if (options?.columnNames) {
+          return [[]] as [string[], ...unknown[][]];
+        }
+        return [] as unknown[][];
+      },
+    } as D1PreparedStatement;
   },
   async batch() {
     return [];
+  },
+  async exec() {
+    return { count: 0, duration: 0 };
+  },
+  withSession() {
+    throw new Error("not implemented");
+  },
+  async dump() {
+    return new ArrayBuffer(0);
   },
 });
 
