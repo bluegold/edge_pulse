@@ -5,7 +5,7 @@ const certificateResponse = {
   port: 443,
   servername: "api-a.example.com",
   subject: "CN=api-a.example.com",
-  issuer: "CN=Example CA",
+  issuer: "CN=Example CA, O=Let's Encrypt, C=US",
   class: "RSA",
   valid_from: "2026-06-01T00:00:00.000Z",
   valid_to: "2026-09-01T00:00:00.000Z",
@@ -72,7 +72,7 @@ const check: CheckRow = {
   tls_last_checked_at: "2026-07-03T11:40:00.000Z",
   tls_last_error: null,
   tls_subject: "CN=api-a.example.com",
-  tls_issuer: "CN=Example CA",
+  tls_issuer: "CN=Example CA, O=Let's Encrypt, C=US",
   tls_public_key_class: "RSA",
   tls_valid_from: "2026-06-01T00:00:00.000Z",
   tls_valid_to: "2026-09-01T00:00:00.000Z",
@@ -268,6 +268,9 @@ describe("check detail", () => {
     expect(html).toContain("24h 障害");
     expect(html).toContain("過去24H");
     expect(html).toContain("証明書情報");
+    expect(html).toContain("Issuer");
+    expect(html).toContain("Example CA");
+    expect(html).toContain("O=Let&#39;s Encrypt, C=US");
     expect(html).toContain("証明書の最終確認日時・結果");
     expect(html).toContain("次回証明書確認");
     expect(html).toContain("2026-07-10T11:40:00.000Z");

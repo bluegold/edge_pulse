@@ -34,10 +34,32 @@ const formatPercent = (value: number | null | undefined): string => {
   return `${value.toFixed(1)}%`;
 };
 
-const extractIssuerCn = (value: string | null | undefined): string => {
-  if (!value) return "-";
-  const match = value.match(/(?:^|,)\s*CN=([^,]+)/i);
-  return match?.[1]?.trim() || value;
+const splitIssuerParts = (value: string | null | undefined): { primary: string; secondary: string | null } => {
+  if (!value) {
+    return { primary: "-", secondary: null };
+  }
+
+  const parts = value
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length === 0) {
+    return { primary: "-", secondary: null };
+  }
+
+  const cnIndex = parts.findIndex((part) => /^CN=/i.test(part));
+  if (cnIndex === -1) {
+    return { primary: value, secondary: null };
+  }
+
+  const primary = parts[cnIndex]?.replace(/^CN=/i, "").trim() || value;
+  const secondaryParts = parts.filter((_, index) => index !== cnIndex);
+
+  return {
+    primary,
+    secondary: secondaryParts.length > 0 ? secondaryParts.join(", ") : null,
+  };
 };
 
 const parseServerTimingSummary = (value: string | null | undefined): string => {
@@ -250,7 +272,7 @@ const GraphSection = ({ data }: { data: CheckDetailData }) => {
 
 const CertificateSection = ({ data }: { data: CheckDetailData }) => {
   const badge = describeCertificateBadge(data.check);
-  const issuerCn = extractIssuerCn(data.check.tls_issuer);
+  const issuer = splitIssuerParts(data.check.tls_issuer);
   const issuerTitle = data.check.tls_issuer ?? "-";
   const nextCertificateProbeAt = calculateNextCertificateProbeAt(data.check, data.latestRecoveryAt);
   return (
@@ -263,11 +285,16 @@ const CertificateSection = ({ data }: { data: CheckDetailData }) => {
           </dd>
         </div>
         <div class="rounded-md border border-white/10 bg-white/5 p-4">
-          <dt class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Issuer CN</dt>
-          <dd class="mt-1 text-right text-lg font-semibold text-slate-50">
-            <span title={issuerTitle} class="block truncate">
-              {issuerCn}
+          <dt class="text-xs font-bold uppercase tracking-[0.22em] text-slate-400">Issuer</dt>
+          <dd class="mt-1 text-right text-slate-50">
+            <span title={issuerTitle} class="block truncate text-lg font-semibold">
+              {issuer.primary}
             </span>
+            {issuer.secondary ? (
+              <span title={issuerTitle} class="mt-1 block truncate text-xs text-slate-400">
+                {issuer.secondary}
+              </span>
+            ) : null}
           </dd>
         </div>
         <div class="rounded-md border border-white/10 bg-white/5 p-4">

@@ -206,7 +206,24 @@ export const persistCheckResult = async (
     return { kind: "none", nextState: check.last_state };
   }
 
-  const evaluated = evaluateTransition(check, result);
+  const unresolvedIncident = await db.prepare(`
+    SELECT id, started_at
+    FROM incidents
+    WHERE check_id = ? AND resolved_at IS NULL
+    ORDER BY started_at DESC
+    LIMIT 1
+  `).bind(check.id).first<{ id: number; started_at: string }>();
+
+  const effectiveCheck = unresolvedIncident && check.last_state !== "fail"
+    ? {
+        ...check,
+        last_state: "fail" as const,
+        first_failure_at: check.first_failure_at ?? unresolvedIncident.started_at,
+        consecutive_successes: 0,
+      }
+    : check;
+
+  const evaluated = evaluateTransition(effectiveCheck, result);
   const nextCheck = evaluated.nextCheck;
 
   await db.prepare(`
@@ -228,14 +245,6 @@ export const persistCheckResult = async (
       check.id, evaluated.transition.startedAt, result.reason, result.statusCode, result.checkedAt, result.checkedAt
     ).run();
   }
-
-  const unresolvedIncident = await db.prepare(`
-    SELECT id, started_at
-    FROM incidents
-    WHERE check_id = ? AND resolved_at IS NULL
-    ORDER BY started_at DESC
-    LIMIT 1
-  `).bind(check.id).first<{ id: number; started_at: string }>();
 
   const incidentStartedAt = evaluated.transition.kind === "incident-opened" ? evaluated.transition.startedAt : unresolvedIncident?.started_at ?? result.checkedAt;
   const failureCountRow = await db.prepare(`

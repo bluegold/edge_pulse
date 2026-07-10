@@ -746,14 +746,55 @@ describe("check execution store", () => {
     expect(state.incidents).toHaveLength(1);
 
     await expect(persistCheckResult(db, state.check, result, null, state.checkRuns[0]!)).resolves.toMatchObject({
-      kind: "incident-opened",
+      kind: "none",
       nextState: "fail",
     });
 
     expect(state.results).toHaveLength(1);
     expect(state.incidents).toHaveLength(1);
-    expect(state.events).toHaveLength(1);
+    expect(state.events).toHaveLength(0);
     expect(state.incidents[0]?.failure_count).toBe(1);
     expect(state.checkRuns[0]?.finished_at).toBe("2026-06-22T00:11:00.000Z");
+  });
+
+  it("resolves an unresolved incident even when checks.last_state drifted to ok", async () => {
+    const { db, state } = makeDb({
+      check: {
+        ...baseCheck,
+        last_state: "ok",
+        recovery_threshold: 1,
+      },
+      incidents: [
+        {
+          id: 1,
+          check_id: 1,
+          started_at: "2026-07-07T10:35:57.693Z",
+          resolved_at: null,
+          start_reason: "http_status",
+          end_reason: null,
+          start_status_code: 502,
+          end_status_code: null,
+          failure_count: 1,
+        },
+      ],
+      checkRuns: [makeCheckRun()],
+    });
+    const result = buildCheckResult({
+      state: "ok",
+      statusCode: 200,
+      latencyMs: 42,
+      error: null,
+      reason: "http_ok",
+      checkedAt: "2026-07-10T03:00:00.000Z",
+    });
+
+    const transition = await persistCheckResult(db, state.check, result, null, state.checkRuns[0]!);
+
+    expect(transition).toMatchObject({
+      kind: "incident-resolved",
+      nextState: "ok",
+    });
+    expect(state.incidents[0]?.resolved_at).toBe("2026-07-10T03:00:00.000Z");
+    expect(state.events).toHaveLength(1);
   });
 });
