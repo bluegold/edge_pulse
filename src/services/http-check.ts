@@ -1,4 +1,5 @@
 import { classifyCheckFailureReason } from "../lib/checks";
+import { toErrorMessage } from "../lib/error-message";
 import type { describeCertificateAlert } from "./certificate-check";
 
 const CHECK_USER_AGENT = "edge-pulse-check/1.0";
@@ -48,7 +49,7 @@ export const performHttpCheck = async (url: string, method: string, timeoutMs: n
       signal: controller.signal,
     });
   } catch (cause) {
-    error = cause instanceof Error ? cause.message : String(cause);
+    error = toErrorMessage(cause);
   } finally {
     clearTimeout(timeout);
   }

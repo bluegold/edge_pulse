@@ -85,10 +85,12 @@ const compareCheckAttention = (a: CheckRow, b: CheckRow, now: Date): number => {
 };
 
 const isAttentionCheck = (check: CheckRow, now: Date): boolean =>
-  check.last_state === "fail" ||
-  Boolean(check.tls_last_error) ||
-  isCertificateExpiringSoon(calculateCertificateDaysRemaining(check.tls_valid_to, now)) ||
-  Boolean(check.maintenance_enabled);
+  check.enabled === 1 && (
+    check.last_state === "fail" ||
+    Boolean(check.tls_last_error) ||
+    isCertificateExpiringSoon(calculateCertificateDaysRemaining(check.tls_valid_to, now)) ||
+    Boolean(check.maintenance_enabled)
+  );
 
 export const loadDashboardData = async (db: D1Database): Promise<DashboardData> => {
   const now = new Date();
@@ -121,6 +123,7 @@ export const loadDashboardData = async (db: D1Database): Promise<DashboardData> 
         FROM incidents i
         JOIN checks c ON c.id = i.check_id
         WHERE i.resolved_at IS NULL
+          AND c.enabled = 1
         ORDER BY i.started_at DESC, i.id DESC
       `,
       )
@@ -188,16 +191,17 @@ export const loadDashboardData = async (db: D1Database): Promise<DashboardData> 
 };
 
 export const summarizeDashboard = (checks: CheckRow[], recentIncidents: IncidentRow[], now: Date | string = new Date()) => {
-  const summary = summarizeChecks(checks);
-  const certExpiringSoonChecks = checks.filter(
+  const enabledChecks = checks.filter((check) => check.enabled === 1);
+  const summary = summarizeChecks(enabledChecks);
+  const certExpiringSoonChecks = enabledChecks.filter(
     (check) => isCertificateExpiringSoon(calculateCertificateDaysRemaining(check.tls_valid_to, now)),
   ).length;
   const averageLatency =
-    checks.length === 0
+    enabledChecks.length === 0
       ? null
       : Math.round(
-          checks.reduce((sum, check) => sum + (check.last_latency_ms ?? 0), 0) /
-            Math.max(1, checks.filter((check) => check.last_latency_ms !== null).length || 1),
+          enabledChecks.reduce((sum, check) => sum + (check.last_latency_ms ?? 0), 0) /
+            Math.max(1, enabledChecks.filter((check) => check.last_latency_ms !== null).length || 1),
         );
 
   return {
@@ -206,6 +210,6 @@ export const summarizeDashboard = (checks: CheckRow[], recentIncidents: Incident
     failedChecks: summary.failedChecks,
     certExpiringSoonChecks,
     incidents24h: recentIncidents.length,
-    averageLatencyMs: checks.some((check) => check.last_latency_ms !== null) ? averageLatency : null,
+    averageLatencyMs: enabledChecks.some((check) => check.last_latency_ms !== null) ? averageLatency : null,
   };
 };

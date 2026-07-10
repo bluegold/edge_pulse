@@ -1,6 +1,7 @@
 import { getContainer } from "@cloudflare/containers";
 import { isCertificateExpiringSoon, type CheckRow, validateMonitorUrl } from "../lib/checks";
 import { fetchCertificateSnapshot, snapshotToCheckFields, type CertProbeResponse } from "../lib/cert-probe";
+import { toErrorMessage } from "../lib/error-message";
 
 export const CERT_EXPIRY_THRESHOLD_DAYS = 30;
 
@@ -43,7 +44,7 @@ export const refreshCertificateSnapshot = async (
       message: "certificate recheck probe failed",
       checkId: check.id,
       url: check.url,
-      error: error instanceof Error ? error.message : String(error),
+      error: toErrorMessage(error),
     }));
     return { ok: false, status: 503, error: "証明書再確認の実行基盤の起動に失敗しました" };
   }

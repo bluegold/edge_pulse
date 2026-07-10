@@ -1,4 +1,5 @@
 import { calculateCertificateDaysRemaining, type CheckRow } from "./checks";
+import { toErrorMessage } from "./error-message";
 
 export type CheckSearchFilterNode =
   | {
@@ -451,7 +452,7 @@ export const buildChecksSearchWhereClause = (
       return {
         sql: "0",
         params: [],
-        searchError: error instanceof Error ? error.message : "filter の形式が不正です",
+        searchError: error instanceof Error ? toErrorMessage(error) : "filter の形式が不正です",
       };
     }
   }

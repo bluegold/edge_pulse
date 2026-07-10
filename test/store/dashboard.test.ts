@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { loadDashboardData } from "../../src/store/dashboard";
+import { loadDashboardData, summarizeDashboard } from "../../src/store/dashboard";
 
 const d1Meta: D1Meta & Record<string, unknown> = {
   duration: 0,
@@ -33,6 +33,29 @@ const makeDb = (): D1Database => ({
               { id: 1, name: "api", last_state: "ok", enabled: 1, last_latency_ms: 10, tls_valid_to: "2026-07-20T00:00:00.000Z", maintenance_enabled: 0 },
               { id: 2, name: "api-2", last_state: "fail", enabled: 1, last_latency_ms: null, tls_valid_to: null },
               { id: 3, name: "api-3", last_state: "ok", enabled: 1, last_latency_ms: 8, tls_valid_to: "2026-10-01T00:00:00.000Z", maintenance_enabled: 1 },
+              { id: 4, name: "api-4", last_state: "fail", enabled: 0, last_latency_ms: null, tls_valid_to: null, maintenance_enabled: 0 },
+            ],
+          } as T;
+        }
+        if (normalized.includes("FROM incidents i JOIN checks c") && normalized.includes("WHERE i.resolved_at IS NULL")) {
+          expect(normalized).toContain("AND c.enabled = 1");
+          return {
+            results: [
+              {
+                id: 10,
+                check_id: 1,
+                check_name: "api",
+                check_url: "https://api.example.com",
+                started_at: "2026-06-22T00:00:00.000Z",
+                resolved_at: null,
+                start_reason: "http_status",
+                end_reason: null,
+                start_status_code: 500,
+                end_status_code: null,
+                failure_count: 1,
+                created_at: "2026-06-22T00:00:00.000Z",
+                updated_at: "2026-06-22T00:00:00.000Z",
+              },
             ],
           } as T;
         }
@@ -53,6 +76,21 @@ const makeDb = (): D1Database => ({
                 failure_count: 1,
                 created_at: "2026-06-22T00:00:00.000Z",
                 updated_at: "2026-06-22T00:00:00.000Z",
+              },
+              {
+                id: 11,
+                check_id: 99,
+                check_name: "disabled-api",
+                check_url: "https://disabled.example.com",
+                started_at: "2026-06-21T00:00:00.000Z",
+                resolved_at: null,
+                start_reason: "http_status",
+                end_reason: null,
+                start_status_code: 500,
+                end_status_code: null,
+                failure_count: 1,
+                created_at: "2026-06-21T00:00:00.000Z",
+                updated_at: "2026-06-21T00:00:00.000Z",
               },
             ],
           } as T;
@@ -94,10 +132,31 @@ describe("loadDashboardData", () => {
   it("returns dashboard data from the store", async () => {
     const data = await loadDashboardData(makeDb());
 
-    expect(data.checks).toHaveLength(3);
+    expect(data.checks).toHaveLength(4);
     expect(data.recentChecks).toHaveLength(3);
     expect(data.recentChecks.map((check) => check.id)).toEqual([2, 1, 3]);
     expect(data.currentIncidents).toHaveLength(1);
     expect(data.incidents24h).toBe(2);
+  });
+
+  it("excludes disabled checks from dashboard summary metrics", () => {
+    const summary = summarizeDashboard(
+      [
+        { id: 1, enabled: 1, last_state: "ok", last_latency_ms: 100, tls_valid_to: "2026-07-20T00:00:00.000Z" } as never,
+        { id: 2, enabled: 1, last_state: "fail", last_latency_ms: 300, tls_valid_to: null } as never,
+        { id: 3, enabled: 0, last_state: "ok", last_latency_ms: 999, tls_valid_to: "2026-07-11T00:00:00.000Z" } as never,
+      ],
+      [],
+      "2026-07-10T00:00:00.000Z",
+    );
+
+    expect(summary).toEqual({
+      totalChecks: 2,
+      okChecks: 1,
+      failedChecks: 1,
+      certExpiringSoonChecks: 1,
+      incidents24h: 0,
+      averageLatencyMs: 200,
+    });
   });
 });

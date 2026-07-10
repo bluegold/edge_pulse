@@ -1,4 +1,5 @@
 import type { CheckResult, CheckRow, TransitionChange } from "../lib/checks";
+import { toErrorMessage } from "../lib/error-message";
 import { readNotificationSecrets, type SecretEnv } from "../lib/secrets";
 
 type NotificationTarget = {
@@ -23,8 +24,6 @@ type TestNotificationContext = {
   severity: "danger" | "good";
   sentAt: string;
 };
-
-const toErrorMessage = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
 const splitList = (value: string | undefined): string[] => {
   if (!value) return [];

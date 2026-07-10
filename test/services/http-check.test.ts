@@ -65,5 +65,42 @@ describe("http-check service", () => {
       
       fetchSpy.mockRestore();
     });
+
+    it("keeps nested cause details from platform fetch errors", async () => {
+      const platformError = new Error("internal error; reference = 8hhlv3j7nkub91vknpj2id86");
+      (platformError as Error & { cause?: unknown }).cause = new Error("DNS lookup failed.");
+      const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(platformError);
+
+      const { response, error } = await performHttpCheck("https://example.com", "GET", 5000);
+
+      expect(fetchSpy).toHaveBeenCalled();
+      expect(response).toBeNull();
+      expect(error).toBe("internal error; reference = 8hhlv3j7nkub91vknpj2id86 | DNS lookup failed.");
+
+      fetchSpy.mockRestore();
+    });
+
+    it("extracts nested object fields from workerd fetch errors", async () => {
+      const platformError = {
+        message: "internal error; reference = 3s1is5f41irf7r0f7cq7nq77",
+        e: "kj/async-io-unix.c++:1293: failed: DNS lookup failed.; params.host = unknown.example.com; params.service = ; gai_strerror(status) = Name or service not known",
+        params: {
+          host: "unknown.example.com",
+          service: "",
+        },
+        stack: "/path/to/workerd",
+      };
+      const fetchSpy = vi.spyOn(globalThis, "fetch").mockRejectedValue(platformError);
+
+      const { response, error } = await performHttpCheck("https://example.com", "GET", 5000);
+
+      expect(fetchSpy).toHaveBeenCalled();
+      expect(response).toBeNull();
+      expect(error).toContain("internal error; reference = 3s1is5f41irf7r0f7cq7nq77");
+      expect(error).toContain("e: kj/async-io-unix.c++:1293: failed: DNS lookup failed.");
+      expect(error).toContain("host: unknown.example.com");
+
+      fetchSpy.mockRestore();
+    });
   });
 });

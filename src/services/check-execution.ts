@@ -19,6 +19,7 @@ import {
   finishCheckRun,
   persistCheckResult,
 } from "../store/check-execution";
+import { toErrorMessage } from "../lib/error-message";
 import { describeCertificateAlert, probeCertificateSnapshot } from "./certificate-check";
 import { dispatchNotifications } from "./notifications";
 import { determineResultState, performHttpCheck } from "./http-check";
@@ -127,7 +128,7 @@ export const runCheck = async (env: Env, job: CheckJob, ctx?: ExecutionContext):
           checkId: check.id,
           attemptId: run.attempt_id,
           transition: transition.kind,
-          error: error instanceof Error ? error.message : String(error),
+          error: toErrorMessage(error),
         }));
       }),
     );
@@ -140,7 +141,7 @@ export const runCheck = async (env: Env, job: CheckJob, ctx?: ExecutionContext):
       checkId: check.id,
       attemptId: run.attempt_id,
       transition: transition.kind,
-      error: error instanceof Error ? error.message : String(error),
+      error: toErrorMessage(error),
     }));
   });
 };

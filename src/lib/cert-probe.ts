@@ -1,5 +1,6 @@
 import { JsonBodyError, readJsonWithLimit } from "./json-body";
 import type { CheckRow } from "./checks";
+import { toErrorMessage } from "./error-message";
 
 export type CertProbeResponse = {
   host: string;
@@ -202,7 +203,7 @@ export const fetchCertificateSnapshot = async (
       validTo: null,
       daysRemaining: null,
       dnsNames: null,
-      error: cause instanceof Error ? cause.message : String(cause),
+      error: toErrorMessage(cause),
     };
   }
 };

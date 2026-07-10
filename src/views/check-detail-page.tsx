@@ -3,7 +3,7 @@ import { AppLayout } from "./app-layout.tsx";
 import { CheckEditForm } from "./check-edit-form";
 import type { CheckDetailData as CheckDetailDataType } from "../store/check-detail";
 import { LocalTime, formatLocalDateTime } from "./time.tsx";
-import { formatNullable } from "../presenters/common";
+import { formatNullable, isPlatformFetchError } from "../presenters/common";
 import { describeCheckState, describeCertificateBadge, describeMaintenanceBadge } from "../presenters/checks";
 import { formatDuration } from "../presenters/dashboard";
 import { calculateCertificateDaysRemaining } from "../lib/checks";
@@ -110,7 +110,7 @@ const ReportMetricCard = ({
 }: {
   id: string;
   label: string;
-  value: string | number | null;
+  value: Child;
   tone?: "default" | "danger";
   icon: Child;
 }) => (
@@ -122,7 +122,7 @@ const ReportMetricCard = ({
         </div>
         <span class={`metric-icon grid h-12 w-12 place-items-center rounded-md border border-white/10 bg-white/5 ${tone === "danger" ? "text-rose-200" : "text-sky-200"}`}>{icon}</span>
       </div>
-      <p class="mt-auto self-end pb-1 text-right text-3xl font-black tracking-tight text-slate-50">{formatNullable(value)}</p>
+      <div class="mt-auto self-end pb-1 text-right text-3xl font-black tracking-tight text-slate-50">{value}</div>
     </div>
   </article>
 );
@@ -173,6 +173,45 @@ const GraphCard = ({
     </div>
   </figure>
 );
+
+const ReasonLabel = ({ reason, error }: { reason: string | null; error: string | null }) => {
+  if (!isPlatformFetchError(reason, error)) return <>{formatNullable(reason)}</>;
+
+  return (
+    <span class="inline-flex items-center gap-2">
+      <img src="/system-error.svg" alt="runtime error" class="h-4 w-4 shrink-0" />
+      <span>fetch_error</span>
+    </span>
+  );
+};
+
+const ErrorLabel = ({ reason, error }: { reason: string | null; error: string | null }) => {
+  if (!isPlatformFetchError(reason, error)) return <>{formatNullable(error)}</>;
+
+  return (
+    <span class="inline-flex items-center gap-2">
+      <img src="/system-error.svg" alt="runtime error" class="h-4 w-4 shrink-0" />
+      <span>runtime error</span>
+    </span>
+  );
+};
+
+const ErrorDetailValue = ({
+  result,
+  detail,
+}: {
+  result: CheckDetailData["recentResults"][number] | null;
+  detail: string | null;
+}) => {
+  if (!result || !isPlatformFetchError("fetch_error", result.error)) return <>{detail ?? "-"}</>;
+
+  return (
+    <span class="inline-flex items-center justify-end gap-2 text-right text-lg leading-tight">
+      <img src="/system-error.svg" alt="runtime error" class="h-5 w-5 shrink-0" />
+      <span>runtime error</span>
+    </span>
+  );
+};
 
 const SettingsSection = ({ data }: { data: CheckDetailData }) => (
   <DetailCard id="check-settings">
@@ -247,7 +286,7 @@ const ReportSection = ({ data }: { data: CheckDetailData }) => {
         <ReportMetricCard
           id="summary-report-detail"
           label="詳細"
-          value={errorDetails ?? "-"}
+          value={<ErrorDetailValue result={recentResult} detail={errorDetails} />}
           tone={recentResult?.state === "fail" ? "danger" : "default"}
           icon={<svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4"/><path d="M12 16h.01"/></svg>}
         />
@@ -349,7 +388,7 @@ const EventsSection = ({ data }: { data: CheckDetailData }) => (
                     <span class={`state-mark ${event.to_state === "fail" ? "fail" : ""}`}>{event.to_state === "fail" ? "×" : "✓"}</span>
                   </span>
                 </td>
-                <td class="px-4 py-2.5">{formatNullable(event.reason)}</td>
+                <td class="px-4 py-2.5"><ReasonLabel reason={event.reason} error={event.error} /></td>
                 <td class="px-4 py-2.5 text-right tabular-nums">{formatNullable(event.status_code)}</td>
                 <td class="px-4 py-2.5 text-right tabular-nums">{formatTimingMs(event.latency_ms)}</td>
                 <td class="px-4 py-2.5"><LocalTime iso={event.occurred_at} class="whitespace-nowrap" /></td>
@@ -436,7 +475,9 @@ const ResultsSection = ({ data }: { data: CheckDetailData }) => (
                 <td class="px-4 py-2.5 text-right tabular-nums">{formatTimingMs(result.latency_ms)}</td>
                 <td class="px-4 py-2.5 text-right tabular-nums">{formatTimingMs(result.x_runtime_ms ?? null)}</td>
                 <td class="max-w-[18rem] truncate px-4 py-2.5">{parseServerTimingSummary(result.server_timing_json)}</td>
-                <td class="max-w-[18rem] truncate px-4 py-2.5">{formatNullable(result.error)}</td>
+                <td class="max-w-[18rem] truncate px-4 py-2.5">
+                  <ErrorLabel reason={result.state === "fail" ? "fetch_error" : null} error={result.error} />
+                </td>
               </tr>
             ))
           ) : (

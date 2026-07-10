@@ -7,7 +7,7 @@ import { calculateCertificateDaysRemaining } from "../lib/checks";
 import { calculateNextCertificateProbeAt } from "../lib/cert-probe";
 import { buildChecksUrl } from "../lib/checks-search";
 import { LocalTime } from "./time.tsx";
-import { formatNullable } from "../presenters/common";
+import { formatNullable, isPlatformFetchError } from "../presenters/common";
 import { formatCertificateDays, formatDuration } from "../presenters/dashboard";
 import { describeCheckState, describeMaintenanceBadge } from "../presenters/checks";
 import type { CloudflareAccessIdentity } from "../http/shared";
@@ -251,10 +251,34 @@ const ResultRow = ({ result }: { result: DashboardData["recentResults"][number] 
     </td>
     <td class="px-4 py-2.5 text-right tabular-nums">{formatNullable(result.status_code)}</td>
     <td class="px-4 py-2.5 text-right tabular-nums">{formatNullable(result.latency_ms)}</td>
-    <td class="max-w-[16rem] truncate px-4 py-2.5">{formatNullable(result.error)}</td>
+    <td class="max-w-[16rem] truncate px-4 py-2.5">
+      <ErrorLabel reason={result.state === "fail" ? "fetch_error" : null} error={result.error} />
+    </td>
     <td class="px-4 py-2.5 text-slate-300"><LocalTime iso={result.checked_at} class="whitespace-nowrap" /></td>
   </tr>
 );
+
+const ErrorLabel = ({ reason, error }: { reason: string | null; error: string | null }) => {
+  if (!isPlatformFetchError(reason, error)) return <>{formatNullable(error)}</>;
+
+  return (
+    <span class="inline-flex items-center gap-2">
+      <img src="/system-error.svg" alt="runtime error" class="h-4 w-4 shrink-0" />
+      <span>runtime error</span>
+    </span>
+  );
+};
+
+const ReasonLabel = ({ reason, error }: { reason: string | null; error: string | null }) => {
+  if (!isPlatformFetchError(reason, error)) return <>{formatNullable(reason)}</>;
+
+  return (
+    <span class="inline-flex items-center gap-2">
+      <img src="/system-error.svg" alt="runtime error" class="h-4 w-4 shrink-0" />
+      <span>fetch_error</span>
+    </span>
+  );
+};
 
 const EventRow = ({ event }: { event: DashboardData["recentEvents"][number] }) => (
   <tr id={`status-event-${event.id}`} class="transition hover:bg-white/5">
@@ -270,7 +294,7 @@ const EventRow = ({ event }: { event: DashboardData["recentEvents"][number] }) =
         <span class={`state-mark ${event.to_state === "fail" ? "fail" : ""}`}>{event.to_state === "fail" ? "×" : "✓"}</span>
       </span>
     </td>
-    <td>{formatNullable(event.reason)}</td>
+    <td><ReasonLabel reason={event.reason} error={event.error} /></td>
     <td class="text-right">{formatNullable(event.status_code)}</td>
     <td class="max-w-[16rem] truncate">{formatNullable(event.error)}</td>
     <td><LocalTime iso={event.occurred_at} class="whitespace-nowrap" /></td>
