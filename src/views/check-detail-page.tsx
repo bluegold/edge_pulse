@@ -1,5 +1,6 @@
 import { renderToString } from "hono/jsx/dom/server";
 import { AppLayout } from "./app-layout.tsx";
+import { CheckEditForm } from "./check-edit-form";
 import type { CheckDetailData as CheckDetailDataType } from "../store/check-detail";
 import { LocalTime, formatLocalDateTime } from "./time.tsx";
 import { formatNullable } from "../presenters/common";
@@ -424,7 +425,7 @@ const ResultsSection = ({ data }: { data: CheckDetailData }) => (
   </DetailCard>
 );
 
-const CheckDetailShell = ({ data }: { data: CheckDetailData }) => {
+const CheckDetailShell = ({ data, editing = false }: { data: CheckDetailData; editing?: boolean }) => {
   const stateBadge = describeCheckState(data.check.enabled, data.check.last_state);
   const maintenanceBadge = describeMaintenanceBadge(data.check);
 
@@ -461,21 +462,49 @@ const CheckDetailShell = ({ data }: { data: CheckDetailData }) => {
             </div>
           </div>
           <div class="flex flex-wrap items-center gap-3">
+            {editing ? null : (
+              <a
+                href={`/checks/${data.check.id}?edit=1`}
+                hx-get={`/checks/${data.check.id}?edit=1`}
+                hx-target="#content"
+                hx-swap="outerHTML show:none"
+                class="glass-button inline-flex items-center rounded-md px-4 py-3 text-sm font-semibold text-slate-100"
+              >
+                編集
+              </a>
+            )}
             <a href="/checks" class="glass-button inline-flex items-center rounded-md px-4 py-3 text-sm font-semibold text-slate-100">
               一覧へ戻る
             </a>
           </div>
         </header>
 
-        <div class="grid gap-4">
-          <SettingsSection data={data} />
-          <ReportSection data={data} />
-          <GraphSection data={data} />
-          <CertificateSection data={data} />
-          <EventsSection data={data} />
-          <IncidentsSection data={data} />
-          <ResultsSection data={data} />
-        </div>
+        {editing ? (
+          <div class="grid gap-4">
+            <section id="check-detail-edit" class="panel panel-pad">
+              <CheckEditForm
+                check={data.check}
+                formId={`check-detail-${data.check.id}-form`}
+                submitId={`check-detail-${data.check.id}-save`}
+                cancelId={`check-detail-${data.check.id}-cancel`}
+                title="監視対象を編集"
+                action={`/checks/${data.check.id}?view=detail`}
+                target="#content"
+                cancelHref={`/checks/${data.check.id}`}
+              />
+            </section>
+          </div>
+        ) : (
+          <div class="grid gap-4">
+            <SettingsSection data={data} />
+            <ReportSection data={data} />
+            <GraphSection data={data} />
+            <CertificateSection data={data} />
+            <EventsSection data={data} />
+            <IncidentsSection data={data} />
+            <ResultsSection data={data} />
+          </div>
+        )}
       </div>
     </section>
   );
@@ -498,7 +527,7 @@ const CheckDetailDocument = ({
   </AppLayout>
 );
 
-export const renderCheckDetailShell = (data: CheckDetailData): string => renderToString(<CheckDetailShell data={data} />);
+export const renderCheckDetailShell = (data: CheckDetailData, editing = false): string => renderToString(<CheckDetailShell data={data} editing={editing} />);
 
 export const renderCheckDetailPage = (data: CheckDetailData, accessIdentity: CloudflareAccessIdentity | null = null): Response =>
   new Response(renderToString(<CheckDetailDocument data={data} accessIdentity={accessIdentity} />), {

@@ -104,8 +104,9 @@ const renderCheckDetailPageResponse = async (request: Request, env: Env, id: num
   if (!data) {
     return notFoundResponse();
   }
+  const editing = new URL(request.url).searchParams.get("edit") === "1";
 
-  return respondHxOrHtml(request, () => renderCheckDetailShell(data), () => renderCheckDetailPage(data));
+  return respondHxOrHtml(request, () => renderCheckDetailShell(data, editing), () => renderCheckDetailPage(data));
 };
 
 const renderDashboardPageResponse = async (request: Request, env: Env): Promise<Response> => {
@@ -146,6 +147,7 @@ export const handleCreateCheck = async (request: Request, env: Env): Promise<Res
 export const handleUpdateCheck = async (request: Request, env: Env, id: number): Promise<Response> => {
   const page = getPageFromRequest(request);
   const { q, filter, order } = getSearchParamsFromRequest(request);
+  const view = new URL(request.url).searchParams.get("view");
   const inputResult = await readValidatedCheckInput(request);
   if (!inputResult.ok) {
     return inputResult.response;
@@ -154,6 +156,9 @@ export const handleUpdateCheck = async (request: Request, env: Env, id: number):
 
   const now = new Date().toISOString();
   await updateCheck(env["pulse-db"], id, input, now);
+  if (view === "detail") {
+    return renderCheckDetailPageResponse(request, env, id);
+  }
   return renderChecksPageResponse(request, env, page, null, id, q, filter, order);
 };
 

@@ -29,7 +29,7 @@ vi.mock("@cloudflare/containers", () => ({
 
 import { app } from "../src/index.ts";
 import { loadCheckDetailData, type CheckDetailData } from "../src/store/check-detail";
-import { renderCheckDetailPage } from "../src/views/check-detail-page.tsx";
+import { renderCheckDetailPage, renderCheckDetailShell } from "../src/views/check-detail-page.tsx";
 import type { CheckRow } from "../src/lib/checks";
 
 const d1Meta: D1Meta & Record<string, unknown> = {
@@ -263,6 +263,8 @@ describe("check detail", () => {
     const response = await renderCheckDetailPage(detailData);
     const html = await response.text();
 
+    expect(html).toContain('href="/checks/1?edit=1"');
+    expect(html).toContain(">編集<");
     expect(html).toContain("24h 障害");
     expect(html).toContain("過去24H");
     expect(html).toContain("証明書情報");
@@ -281,6 +283,15 @@ describe("check detail", () => {
     expect(html).toContain('href="/checks"');
     expect(html).toContain("X-Runtime の推移");
     expect(html).toContain("Server-Timing");
+  });
+
+  it("renders the shared edit form in detail edit mode", async () => {
+    const html = renderCheckDetailShell(detailData, true);
+
+    expect(html).toContain('id="check-detail-1-form"');
+    expect(html).toContain('hx-post="/checks/1?view=detail"');
+    expect(html).toContain('href="/checks/1"');
+    expect(html).toContain("監視対象を編集");
   });
 
   it("loads detail data through the store", async () => {
