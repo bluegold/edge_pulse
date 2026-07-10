@@ -39,8 +39,8 @@ const addMilliseconds = (iso: string, ms: number): string | null => {
   return new Date(time + ms).toISOString();
 };
 
-export const buildCertProbeUrl = (host: string, port: number, serverName: string): URL => {
-  const url = new URL("http://cert-probe/probe");
+export const buildCertProbeUrl = (host: string, port: number, serverName: string, baseUrl = "http://cert-probe/probe"): URL => {
+  const url = new URL(baseUrl);
   url.searchParams.set("host", host);
   url.searchParams.set("port", String(port));
   url.searchParams.set("servername", serverName);
@@ -136,9 +136,10 @@ export const fetchCertificateSnapshot = async (
   port: number,
   serverName: string,
   timeoutMs = 8_000,
+  baseUrl?: string,
 ): Promise<CertProbeResponse> => {
   try {
-    const url = buildCertProbeUrl(host, port, serverName);
+    const url = buildCertProbeUrl(host, port, serverName, baseUrl);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort("cert_probe_timeout"), timeoutMs);
 

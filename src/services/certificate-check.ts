@@ -10,6 +10,12 @@ export const probeCertificateSnapshot = async (env: Env, check: CheckRow): Promi
 
   const port = parsed.port ? Number(parsed.port) : 443;
   const serverName = parsed.hostname;
+  const externalProbeUrl = env.CERT_PROBE_URL?.trim();
+
+  if (externalProbeUrl) {
+    return fetchCertificateSnapshot(globalThis, parsed.hostname, port, serverName, 8_000, externalProbeUrl);
+  }
+
   const containerBinding = env.CertProbeContainer;
   if (!containerBinding) return null;
 

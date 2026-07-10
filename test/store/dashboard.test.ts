@@ -96,7 +96,7 @@ describe("loadDashboardData", () => {
 
     expect(data.checks).toHaveLength(3);
     expect(data.recentChecks).toHaveLength(3);
-    expect(data.recentChecks.map((check) => check.id)).toEqual([2, 3, 1]);
+    expect(data.recentChecks.map((check) => check.id)).toEqual([2, 1, 3]);
     expect(data.currentIncidents).toHaveLength(1);
     expect(data.incidents24h).toBe(2);
   });

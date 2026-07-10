@@ -191,30 +191,31 @@ const RecentCheckCard = ({ check, generatedAt }: { check: DashboardData["checks"
       ) : (
         <>
           <div class="flatline my-4" aria-hidden="true" />
-          <dl class="grid gap-2 text-sm text-slate-300 sm:grid-cols-2">
+          <dl class="cert-recheck-grid grid gap-y-5 text-sm text-slate-300 sm:grid-cols-2 sm:gap-x-8">
+            <div class="cert-recheck-divider" aria-hidden="true"></div>
             <div>
-              <dt class="text-slate-500">監視最終確認</dt>
+              <dt class="font-bold text-slate-200">監視最終確認</dt>
               <dd class="mt-1"><LocalTime iso={check.last_checked_at} class="whitespace-nowrap" /></dd>
             </div>
             <div>
-              <dt class="text-slate-500">HTTP / 応答時間</dt>
+              <dt class="font-bold text-slate-200">HTTP / 応答時間</dt>
               <dd class="mt-1">
                 {formatNullable(check.last_status_code)} / {check.last_latency_ms === null ? "-" : `${check.last_latency_ms}ms`}
               </dd>
             </div>
             <div>
-              <dt class="text-slate-500">追加</dt>
+              <dt class="font-bold text-slate-200">追加</dt>
               <dd class="mt-1"><LocalTime iso={check.created_at} class="whitespace-nowrap" /></dd>
             </div>
             {uptimeStartedAt ? (
               <div>
-                <dt class="text-slate-500">稼働開始日時</dt>
+                <dt class="font-bold text-slate-200">稼働開始日時</dt>
                 <dd class="mt-1"><LocalTime iso={uptimeStartedAt} class="whitespace-nowrap" seconds={false} /></dd>
               </div>
             ) : null}
             {uptimeStartedAt ? (
               <div>
-                <dt class="text-slate-500">連続稼働時間</dt>
+                <dt class="font-bold text-slate-200">連続稼働時間</dt>
                 <dd class="mt-1 text-right tabular-nums">{formatDuration(uptimeStartedAt, generatedAt)}</dd>
               </div>
             ) : null}
@@ -376,7 +377,7 @@ const DashboardShell = ({ data }: { data: DashboardData }) => {
           <SummaryCard
             id="summary-failed-checks"
             label="障害中"
-            value={summary.failedChecks}
+            value={data.currentIncidents.length}
             tone="danger"
             href={buildChecksUrl({ filter: "(&(enabled=1)(last_state=fail))" })}
             icon={<svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12"/><path d="M18 6 6 18"/></svg>}

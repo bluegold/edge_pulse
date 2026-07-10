@@ -338,6 +338,8 @@ describe("renderDashboardPage", () => {
     expect(html).toContain("一部のシステムで障害を検知しています");
     expect(html).toContain("api&lt;&amp;&gt;&#39;");
     expect(html).toContain("障害中");
+    expect(html).toContain('id="summary-failed-checks"');
+    expect(html).toContain(">1</p>");
     expect(html).toContain('status off status-fail');
     expect((html.match(/href="\/checks\/1"/g) ?? []).length).toBe(4);
     expect(panelHtml).toContain("M12 17h.01");

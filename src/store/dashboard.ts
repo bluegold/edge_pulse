@@ -69,13 +69,13 @@ const compareCheckAttention = (a: CheckRow, b: CheckRow, now: Date): number => {
   const bCertError = Boolean(b.tls_last_error);
   if (aCertError !== bCertError) return aCertError ? -1 : 1;
 
-  const aMaintenance = Boolean(a.maintenance_enabled);
-  const bMaintenance = Boolean(b.maintenance_enabled);
-  if (aMaintenance !== bMaintenance) return aMaintenance ? -1 : 1;
-
   const aCertSoon = isCertificateExpiringSoon(calculateCertificateDaysRemaining(a.tls_valid_to, now));
   const bCertSoon = isCertificateExpiringSoon(calculateCertificateDaysRemaining(b.tls_valid_to, now));
   if (aCertSoon !== bCertSoon) return aCertSoon ? -1 : 1;
+
+  const aMaintenance = Boolean(a.maintenance_enabled);
+  const bMaintenance = Boolean(b.maintenance_enabled);
+  if (aMaintenance !== bMaintenance) return aMaintenance ? -1 : 1;
 
   const aCheckedAt = a.last_checked_at ? new Date(a.last_checked_at).getTime() : 0;
   const bCheckedAt = b.last_checked_at ? new Date(b.last_checked_at).getTime() : 0;
