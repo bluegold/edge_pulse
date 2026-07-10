@@ -1,13 +1,15 @@
+import { createFactory } from "hono/factory";
 import { validateCheckInput, type CheckInput } from "../lib/checks";
 import { JsonBodyError } from "../lib/json-body";
 import { getCheckById, insertCheck, loadChecksPageData, updateCheck } from "../store/checks";
-import { loadDashboardData } from "../store/dashboard";
 import { loadCheckDetailData } from "../store/check-detail";
 import { renderChecksPage, renderChecksShell } from "../views/checks-page.tsx";
 import { renderCheckDetailPage, renderCheckDetailShell } from "../views/check-detail-page.tsx";
-import { renderDashboardPage, renderDashboardShell, renderRecentCheckCard } from "../views/dashboard-page.tsx";
-import { isHxRequest, readCheckInputFromRequest, readCloudflareAccessIdentity, respondHtml, respondJson, respondHxOrHtml } from "../http/shared";
+import { renderRecentCheckCard } from "../views/dashboard-page.tsx";
+import { isHxRequest, readCheckInputFromRequest, respondHtml, respondJson, respondHxOrHtml } from "../http/shared";
 import { refreshCertificateSnapshot } from "../services/certificate-check";
+
+const factory = createFactory<{ Bindings: Env }>();
 
 const unsupportedContentTypeResponse = () =>
   respondHtml(
@@ -118,66 +120,59 @@ const renderCheckDetailPageResponse = async (request: Request, env: Env, id: num
   return respondHxOrHtml(request, () => renderCheckDetailShell(data, editing), () => renderCheckDetailPage(data));
 };
 
-const renderDashboardPageResponse = async (request: Request, env: Env): Promise<Response> => {
-  const data = await loadDashboardData(env["pulse-db"]);
-  const accessIdentity = readCloudflareAccessIdentity(request);
-  return respondHxOrHtml(request, () => renderDashboardShell(data), () => renderDashboardPage(data, accessIdentity));
-};
+export const handleChecksRequest = factory.createHandlers(async (c) => {
+  const page = Number(c.req.query("page") ?? "1");
+  const editId = c.req.query("edit");
+  const focusId = c.req.query("focus");
+  const { q, filter, order } = getSearchParamsFromRequest(c.req.raw);
+  return renderChecksPageResponse(c.req.raw, c.env, page, editId ? Number(editId) : null, focusId ? Number(focusId) : null, q, filter, order);
+});
 
-export const handleChecksRequest = async (
-  request: Request,
-  env: Env,
-  page = 1,
-  editId: number | null = null,
-  highlightId: number | null = null,
-): Promise<Response> => {
-  const { q, filter, order } = getSearchParamsFromRequest(request);
-  return renderChecksPageResponse(request, env, page, editId, highlightId, q, filter, order);
-};
+export const handleCheckDetailRequest = factory.createHandlers(async (c) => {
+  return renderCheckDetailPageResponse(c.req.raw, c.env, Number(c.req.param("id")));
+});
 
-export const handleCheckDetailRequest = async (request: Request, env: Env, id: number): Promise<Response> => {
-  return renderCheckDetailPageResponse(request, env, id);
-};
-
-export const handleCreateCheck = async (request: Request, env: Env): Promise<Response> => {
-  const page = getPageFromRequest(request);
-  const { q, filter, order } = getSearchParamsFromRequest(request);
-  const inputResult = await readValidatedCheckInput(request);
+export const handleCreateCheck = factory.createHandlers(async (c) => {
+  const page = getPageFromRequest(c.req.raw);
+  const { q, filter, order } = getSearchParamsFromRequest(c.req.raw);
+  const inputResult = await readValidatedCheckInput(c.req.raw);
   if (!inputResult.ok) {
     return inputResult.response;
   }
   const input = inputResult.input;
 
   const now = new Date().toISOString();
-  await insertCheck(env["pulse-db"], input, now);
-  return renderChecksPageResponse(request, env, page, null, null, q, filter, order);
-};
+  await insertCheck(c.env["pulse-db"], input, now);
+  return renderChecksPageResponse(c.req.raw, c.env, page, null, null, q, filter, order);
+});
 
-export const handleUpdateCheck = async (request: Request, env: Env, id: number): Promise<Response> => {
-  const page = getPageFromRequest(request);
-  const { q, filter, order } = getSearchParamsFromRequest(request);
-  const view = new URL(request.url).searchParams.get("view");
-  const inputResult = await readValidatedCheckInput(request);
+export const handleUpdateCheck = factory.createHandlers(async (c) => {
+  const page = getPageFromRequest(c.req.raw);
+  const { q, filter, order } = getSearchParamsFromRequest(c.req.raw);
+  const view = new URL(c.req.url).searchParams.get("view");
+  const inputResult = await readValidatedCheckInput(c.req.raw);
   if (!inputResult.ok) {
     return inputResult.response;
   }
   const input = inputResult.input;
 
   const now = new Date().toISOString();
-  await updateCheck(env["pulse-db"], id, input, now);
+  const id = Number(c.req.param("id"));
+  await updateCheck(c.env["pulse-db"], id, input, now);
   if (view === "detail") {
-    return renderCheckDetailPageResponse(request, env, id);
+    return renderCheckDetailPageResponse(c.req.raw, c.env, id);
   }
-  return renderChecksPageResponse(request, env, page, null, id, q, filter, order);
-};
+  return renderChecksPageResponse(c.req.raw, c.env, page, null, id, q, filter, order);
+});
 
-export const handleCertificateRecheck = async (request: Request, env: Env, id: number): Promise<Response> => {
-  const check = await getCheckById(env["pulse-db"], id);
+export const handleCertificateRecheck = factory.createHandlers(async (c) => {
+  const id = Number(c.req.param("id"));
+  const check = await getCheckById(c.env["pulse-db"], id);
   if (!check) {
     return notFoundResponse();
   }
 
-  const result = await refreshCertificateSnapshot(env, check);
+  const result = await refreshCertificateSnapshot(c.env, check);
   if (!result.ok) {
     return respondHtml(
       `<main id="content" class="p-6 text-sm text-rose-200" role="alert" aria-live="assertive">${result.error}</main>`,
@@ -185,8 +180,8 @@ export const handleCertificateRecheck = async (request: Request, env: Env, id: n
     );
   }
 
-  if (isHxRequest(request)) {
-    const updatedCheck = await getCheckById(env["pulse-db"], id);
+  if (isHxRequest(c.req.raw)) {
+    const updatedCheck = await getCheckById(c.env["pulse-db"], id);
     if (!updatedCheck) {
       return notFoundResponse();
     }
@@ -194,13 +189,13 @@ export const handleCertificateRecheck = async (request: Request, env: Env, id: n
     return respondHtml(renderRecentCheckCard(updatedCheck));
   }
 
-  return Response.redirect(new URL("/", request.url), 303);
-};
+  return Response.redirect(new URL("/", c.req.url), 303);
+});
 
-export const handleApiListChecks = async (env: Env, request: Request): Promise<Response> => {
-  const page = getPageFromRequest(request);
-  const { q, filter, order } = getSearchParamsFromRequest(request);
-  const data = await loadChecksPageData(env["pulse-db"], page, null, null, q, filter, order, getChecksPageSize(env));
+export const handleApiListChecks = factory.createHandlers(async (c) => {
+  const page = getPageFromRequest(c.req.raw);
+  const { q, filter, order } = getSearchParamsFromRequest(c.req.raw);
+  const data = await loadChecksPageData(c.env["pulse-db"], page, null, null, q, filter, order, getChecksPageSize(c.env));
   return respondJson({
     checks: data.checks,
     page: data.page,
@@ -208,42 +203,44 @@ export const handleApiListChecks = async (env: Env, request: Request): Promise<R
     totalChecks: data.totalChecks,
     totalPages: data.totalPages,
   });
-};
+});
 
-export const handleApiCreateCheck = async (env: Env, request: Request): Promise<Response> => {
-  const inputResult = await readValidatedCheckInput(request);
+export const handleApiCreateCheck = factory.createHandlers(async (c) => {
+  const inputResult = await readValidatedCheckInput(c.req.raw);
   if (!inputResult.ok) {
     return respondJson({ error: inputResult.error }, inputResult.status);
   }
   const input = inputResult.input;
 
   const now = new Date().toISOString();
-  const id = await insertCheck(env["pulse-db"], input, now);
-  const check = await getCheckById(env["pulse-db"], id);
+  const id = await insertCheck(c.env["pulse-db"], input, now);
+  const check = await getCheckById(c.env["pulse-db"], id);
   return respondJson({ check }, 201);
-};
+});
 
-export const handleApiUpdateCheck = async (env: Env, id: number, request: Request): Promise<Response> => {
-  const inputResult = await readValidatedCheckInput(request);
+export const handleApiUpdateCheck = factory.createHandlers(async (c) => {
+  const inputResult = await readValidatedCheckInput(c.req.raw);
   if (!inputResult.ok) {
     return respondJson({ error: inputResult.error }, inputResult.status);
   }
   const input = inputResult.input;
 
   const now = new Date().toISOString();
-  await updateCheck(env["pulse-db"], id, input, now);
-  const check = await getCheckById(env["pulse-db"], id);
+  const id = Number(c.req.param("id"));
+  await updateCheck(c.env["pulse-db"], id, input, now);
+  const check = await getCheckById(c.env["pulse-db"], id);
   if (!check) {
     return respondJson({ error: "not_found" }, 404);
   }
 
   return respondJson({ check });
-};
+});
 
-export const handleApiGetCheck = async (env: Env, id: number): Promise<Response> => {
-  const check = await getCheckById(env["pulse-db"], id);
+export const handleApiGetCheck = factory.createHandlers(async (c) => {
+  const id = Number(c.req.param("id"));
+  const check = await getCheckById(c.env["pulse-db"], id);
   if (!check) {
     return respondJson({ error: "not_found" }, 404);
   }
   return respondJson({ check });
-};
+});

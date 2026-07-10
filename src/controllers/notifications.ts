@@ -1,6 +1,9 @@
+import { createFactory } from "hono/factory";
 import { JsonBodyError, readJsonWithLimit } from "../lib/json-body";
 import { dispatchTestNotifications } from "../services/notifications";
 import { respondJson } from "../http/shared";
+
+const factory = createFactory<{ Bindings: Env }>();
 
 const logRejectedRequestBody = (request: Request, error: JsonBodyError): void => {
   console.warn(JSON.stringify({
@@ -33,19 +36,19 @@ const readTestNotificationInput = async (request: Request): Promise<{ title: str
   };
 };
 
-export const handleApiTestNotifications = async (env: Env, request: Request): Promise<Response> => {
+export const handleApiTestNotifications = factory.createHandlers(async (c) => {
   let input: { title: string; message: string; severity: "danger" | "good" };
   try {
-    input = await readTestNotificationInput(request);
+    input = await readTestNotificationInput(c.req.raw);
   } catch (error) {
     if (error instanceof JsonBodyError) {
-      logRejectedRequestBody(request, error);
+      logRejectedRequestBody(c.req.raw, error);
       return respondJson({ error: error.message }, error.status);
     }
     throw error;
   }
 
-  const sent = await dispatchTestNotifications(env, {
+  const sent = await dispatchTestNotifications(c.env, {
     ...input,
     sentAt: new Date().toISOString(),
   });
@@ -56,4 +59,4 @@ export const handleApiTestNotifications = async (env: Env, request: Request): Pr
     title: input.title,
     severity: input.severity,
   });
-};
+});

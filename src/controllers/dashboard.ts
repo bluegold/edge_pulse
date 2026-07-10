@@ -1,9 +1,12 @@
+import { createFactory } from "hono/factory";
 import { loadDashboardData } from "../store/dashboard";
 import { renderDashboardPage, renderDashboardShell } from "../views/dashboard-page.tsx";
 import { readCloudflareAccessIdentity, respondHxOrHtml } from "../http/shared";
 
-export const handleDashboardRequest = async (request: Request, env: Env): Promise<Response> => {
-  const data = await loadDashboardData(env["pulse-db"]);
-  const accessIdentity = readCloudflareAccessIdentity(request);
-  return respondHxOrHtml(request, () => renderDashboardShell(data), () => renderDashboardPage(data, accessIdentity));
-};
+const factory = createFactory<{ Bindings: Env }>();
+
+export const handleDashboardRequest = factory.createHandlers(async (c) => {
+  const data = await loadDashboardData(c.env["pulse-db"]);
+  const accessIdentity = readCloudflareAccessIdentity(c.req.raw);
+  return respondHxOrHtml(c.req.raw, () => renderDashboardShell(data), () => renderDashboardPage(data, accessIdentity));
+});
