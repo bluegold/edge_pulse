@@ -128,8 +128,9 @@ export const loadChecksPageData = async (
   q = "",
   filter = "",
   order = "",
+  pageSize = 20,
 ): Promise<ChecksPageData> => {
-  const pageSize = 20;
+  const normalizedPageSize = normalizePageSize(pageSize);
   const normalizedQuery = q.trim();
   const normalizedFilter = filter.trim();
   const normalizedOrder = order.trim();
@@ -153,9 +154,9 @@ export const loadChecksPageData = async (
   const summaryChecks = searchError ? { results: [] as CheckRow[] } : await db.prepare(summaryQuery).bind(...whereParams).all<CheckRow>();
 
   const totalChecks = searchError ? 0 : countResult?.count ?? 0;
-  const totalPages = Math.max(1, Math.ceil(totalChecks / pageSize));
+  const totalPages = Math.max(1, Math.ceil(totalChecks / normalizedPageSize));
   const currentPage = Math.min(normalizePage(page), totalPages);
-  const offset = (currentPage - 1) * pageSize;
+  const offset = (currentPage - 1) * normalizedPageSize;
   const dataQuery = `
         SELECT
           c.*,
@@ -182,7 +183,7 @@ export const loadChecksPageData = async (
       `;
   const checksResult = searchError
     ? { results: [] as ChecksPageRow[] }
-    : await db.prepare(dataQuery).bind(...whereParams, pageSize, offset).all<ChecksPageRow>();
+    : await db.prepare(dataQuery).bind(...whereParams, normalizedPageSize, offset).all<ChecksPageRow>();
   const checks = checksResult.results;
 
   const summary = summarizeChecks(summaryChecks.results);
@@ -190,7 +191,7 @@ export const loadChecksPageData = async (
   return {
     checks,
     page: currentPage,
-    pageSize,
+    pageSize: normalizedPageSize,
     totalChecks,
     okChecks: summary.okChecks,
     stoppedChecks: summary.stoppedChecks,
@@ -207,5 +208,10 @@ export const loadChecksPageData = async (
 
 const normalizePage = (value: number): number => {
   if (!Number.isFinite(value) || value < 1) return 1;
+  return Math.floor(value);
+};
+
+const normalizePageSize = (value: number): number => {
+  if (!Number.isFinite(value) || value < 1) return 20;
   return Math.floor(value);
 };

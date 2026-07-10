@@ -137,6 +137,8 @@ describe("renderChecksPage", () => {
     expect(html).toContain('id="checks-pagination-current"');
     expect(html).toContain('id="checks-pagination-prev"');
     expect(html).toContain('id="checks-pagination-next"');
+    expect(html).toContain("21-40 / 42 件");
+    expect(html).toContain("ページ 2 / 3");
     expect(html).toContain('2 / 3');
     expect(html).toContain('hx-post="/checks/2?page=2"');
     expect(html).toContain('hx-post="/checks/2?page=2"');
@@ -146,5 +148,19 @@ describe("renderChecksPage", () => {
     expect(html).toContain('href="/checks?page=1"');
     expect(html).toContain("一部のシステムで障害を検知しています");
     expect(html).toContain("status-fail");
+  });
+
+  it("renders disabled pagination buttons with the same button styling", async () => {
+    const response = await renderChecksPage({
+      ...checksPageData,
+      page: 1,
+      totalPages: 1,
+      totalChecks: 2,
+    });
+
+    const html = await response.text();
+    expect(html).toContain('id="checks-pagination-prev" aria-disabled="true" class="glass-button inline-flex items-center rounded-md px-4 py-3 text-sm font-semibold text-slate-100 opacity-55"');
+    expect(html).toContain('id="checks-pagination-next" aria-disabled="true" class="glass-button inline-flex items-center rounded-md px-4 py-3 text-sm font-semibold text-slate-100 opacity-55"');
+    expect(html).toContain("1-2 / 2 件");
   });
 });

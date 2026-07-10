@@ -209,6 +209,37 @@ describe("loadChecksPageData", () => {
     expect(data.checks).toHaveLength(2);
   });
 
+  it("uses the requested page size", async () => {
+    const data = await loadChecksPageData(
+      makeDb({
+        checks: Array.from({ length: 5 }, (_, index) => ({
+          id: index + 1,
+          name: `api-${index + 1}`,
+          url: `https://api-${index + 1}.example.com`,
+          enabled: 1,
+          last_state: "ok",
+          ...baseCheck,
+        })),
+        incidents: [],
+      }),
+      2,
+      null,
+      null,
+      "",
+      "",
+      "",
+      2,
+    );
+
+    expect(data.page).toBe(2);
+    expect(data.pageSize).toBe(2);
+    expect(data.totalChecks).toBe(5);
+    expect(data.totalPages).toBe(3);
+    expect(data.checks).toHaveLength(2);
+    expect(data.checks[0]?.id).toBe(3);
+    expect(data.checks[1]?.id).toBe(4);
+  });
+
   it("filters by q and LDAP-like filter, including derived attributes", async () => {
     const data = await loadChecksPageData(
       makeDb(

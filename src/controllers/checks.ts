@@ -40,6 +40,15 @@ const getSearchParamsFromRequest = (request: Request): { q: string; filter: stri
   };
 };
 
+const getChecksPageSize = (env: Env): number => {
+  const raw = env.CHECKS_PER_PAGE?.trim();
+  if (!raw) return 20;
+
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 1) return 20;
+  return Math.floor(parsed);
+};
+
 const logRejectedRequestBody = (request: Request, error: JsonBodyError): void => {
   console.warn(JSON.stringify({
     message: "request body rejected",
@@ -95,7 +104,7 @@ const renderChecksPageResponse = async (
   filter = "",
   order = "",
 ): Promise<Response> => {
-  const data = await loadChecksPageData(env["pulse-db"], page, editId, highlightId, q, filter, order);
+  const data = await loadChecksPageData(env["pulse-db"], page, editId, highlightId, q, filter, order, getChecksPageSize(env));
   return respondHxOrHtml(request, () => renderChecksShell(data), () => renderChecksPage(data));
 };
 
@@ -191,7 +200,7 @@ export const handleCertificateRecheck = async (request: Request, env: Env, id: n
 export const handleApiListChecks = async (env: Env, request: Request): Promise<Response> => {
   const page = getPageFromRequest(request);
   const { q, filter, order } = getSearchParamsFromRequest(request);
-  const data = await loadChecksPageData(env["pulse-db"], page, null, null, q, filter, order);
+  const data = await loadChecksPageData(env["pulse-db"], page, null, null, q, filter, order, getChecksPageSize(env));
   return respondJson({
     checks: data.checks,
     page: data.page,

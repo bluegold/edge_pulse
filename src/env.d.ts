@@ -7,6 +7,7 @@ interface __BaseEnv_Env {
 	ASSETS: Fetcher;
 	CF_ACCESS_TEAM_DOMAIN: "tkaneko188.cloudflareaccess.com";
 	CF_ACCESS_AUDIENCE: "45d7977f183398962d095d71eb77061173d0c55bb7f869e645bc63997dd342ef";
+	CHECKS_PER_PAGE: "20";
 	CERT_PROBE_URL: string;
 	ADMIN_API_TOKEN: string;
 	DISCORD_WEBHOOK_URL: string;
@@ -24,7 +25,7 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
 	[Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "CF_ACCESS_TEAM_DOMAIN" | "CF_ACCESS_AUDIENCE" | "CERT_PROBE_URL" | "ADMIN_API_TOKEN" | "DISCORD_WEBHOOK_URL">> {}
+	interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "CF_ACCESS_TEAM_DOMAIN" | "CF_ACCESS_AUDIENCE" | "CHECKS_PER_PAGE" | "CERT_PROBE_URL" | "ADMIN_API_TOKEN" | "DISCORD_WEBHOOK_URL">> {}
 }
 
 // Begin runtime types

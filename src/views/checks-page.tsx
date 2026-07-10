@@ -341,6 +341,7 @@ const CreateForm = ({ page, q, filter, order }: { page: number; q: string; filte
 
 const Pagination = ({
   page,
+  pageSize,
   totalPages,
   totalChecks,
   q,
@@ -348,6 +349,7 @@ const Pagination = ({
   order,
 }: {
   page: number;
+  pageSize: number;
   totalPages: number;
   totalChecks: number;
   q: string;
@@ -358,13 +360,19 @@ const Pagination = ({
   const nextPage = Math.min(totalPages, page + 1);
   const hasPrev = page > 1;
   const hasNext = page < totalPages;
+  const startIndex = totalChecks === 0 ? 0 : (page - 1) * pageSize + 1;
+  const endIndex = totalChecks === 0 ? 0 : Math.min(totalChecks, startIndex + pageSize - 1);
+  const buttonClass = "glass-button inline-flex items-center rounded-md px-4 py-3 text-sm font-semibold text-slate-100";
 
   return (
     <section id="checks-pagination-panel" class="panel panel-pad">
       <div class="pagination">
         <div>
           <p class="text-sm muted">
-            全 {totalChecks} 件中 {page} / {totalPages}
+            {startIndex}-{endIndex} / {totalChecks} 件
+          </p>
+          <p class="mt-1 text-xs muted">
+            ページ {page} / {totalPages}
           </p>
         </div>
         <div class="page-buttons">
@@ -375,16 +383,16 @@ const Pagination = ({
               hx-get={buildChecksUrl({ page: prevPage, q, filter, order })}
               hx-target="#content"
               hx-swap={HX_SWAP_NO_SCROLL}
-              class="glass-button inline-flex items-center rounded-md px-4 py-3 text-sm font-semibold text-slate-100"
+              class={buttonClass}
             >
               前へ
             </a>
           ) : (
-            <span id="checks-pagination-prev" class="glass-button opacity-55">
+            <span id="checks-pagination-prev" aria-disabled="true" class={`${buttonClass} opacity-55`}>
               前へ
             </span>
           )}
-          <span id="checks-pagination-current" class="glass-button">
+          <span id="checks-pagination-current" class={buttonClass}>
             {page} / {totalPages}
           </span>
           {hasNext ? (
@@ -394,12 +402,12 @@ const Pagination = ({
               hx-get={buildChecksUrl({ page: nextPage, q, filter, order })}
               hx-target="#content"
               hx-swap={HX_SWAP_NO_SCROLL}
-              class="glass-button inline-flex items-center rounded-md px-4 py-3 text-sm font-semibold text-slate-100"
+              class={buttonClass}
             >
               次へ
             </a>
           ) : (
-            <span id="checks-pagination-next" class="glass-button opacity-55">
+            <span id="checks-pagination-next" aria-disabled="true" class={`${buttonClass} opacity-55`}>
               次へ
             </span>
           )}
@@ -521,7 +529,7 @@ const ChecksShell = ({ data }: { data: ChecksPageData }) => (
         </section>
       </div>
       <div class="px-6 pb-2 mb-4">
-        <Pagination page={data.page} totalPages={data.totalPages} totalChecks={data.totalChecks} q={data.q} filter={data.filter} order={data.order} />
+        <Pagination page={data.page} pageSize={data.pageSize} totalPages={data.totalPages} totalChecks={data.totalChecks} q={data.q} filter={data.filter} order={data.order} />
       </div>
     </div>
   </section>
