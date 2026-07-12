@@ -53,6 +53,10 @@ const requireApiToken = async (
 };
 
 export const apiTokenMiddleware: MiddlewareHandler<{ Bindings: Env }> = async (c, next) => {
+  if (c.req.path === "/api/public/status" || c.req.path.startsWith("/api/public/")) {
+    await next();
+    return;
+  }
   const tokenCheck = await requireApiToken(c.req.raw, c.env);
   if (tokenCheck) return tokenCheck;
   await next();

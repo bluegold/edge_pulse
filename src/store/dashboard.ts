@@ -58,6 +58,32 @@ export type DashboardData = {
   generatedAt: string;
 };
 
+export type PublicStatusState = "healthy" | "degraded" | "down";
+
+export type PublicStatusData = {
+  status: PublicStatusState;
+  statusText: string;
+  updatedAt: string;
+  summary: {
+    totalChecks: number;
+    okChecks: number;
+    failedChecks: number;
+    certExpiringSoonChecks: number;
+    certErrorChecks: number;
+    currentIncidentCount: number;
+  };
+  incidents: Array<{
+    checkId: number;
+    checkName: string;
+    checkUrl: string;
+    startedAt: string;
+    reason: string | null;
+    statusCode: number | null;
+  }>;
+};
+
+const PUBLIC_STATUS_INCIDENT_LIMIT = 10;
+
 const RECENT_CHECKS_LIMIT = 5;
 
 const compareCheckAttention = (a: CheckRow, b: CheckRow, now: Date): number => {
@@ -211,5 +237,53 @@ export const summarizeDashboard = (checks: CheckRow[], recentIncidents: Incident
     certExpiringSoonChecks,
     incidents24h: recentIncidents.length,
     averageLatencyMs: enabledChecks.some((check) => check.last_latency_ms !== null) ? averageLatency : null,
+  };
+};
+
+export const buildPublicStatusData = (
+  data: Pick<DashboardData, "checks" | "currentIncidents" | "generatedAt">,
+  now: Date | string = new Date(),
+): PublicStatusData => {
+  const enabledChecks = data.checks.filter((check) => check.enabled === 1);
+  const summary = summarizeChecks(enabledChecks);
+  const certExpiringSoonChecks = enabledChecks.filter(
+    (check) => isCertificateExpiringSoon(calculateCertificateDaysRemaining(check.tls_valid_to, now)),
+  ).length;
+  const certErrorChecks = enabledChecks.filter((check) => Boolean(check.tls_last_error)).length;
+  const currentIncidentCount = data.currentIncidents.length;
+
+  const status: PublicStatusState =
+    currentIncidentCount > 0 || summary.failedChecks > 0
+      ? "down"
+      : certExpiringSoonChecks > 0 || certErrorChecks > 0
+        ? "degraded"
+        : "healthy";
+  const statusText =
+    status === "down"
+      ? "障害を検知しています"
+      : status === "degraded"
+        ? "注意が必要な項目があります"
+        : "正常です";
+
+  return {
+    status,
+    statusText,
+    updatedAt: data.generatedAt,
+    summary: {
+      totalChecks: summary.totalChecks,
+      okChecks: summary.okChecks,
+      failedChecks: summary.failedChecks,
+      certExpiringSoonChecks,
+      certErrorChecks,
+      currentIncidentCount,
+    },
+    incidents: data.currentIncidents.slice(0, PUBLIC_STATUS_INCIDENT_LIMIT).map((incident) => ({
+      checkId: incident.check_id,
+      checkName: incident.check_name,
+      checkUrl: incident.check_url,
+      startedAt: incident.started_at,
+      reason: incident.start_reason,
+      statusCode: incident.start_status_code,
+    })),
   };
 };

@@ -241,6 +241,27 @@ describe("api auth", () => {
 
     expect(response.status).toBe(401);
   });
+
+  it("allows public status requests without a bearer token", async () => {
+    const response = await app.request(
+      "https://edge-pulse.example.com/api/public/status",
+      {
+        method: "GET",
+      },
+      makeEnv({ checks: [], nextId: 1 }),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      status: "healthy",
+      statusText: "正常です",
+      summary: {
+        totalChecks: 0,
+        failedChecks: 0,
+        currentIncidentCount: 0,
+      },
+    });
+  });
 });
 
 describe("notification test api", () => {
