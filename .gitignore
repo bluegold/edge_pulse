@@ -4,6 +4,7 @@ node_modules/
 .dev.vars
 *.log
 worker-startup.cpuprofile
+.tmp-go-build-cache/
 
 external/cert_probe/cert-probe
 .env

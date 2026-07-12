@@ -84,6 +84,20 @@ Dashboard は D1 だけを見る
 - `CertProbeContainer` binding
 - `CERT_PROBE_URL`
 
+## Task Runner
+
+`just` を使うと、Workers 側と desktop 側のコマンドをまとめて実行できます。
+
+- `just check`
+- `just test`
+- `just verify`
+- `just build-desktop`
+- `just build-desktop-tray`
+- `just test-desktop`
+- `just test-desktop-tray`
+- `just build-cert-probe`
+- `just test-cert-probe`
+
 ## API
 
 管理用 API は Bearer token で保護されています。
