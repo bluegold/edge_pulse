@@ -261,8 +261,8 @@ const ReportSection = ({ data }: { data: CheckDetailData }) => {
         <ReportMetricCard
           id="summary-report-failures-24h"
           label="24h 障害"
-          value={data.report.failures24h}
-          tone={data.report.failures24h > 0 ? "danger" : "default"}
+          value={data.report.incidents24h}
+          tone={data.report.incidents24h > 0 ? "danger" : "default"}
           icon={<svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4"/><path d="M12 16h.01"/><path d="m10.29 3.86-8.1 14.06A2 2 0 0 0 4.03 21h15.94a2 2 0 0 0 1.84-3.08l-8.1-14.06a2 2 0 0 0-3.42 0Z"/></svg>}
         />
         <ReportMetricCard

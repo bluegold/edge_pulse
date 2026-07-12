@@ -266,6 +266,8 @@ describe("check detail", () => {
     expect(html).toContain('href="/checks/1?edit=1"');
     expect(html).toContain(">編集<");
     expect(html).toContain("24h 障害");
+    expect(html).toContain('id="summary-report-failures-24h"');
+    expect(html).toContain(">1<");
     expect(html).toContain("過去24H");
     expect(html).toContain("証明書情報");
     expect(html).toContain("Issuer");
@@ -302,6 +304,7 @@ describe("check detail", () => {
 
     expect(data?.report.checks24h).toBe(12);
     expect(data?.report.failures24h).toBe(3);
+    expect(data?.report.incidents24h).toBe(1);
     expect(data?.report.availability24h).toBe(75);
     expect(data?.report.avgLatencyMs).toBe(110.25);
     expect(data?.report.avgRuntimeMs).toBe(21.5);
