@@ -7,4 +7,6 @@ worker-startup.cpuprofile
 .tmp-go-build-cache/
 
 external/cert_probe/cert-probe
+external/desktop/pulse-tray
+external/desktop/edge-pulse-desktop
 .env

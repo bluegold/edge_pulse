@@ -22,10 +22,10 @@ test-tray:
 verify: check test test-tray
 
 build-desktop:
-  cd {{desktop_dir}} && GOCACHE="$(pwd)/../.tmp-go-build-cache" go build -ldflags "-X main.version={{desktop_version}}" ./...
+  cd {{desktop_dir}} && GOCACHE="$(pwd)/../.tmp-go-build-cache" go build -ldflags "-X main.version={{desktop_version}}" -o edge-pulse-desktop ./cmd/pulse-tray
 
 build-desktop-tray:
-  cd {{desktop_dir}} && GOCACHE="$(pwd)/../.tmp-go-build-cache" go build -tags tray -ldflags "-X main.version={{desktop_version}}" ./...
+  cd {{desktop_dir}} && GOCACHE="$(pwd)/../.tmp-go-build-cache" go build -tags tray -ldflags "-X main.version={{desktop_version}}" -o pulse-tray ./cmd/pulse-tray
 
 test-desktop:
   cd {{desktop_dir}} && GOCACHE="$(pwd)/../.tmp-go-build-cache" go test ./...
@@ -34,7 +34,7 @@ test-desktop-tray:
   cd {{desktop_dir}} && GOCACHE="$(pwd)/../.tmp-go-build-cache" go test -tags tray ./...
 
 build-cert-probe:
-  cd {{cert_probe_dir}} && GOCACHE="$(pwd)/../.tmp-go-build-cache" go build ./...
+  cd {{cert_probe_dir}} && GOCACHE="$(pwd)/../.tmp-go-build-cache" go build -o cert-probe .
 
 test-cert-probe:
   cd {{cert_probe_dir}} && GOCACHE="$(pwd)/../.tmp-go-build-cache" go test ./...

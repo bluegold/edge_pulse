@@ -24,13 +24,13 @@ external/desktop/
 通常ビルドはトレイなしです。状態表示は標準出力、通知は `notify-send` を使います。
 
 ```bash
-go build ./cmd/pulse-tray
+go build -o edge-pulse-desktop ./cmd/pulse-tray
 ```
 
 Linux のトレイアイコンを有効にするには `tray` ビルドタグを付けます。
 
 ```bash
-go build -tags tray ./cmd/pulse-tray
+go build -tags tray -o pulse-tray ./cmd/pulse-tray
 ```
 
 `tray` ビルドには `github.com/getlantern/systray` が使う AppIndicator 開発パッケージが必要です。Ubuntu 系では少なくとも次が必要です。
