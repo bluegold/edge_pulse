@@ -260,6 +260,7 @@ describe("api auth", () => {
         failedChecks: 0,
         currentIncidentCount: 0,
       },
+      attentionChecks: [],
     });
   });
 });

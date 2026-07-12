@@ -80,9 +80,25 @@ export type PublicStatusData = {
     reason: string | null;
     statusCode: number | null;
   }>;
+  attentionChecks: Array<{
+    checkId: number;
+    checkName: string;
+    checkUrl: string;
+    state: CheckState;
+    statusCode: number | null;
+    error: string | null;
+    checkedAt: string | null;
+    certificate: {
+      status: "ok" | "warning" | "error" | "unknown";
+      daysRemaining: number | null;
+      error: string | null;
+    };
+    maintenanceEnabled: boolean;
+  }>;
 };
 
 const PUBLIC_STATUS_INCIDENT_LIMIT = 10;
+const PUBLIC_STATUS_ATTENTION_LIMIT = 5;
 
 const RECENT_CHECKS_LIMIT = 5;
 
@@ -244,6 +260,7 @@ export const buildPublicStatusData = (
   data: Pick<DashboardData, "checks" | "currentIncidents" | "generatedAt">,
   now: Date | string = new Date(),
 ): PublicStatusData => {
+  const nowDate = new Date(now);
   const enabledChecks = data.checks.filter((check) => check.enabled === 1);
   const summary = summarizeChecks(enabledChecks);
   const certExpiringSoonChecks = enabledChecks.filter(
@@ -264,6 +281,37 @@ export const buildPublicStatusData = (
       : status === "degraded"
         ? "注意が必要な項目があります"
         : "正常です";
+  const attentionChecks = enabledChecks
+    .filter((check) => isAttentionCheck(check, nowDate))
+    .sort((a, b) => compareCheckAttention(a, b, nowDate))
+    .slice(0, PUBLIC_STATUS_ATTENTION_LIMIT)
+    .map((check) => {
+      const daysRemaining = calculateCertificateDaysRemaining(check.tls_valid_to, nowDate);
+      const certificateStatus: "ok" | "warning" | "error" | "unknown" =
+        check.tls_last_error
+          ? "error"
+          : isCertificateExpiringSoon(daysRemaining)
+            ? "warning"
+            : daysRemaining === null
+              ? "unknown"
+              : "ok";
+
+      return {
+        checkId: check.id,
+        checkName: check.name,
+        checkUrl: check.url,
+        state: check.last_state,
+        statusCode: check.last_status_code,
+        error: check.last_error,
+        checkedAt: check.last_checked_at,
+        certificate: {
+          status: certificateStatus,
+          daysRemaining,
+          error: check.tls_last_error ?? null,
+        },
+        maintenanceEnabled: Boolean(check.maintenance_enabled),
+      };
+    });
 
   return {
     status,
@@ -285,5 +333,6 @@ export const buildPublicStatusData = (
       reason: incident.start_reason,
       statusCode: incident.start_status_code,
     })),
+    attentionChecks,
   };
 };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { loadDashboardData, summarizeDashboard } from "../../src/store/dashboard";
+import { buildPublicStatusData, loadDashboardData, summarizeDashboard } from "../../src/store/dashboard";
 
 const d1Meta: D1Meta & Record<string, unknown> = {
   duration: 0,
@@ -158,5 +158,49 @@ describe("loadDashboardData", () => {
       incidents24h: 0,
       averageLatencyMs: 200,
     });
+  });
+
+  it("includes attention checks in public status data for degraded state", () => {
+    const data = buildPublicStatusData(
+      {
+        checks: [
+          {
+            id: 1,
+            name: "tls-warning",
+            url: "https://tls-warning.example.com",
+            enabled: 1,
+            last_state: "ok",
+            last_status_code: 200,
+            last_error: null,
+            last_checked_at: "2026-07-10T00:00:00.000Z",
+            tls_valid_to: "2026-07-20T00:00:00.000Z",
+            tls_last_error: null,
+            maintenance_enabled: 0,
+          } as never,
+        ],
+        currentIncidents: [],
+        generatedAt: "2026-07-10T00:05:00.000Z",
+      },
+      "2026-07-10T00:05:00.000Z",
+    );
+
+    expect(data.status).toBe("degraded");
+    expect(data.attentionChecks).toEqual([
+      {
+        checkId: 1,
+        checkName: "tls-warning",
+        checkUrl: "https://tls-warning.example.com",
+        state: "ok",
+        statusCode: 200,
+        error: null,
+        checkedAt: "2026-07-10T00:00:00.000Z",
+        certificate: {
+          status: "warning",
+          daysRemaining: 9,
+          error: null,
+        },
+        maintenanceEnabled: false,
+      },
+    ]);
   });
 });
