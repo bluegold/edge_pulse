@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net"
 	"net/http"
 	"net/netip"
@@ -121,7 +122,7 @@ func probeCert(host string, port int, serverName string) CertResult {
 		result.Class = fmt.Sprint(cert.PublicKeyAlgorithm)
 		result.ValidFrom = cert.NotBefore.UTC().Format(time.RFC3339)
 		result.ValidTo = cert.NotAfter.UTC().Format(time.RFC3339)
-		result.DaysRemaining = int(time.Until(cert.NotAfter).Hours() / 24)
+		result.DaysRemaining = certificateDaysRemaining(cert.NotAfter, time.Now())
 		result.DNSNames = cert.DNSNames
 
 		return result
@@ -134,6 +135,14 @@ func probeCert(host string, port int, serverName string) CertResult {
 
 	result.Error = "failed to connect"
 	return result
+}
+
+func certificateDaysRemaining(validTo, now time.Time) int {
+	days := validTo.Sub(now).Hours() / 24
+	if days >= 0 {
+		return int(math.Ceil(days))
+	}
+	return int(math.Floor(days))
 }
 
 func resolveProbeDialAddrs(host string, port int) ([]string, error) {

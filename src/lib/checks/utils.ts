@@ -9,7 +9,10 @@ export const calculateCertificateDaysRemaining = (validTo: string | null | undef
   const nowTime = typeof now === "string" ? Date.parse(now) : now.getTime();
   if (!Number.isFinite(validToTime) || !Number.isFinite(nowTime)) return null;
 
-  return Math.floor((validToTime - nowTime) / 86_400_000);
+  const days = (validToTime - nowTime) / 86_400_000;
+  // A partial future day is still a day remaining. This keeps the 30-day
+  // warning boundary aligned with renewal tools that compare exact time.
+  return days >= 0 ? Math.ceil(days) : Math.floor(days);
 };
 
 export const isMaintenanceWindowActive = (maintenanceEnabled: number | boolean | null | undefined): boolean => {

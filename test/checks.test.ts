@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   classifyCheckFailureReason,
+  calculateCertificateDaysRemaining,
   evaluateTransition,
   isCertificateExpiringSoon,
   validateCheckInput,
@@ -136,6 +137,17 @@ describe("isCertificateExpiringSoon", () => {
     expect(isCertificateExpiringSoon(29)).toBe(true);
     expect(isCertificateExpiringSoon(31)).toBe(false);
     expect(isCertificateExpiringSoon(null)).toBe(false);
+  });
+});
+
+describe("calculateCertificateDaysRemaining", () => {
+  it("rounds future partial days up so the warning boundary is exact", () => {
+    expect(calculateCertificateDaysRemaining("2026-08-02T00:00:00.000Z", "2026-07-02T01:00:00.000Z")).toBe(31);
+    expect(calculateCertificateDaysRemaining("2026-08-01T00:00:00.000Z", "2026-07-02T00:00:00.000Z")).toBe(30);
+  });
+
+  it("rounds expired partial days down", () => {
+    expect(calculateCertificateDaysRemaining("2026-07-01T23:00:00.000Z", "2026-07-02T00:00:00.000Z")).toBe(-1);
   });
 });
 

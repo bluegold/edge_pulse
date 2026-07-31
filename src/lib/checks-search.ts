@@ -74,7 +74,8 @@ const CHECK_SEARCH_TEXT_COLUMNS = [
   "CAST(recovery_threshold AS TEXT)",
 ] as const;
 
-const CERTIFICATE_DAYS_REMAINING_SQL = "CAST((julianday(c.tls_valid_to) - julianday('now')) AS INTEGER)";
+const CERTIFICATE_DAYS_REMAINING_SQL =
+  "(CAST((julianday(c.tls_valid_to) - julianday('now')) AS INTEGER) + CASE WHEN (julianday(c.tls_valid_to) - julianday('now')) > CAST((julianday(c.tls_valid_to) - julianday('now')) AS INTEGER) THEN 1 WHEN (julianday(c.tls_valid_to) - julianday('now')) < CAST((julianday(c.tls_valid_to) - julianday('now')) AS INTEGER) THEN -1 ELSE 0 END)";
 
 const CHECK_FILTER_FIELD_SPECS: Record<
   string,
