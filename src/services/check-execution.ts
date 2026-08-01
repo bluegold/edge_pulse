@@ -98,11 +98,11 @@ export const runCheck = async (env: Env, job: CheckJob, ctx?: ExecutionContext):
     ? describeCertificateAlert(certificate)
     : describeCertificateAlertAt(check.tls_valid_to, checkedAt);
   
-  const { shouldFail, resultReason, resultError } = determineResultState(response, error, inRange, certificateAlert);
+  const { state, resultReason, resultError } = determineResultState(response, error, inRange, certificateAlert);
   const serverTiming = parseServerTimingHeader(response?.headers.get("server-timing"));
 
   const result = buildCheckResult({
-    state: shouldFail ? "fail" : "ok",
+    state,
     statusCode: response?.status ?? null,
     latencyMs: response ? latencyMs : null,
     error: resultError,

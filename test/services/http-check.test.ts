@@ -8,6 +8,7 @@ describe("http-check service", () => {
       const result = determineResultState(response, null, true, null);
       expect(result).toEqual({
         shouldFail: false,
+        state: "ok",
         resultReason: "http_ok",
         resultError: null,
       });
@@ -18,8 +19,37 @@ describe("http-check service", () => {
       const result = determineResultState(response, null, false, null);
       expect(result).toEqual({
         shouldFail: true,
+        state: "fail",
         resultReason: "http_status",
         resultError: null,
+      });
+    });
+
+    it("keeps certificate expiry warnings out of the monitored failure state", () => {
+      const response = new Response("ok", { status: 200 });
+      const result = determineResultState(response, null, true, {
+        reason: "tls_expiring_soon",
+        error: "certificate expires in 30 days",
+      });
+      expect(result).toEqual({
+        shouldFail: false,
+        state: "warning",
+        resultReason: "tls_expiring_soon",
+        resultError: "certificate expires in 30 days",
+      });
+    });
+
+    it("treats an expired certificate as a monitored failure", () => {
+      const response = new Response("ok", { status: 200 });
+      const result = determineResultState(response, null, true, {
+        reason: "tls_expired",
+        error: "certificate expired 1 day ago",
+      });
+      expect(result).toEqual({
+        shouldFail: true,
+        state: "fail",
+        resultReason: "tls_expired",
+        resultError: "certificate expired 1 day ago",
       });
     });
 
@@ -28,6 +58,7 @@ describe("http-check service", () => {
       const result = determineResultState(response, null, false, null);
       expect(result).toEqual({
         shouldFail: true,
+        state: "fail",
         resultReason: "tls_error",
         resultError: "invalid SSL certificate",
       });
@@ -37,6 +68,19 @@ describe("http-check service", () => {
       const result = determineResultState(null, "fetch failed", false, null);
       expect(result.shouldFail).toBe(true);
       expect(result.resultError).toBe("fetch failed");
+    });
+
+    it("keeps an HTTP failure as fail when a certificate warning is also present", () => {
+      const response = new Response("error", { status: 500 });
+      const result = determineResultState(response, null, false, {
+        reason: "tls_expiring_soon",
+        error: "certificate expires in 30 days",
+      });
+      expect(result).toMatchObject({
+        shouldFail: true,
+        state: "fail",
+        resultReason: "http_status",
+      });
     });
   });
 

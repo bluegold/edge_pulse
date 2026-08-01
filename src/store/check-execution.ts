@@ -264,7 +264,7 @@ export const persistCheckResult = async (
     `).bind(failureCount, result.checkedAt, unresolvedIncident.id));
   }
 
-  const shouldInsertStatusEvent = evaluated.transition.kind === "state-initialized" || 
+  const shouldInsertStatusEvent = (evaluated.transition.kind === "state-initialized" && result.state !== "warning") ||
     evaluated.transition.kind === "incident-opened" || 
     (evaluated.transition.kind === "incident-resolved" && unresolvedIncident);
 

@@ -999,6 +999,11 @@ export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, res
           background: rgba(127, 29, 29, 0.96);
           color: #fff1f2;
         }
+        .result-mark.warning {
+          border-color: rgba(251, 191, 36, 0.72);
+          background: rgba(120, 53, 15, 0.96);
+          color: #fef3c7;
+        }
         .state-mark {
           border-color: rgba(56, 189, 248, 0.32);
           background: rgba(14, 165, 233, 0.12);

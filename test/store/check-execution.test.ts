@@ -598,6 +598,28 @@ describe("check execution store", () => {
     expect(transition).toMatchObject({ kind: "state-initialized", nextState: "ok" });
   });
 
+  it("persists certificate warnings without a monitored state event", async () => {
+    const { db, state } = makeDb({
+      checkRuns: [makeCheckRun()],
+    });
+    const result = buildCheckResult({
+      state: "warning",
+      statusCode: 200,
+      latencyMs: 20,
+      error: "certificate expires in 30 days",
+      reason: "tls_expiring_soon",
+      checkedAt: "2026-06-22T00:11:00.000Z",
+    });
+
+    const transition = await persistCheckResult(db, baseCheck, result, null, state.checkRuns[0]!);
+
+    const insertStatement = state.statements.find((entry) => entry.sql.startsWith("INSERT OR IGNORE INTO check_results"));
+    expect(insertStatement?.params[2]).toBe("warning");
+    expect(state.statements.some((entry) => entry.sql.startsWith("INSERT OR IGNORE INTO incidents"))).toBe(false);
+    expect(state.statements.some((entry) => entry.sql.startsWith("INSERT INTO status_events") || entry.sql.startsWith("INSERT OR IGNORE INTO status_events"))).toBe(false);
+    expect(transition).toMatchObject({ kind: "state-initialized", nextState: "ok" });
+  });
+
   it("claims a check run with a lease before persisting the result", async () => {
     const { db, state } = makeDb({
       checkRuns: [makeCheckRun()],

@@ -1,7 +1,7 @@
 import type { ServerTimingEntry } from "../http-timing";
 
 export type CheckState = "unknown" | "ok" | "fail";
-export type CheckRunResultState = "ok" | "fail" | "skipped";
+export type CheckRunResultState = "ok" | "warning" | "fail" | "skipped";
 
 export type CheckRunClaim =
   | { kind: "claimed"; run: CheckRunRow }
@@ -33,7 +33,7 @@ export type CheckRunRow = {
 export type UndispatchedCheckRunRow = Pick<CheckRunRow, "id" | "check_id" | "attempt_id" | "scheduled_at">;
 
 export type CheckResult = {
-  state: "ok" | "fail";
+  state: "ok" | "warning" | "fail";
   statusCode: number | null;
   latencyMs: number | null;
   error: string | null;

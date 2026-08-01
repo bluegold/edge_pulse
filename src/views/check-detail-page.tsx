@@ -16,7 +16,7 @@ export type CheckDetailData = CheckDetailDataType;
 type TimingPoint = {
   checkedAt: string;
   label: string;
-  state: "ok" | "fail";
+  state: "ok" | "warning" | "fail";
   statusCode: number | null;
   latencyMs: number | null;
   runtimeMs: number | null;
@@ -466,8 +466,8 @@ const ResultsSection = ({ data }: { data: CheckDetailData }) => (
               <tr id={`check-result-${result.id}`} class="transition hover:bg-white/5">
                 <td class="px-4 py-2.5"><LocalTime iso={result.checked_at} class="whitespace-nowrap" /></td>
                 <td class="px-4 py-2.5">
-                  <span class={`inline-flex items-center gap-2 ${result.state === "fail" ? "text-rose-300" : "text-emerald-300"}`}>
-                    <span class={`result-mark ${result.state === "fail" ? "fail" : ""}`}>{result.state === "fail" ? "×" : "✓"}</span>
+                  <span class={`inline-flex items-center gap-2 ${result.state === "fail" ? "text-rose-300" : result.state === "warning" ? "text-amber-300" : "text-emerald-300"}`}>
+                    <span class={`result-mark ${result.state === "fail" ? "fail" : result.state === "warning" ? "warning" : ""}`}>{result.state === "fail" ? "×" : result.state === "warning" ? "!" : "✓"}</span>
                     {result.state}
                   </span>
                 </td>

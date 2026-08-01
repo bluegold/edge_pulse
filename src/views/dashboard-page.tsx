@@ -242,10 +242,12 @@ const ResultRow = ({ result }: { result: DashboardData["recentResults"][number] 
             ? "inline-flex items-center gap-2 text-emerald-300"
             : result.state === "fail"
               ? "inline-flex items-center gap-2 text-rose-300"
-            : "inline-flex items-center gap-2 text-slate-300"
+              : result.state === "warning"
+                ? "inline-flex items-center gap-2 text-amber-300"
+                : "inline-flex items-center gap-2 text-slate-300"
         }
       >
-        <span class={`result-mark ${result.state === "fail" ? "fail" : ""}`}>{result.state === "fail" ? "×" : "✓"}</span>
+        <span class={`result-mark ${result.state === "fail" ? "fail" : result.state === "warning" ? "warning" : ""}`}>{result.state === "fail" ? "×" : result.state === "warning" ? "!" : "✓"}</span>
         {result.state}
       </span>
     </td>

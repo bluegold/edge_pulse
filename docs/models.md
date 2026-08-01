@@ -72,6 +72,8 @@
 - `server_timing_json`
 - `checked_at`
 
+`check_results.state` は `ok` / `warning` / `fail` です。証明書の有効期限30日以内は `warning` として保存し、監視対象の状態遷移や incident には影響させません。
+
 `error` には HTTP 失敗、timeout、TLS、runtime error などの結果文字列が入ります。利用者向け UI では Workers 実行基盤由来の `internal error; reference = ...` をそのまま出さず、`runtime error` として表示します。
 
 ## status_events

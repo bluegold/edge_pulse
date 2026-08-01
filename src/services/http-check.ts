@@ -1,5 +1,6 @@
 import { classifyCheckFailureReason } from "../lib/checks";
 import { toErrorMessage } from "../lib/error-message";
+import type { CheckResult } from "../lib/checks";
 import type { describeCertificateAlert } from "./certificate-check";
 
 const CHECK_USER_AGENT = "edge-pulse-check/1.0";
@@ -10,7 +11,8 @@ export const determineResultState = (
   inRange: boolean,
   certificateAlert: ReturnType<typeof describeCertificateAlert>
 ) => {
-  const certificateFailure = Boolean(certificateAlert);
+  const certificateFailure = certificateAlert?.reason === "tls_expired";
+  const certificateWarning = certificateAlert?.reason === "tls_expiring_soon";
   const shouldFail = certificateFailure || !inRange;
   
   let responseReason: string;
@@ -26,10 +28,25 @@ export const determineResultState = (
     responseReason = classifyCheckFailureReason(null, error);
   }
   
-  const resultReason = certificateAlert?.reason ?? responseReason;
-  const resultError = certificateAlert?.error ?? (response?.status === 526 ? "invalid SSL certificate" : response ? null : error ?? "request failed");
+  const resultReason = certificateFailure
+    ? certificateAlert.reason
+    : responseReason === "http_ok" && certificateWarning
+      ? certificateAlert.reason
+      : responseReason;
+  const resultError = certificateFailure
+    ? certificateAlert.error
+    : responseReason === "http_ok" && certificateWarning
+      ? certificateAlert.error
+      : (response?.status === 526 ? "invalid SSL certificate" : response ? null : error ?? "request failed");
 
-  return { shouldFail, resultReason, resultError };
+  const state: CheckResult["state"] = shouldFail ? "fail" : certificateWarning ? "warning" : "ok";
+
+  return {
+    shouldFail,
+    state,
+    resultReason,
+    resultError,
+  };
 };
 
 export const performHttpCheck = async (url: string, method: string, timeoutMs: number) => {

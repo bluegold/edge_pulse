@@ -39,7 +39,7 @@ export const evaluateTransition = (
   nextCheck.last_error = result.error;
   nextCheck.updated_at = result.checkedAt;
 
-  if (result.state === "ok") {
+  if (result.state !== "fail") {
     nextCheck.consecutive_failures = 0;
     nextCheck.first_failure_at = null;
 

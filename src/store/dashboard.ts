@@ -25,7 +25,7 @@ export type CheckResultRow = {
   id: number;
   check_id: number;
   check_name?: string;
-  state: "ok" | "fail";
+  state: "ok" | "warning" | "fail";
   status_code: number | null;
   latency_ms: number | null;
   error: string | null;
