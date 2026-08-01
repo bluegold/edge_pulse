@@ -16,6 +16,7 @@ const storeMocks = vi.hoisted(() => ({
 
 const certMocks = vi.hoisted(() => ({
   describeCertificateAlert: vi.fn(),
+  describeCertificateAlertAt: vi.fn(),
   probeCertificateSnapshot: vi.fn(),
 }));
 
@@ -70,6 +71,8 @@ beforeEach(() => {
   storeMocks.finishCheckRun.mockReset();
   storeMocks.persistCheckResult.mockReset();
   certMocks.describeCertificateAlert.mockReset();
+  certMocks.describeCertificateAlertAt.mockReset();
+  certMocks.describeCertificateAlertAt.mockReturnValue(null);
   certMocks.probeCertificateSnapshot.mockReset();
 });
 

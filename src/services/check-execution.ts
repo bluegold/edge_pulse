@@ -20,7 +20,7 @@ import {
   persistCheckResult,
 } from "../store/check-execution";
 import { toErrorMessage } from "../lib/error-message";
-import { describeCertificateAlert, probeCertificateSnapshot } from "./certificate-check";
+import { describeCertificateAlert, describeCertificateAlertAt, probeCertificateSnapshot } from "./certificate-check";
 import { dispatchNotifications } from "./notifications";
 import { determineResultState, performHttpCheck } from "./http-check";
 
@@ -94,7 +94,9 @@ export const runCheck = async (env: Env, job: CheckJob, ctx?: ExecutionContext):
   const certificate = await certificatePromise;
 
   const inRange = response ? response.status >= check.expected_status_min && response.status <= check.expected_status_max : false;
-  const certificateAlert = certificate ? describeCertificateAlert(certificate) : null;
+  const certificateAlert = certificate
+    ? describeCertificateAlert(certificate)
+    : describeCertificateAlertAt(check.tls_valid_to, checkedAt);
   
   const { shouldFail, resultReason, resultError } = determineResultState(response, error, inRange, certificateAlert);
   const serverTiming = parseServerTimingHeader(response?.headers.get("server-timing"));

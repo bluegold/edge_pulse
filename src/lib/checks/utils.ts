@@ -10,9 +10,10 @@ export const calculateCertificateDaysRemaining = (validTo: string | null | undef
   if (!Number.isFinite(validToTime) || !Number.isFinite(nowTime)) return null;
 
   const days = (validToTime - nowTime) / 86_400_000;
-  // A partial future day is still a day remaining. This keeps the 30-day
-  // warning boundary aligned with renewal tools that compare exact time.
-  return days >= 0 ? Math.ceil(days) : Math.floor(days);
+  // Use elapsed calendar-day semantics: after the date boundary, a partial
+  // future day counts as the current remaining day. This makes a certificate
+  // expiring on Aug 31 show 30 days from Aug 1 00:00 UTC.
+  return Math.floor(days);
 };
 
 export const isMaintenanceWindowActive = (maintenanceEnabled: number | boolean | null | undefined): boolean => {

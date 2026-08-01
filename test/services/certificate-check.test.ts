@@ -7,7 +7,7 @@ vi.mock("@cloudflare/containers", () => ({
   }),
 }));
 
-import { describeCertificateAlert, probeCertificateSnapshot } from "../../src/services/certificate-check";
+import { describeCertificateAlertAt, probeCertificateSnapshot } from "../../src/services/certificate-check";
 
 beforeEach(() => {
   vi.restoreAllMocks();
@@ -16,57 +16,21 @@ beforeEach(() => {
 describe("certificate check service", () => {
   it("describes expiry alerts", () => {
     expect(
-      describeCertificateAlert({
-        host: "api.example.com",
-        port: 443,
-        serverName: "api.example.com",
-        subject: null,
-        issuer: null,
-        class: null,
-        validFrom: null,
-        validTo: null,
-        daysRemaining: -2,
-        dnsNames: null,
-        error: null,
-      }),
+      describeCertificateAlertAt("2026-07-01T23:00:00.000Z", "2026-07-03T00:00:00.000Z"),
     ).toEqual({
       reason: "tls_expired",
       error: "certificate expired 2 days ago",
     });
 
     expect(
-      describeCertificateAlert({
-        host: "api.example.com",
-        port: 443,
-        serverName: "api.example.com",
-        subject: null,
-        issuer: null,
-        class: null,
-        validFrom: null,
-        validTo: null,
-        daysRemaining: 10,
-        dnsNames: null,
-        error: null,
-      }),
+      describeCertificateAlertAt("2026-07-13T00:00:00.000Z", "2026-07-03T00:00:00.000Z"),
     ).toEqual({
       reason: "tls_expiring_soon",
       error: "certificate expires in 10 days",
     });
 
     expect(
-      describeCertificateAlert({
-        host: "api.example.com",
-        port: 443,
-        serverName: "api.example.com",
-        subject: null,
-        issuer: null,
-        class: null,
-        validFrom: null,
-        validTo: null,
-        daysRemaining: 90,
-        dnsNames: null,
-        error: null,
-      }),
+      describeCertificateAlertAt("2026-10-01T00:00:00.000Z", "2026-07-03T00:00:00.000Z"),
     ).toBeNull();
   });
 

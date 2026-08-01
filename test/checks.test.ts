@@ -141,8 +141,8 @@ describe("isCertificateExpiringSoon", () => {
 });
 
 describe("calculateCertificateDaysRemaining", () => {
-  it("rounds future partial days up so the warning boundary is exact", () => {
-    expect(calculateCertificateDaysRemaining("2026-08-02T00:00:00.000Z", "2026-07-02T01:00:00.000Z")).toBe(31);
+  it("uses the calendar-day boundary for future partial days", () => {
+    expect(calculateCertificateDaysRemaining("2026-08-02T00:00:00.000Z", "2026-07-02T01:00:00.000Z")).toBe(30);
     expect(calculateCertificateDaysRemaining("2026-08-01T00:00:00.000Z", "2026-07-02T00:00:00.000Z")).toBe(30);
   });
 
@@ -159,7 +159,7 @@ describe("shouldProbeCertificateSnapshot", () => {
           last_state: "unknown",
           tls_last_checked_at: null,
           tls_last_error: null,
-          tls_days_remaining: null,
+          tls_valid_to: null,
         },
         "2026-06-22T00:00:00.000Z",
       ),
@@ -173,7 +173,7 @@ describe("shouldProbeCertificateSnapshot", () => {
           last_state: "ok",
           tls_last_checked_at: "2026-06-15T00:00:00.000Z",
           tls_last_error: null,
-          tls_days_remaining: 90,
+          tls_valid_to: "2026-09-23T00:00:00.000Z",
         },
         "2026-06-22T00:00:00.000Z",
       ),
@@ -185,7 +185,7 @@ describe("shouldProbeCertificateSnapshot", () => {
           last_state: "ok",
           tls_last_checked_at: "2026-06-16T00:00:00.000Z",
           tls_last_error: null,
-          tls_days_remaining: 90,
+          tls_valid_to: "2026-09-23T00:00:00.000Z",
         },
         "2026-06-22T00:00:00.000Z",
       ),
@@ -199,7 +199,7 @@ describe("shouldProbeCertificateSnapshot", () => {
           last_state: "ok",
           tls_last_checked_at: "2026-06-21T01:00:00.000Z",
           tls_last_error: null,
-          tls_days_remaining: 10,
+          tls_valid_to: "2026-07-01T00:00:00.000Z",
         },
         "2026-06-22T00:00:00.000Z",
       ),
@@ -211,7 +211,7 @@ describe("shouldProbeCertificateSnapshot", () => {
           last_state: "ok",
           tls_last_checked_at: "2026-06-20T00:59:59.000Z",
           tls_last_error: null,
-          tls_days_remaining: 10,
+          tls_valid_to: "2026-07-01T00:00:00.000Z",
         },
         "2026-06-22T00:00:00.000Z",
       ),
@@ -225,7 +225,7 @@ describe("shouldProbeCertificateSnapshot", () => {
           last_state: "ok",
           tls_last_checked_at: "2026-06-22T00:10:00.000Z",
           tls_last_error: "dial tcp: lookup example.com: no such host",
-          tls_days_remaining: null,
+          tls_valid_to: null,
         },
         "2026-06-22T01:00:00.000Z",
         "2026-06-22T00:30:00.000Z",
@@ -240,7 +240,7 @@ describe("shouldProbeCertificateSnapshot", () => {
           last_state: "fail",
           tls_last_checked_at: "2026-06-22T00:10:00.000Z",
           tls_last_error: "dial tcp: lookup example.com: no such host",
-          tls_days_remaining: null,
+          tls_valid_to: null,
         },
         "2026-06-22T01:00:00.000Z",
         "2026-06-22T00:30:00.000Z",
@@ -317,7 +317,7 @@ describe("calculateNextCertificateProbeAt", () => {
         last_state: "fail",
         tls_last_checked_at: "2026-07-03T11:40:00.000Z",
         tls_last_error: null,
-        tls_days_remaining: 60,
+        tls_valid_to: "2026-09-01T00:00:00.000Z",
       }),
     ).toBe("2026-07-10T11:40:00.000Z");
   });
@@ -331,7 +331,7 @@ describe("calculateNextCertificateProbeAt", () => {
         last_state: "unknown",
         tls_last_checked_at: null,
         tls_last_error: null,
-        tls_days_remaining: null,
+        tls_valid_to: null,
       }),
     ).toBe("2026-07-03T12:05:00.000Z");
   });
@@ -345,7 +345,7 @@ describe("calculateNextCertificateProbeAt", () => {
         last_state: "fail",
         tls_last_checked_at: "2026-07-03T11:40:00.000Z",
         tls_last_error: "dial tcp: lookup example.com: no such host",
-        tls_days_remaining: null,
+        tls_valid_to: null,
       }),
     ).toBeNull();
   });

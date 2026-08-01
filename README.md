@@ -55,6 +55,8 @@ Dashboard は D1 だけを見る
   check 実行時の保存順序、状態遷移、incident 更新の流れ
 - [検索フィルタ](docs/checks-search-filter.md)
   一覧画面の検索・filter・sort の仕様
+- [Group とリアルタイム通知](docs/groups-and-realtime.md)
+  テナント、ユーザー所属、group 単位の Durable Object、incident reaction の設計
 
 ## Cloudflare 機能
 
@@ -141,3 +143,6 @@ curl -X POST 'http://127.0.0.1:8787/api/checks' \
 - per-check custom headers
 - expected body text
 - 外部 probe からの結果 POST API
+- group / user によるテナント分離
+- group 単位の Durable Object と WebSocket リアルタイム通知
+- incident reaction（調査中、対応中など）

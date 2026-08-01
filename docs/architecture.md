@@ -92,7 +92,7 @@ TLS 証明書情報は Worker の `fetch()` だけでは取り切れないため
 
 保存先は `checks` の証明書スナップショット列です。
 
-`days_remaining <= 30` は証明書警告として `fail` 扱いにします。
+`tls_valid_to` と監視実行時刻から算出した残日数が 30 日以内の場合は、証明書警告として `fail` 扱いにします。`tls_days_remaining` は probe 時点の参考値であり、判定には使いません。
 
 ## 通知
 
@@ -103,6 +103,14 @@ TLS 証明書情報は Worker の `fetch()` だけでは取り切れないため
 - 送信失敗は structured log に残す
 
 将来、配信量や retry 制御が必要になれば `notification-queue` に分離します。
+
+## Group とリアルタイム通知
+
+将来、`group` をテナント単位、`user` を group のメンバーとして追加します。`check` は 1 つの group に所属し、user は複数の group に所属できます。詳細は [Group とリアルタイム通知](groups-and-realtime.md) を参照してください。
+
+group ごとの Durable Object は WebSocket 接続とイベント broadcast だけを担当します。監視結果、incident、reaction、membership は D1 に保存し、D1 を状態の唯一の保存先とします。
+
+監視結果や reaction の D1 保存が完了した後に Group DO へイベントを送ります。DO への送信失敗は D1 の保存を巻き戻さず、クライアントは再接続時またはイベント受信後に D1 ベースの状態を再取得します。
 
 ## ダッシュボード集計方針
 

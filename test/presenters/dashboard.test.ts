@@ -28,6 +28,6 @@ describe("dashboard presenter", () => {
     expect(formatCertificateDays(null, now)).toBe("-");
     expect(formatCertificateDays("2026-07-13T00:00:00.000Z", now)).toBe("残り 10 日");
     expect(formatCertificateDays("2026-06-30T00:00:00.000Z", now)).toBe("期限切れ 3 日前");
-    expect(formatCertificateDays("2026-08-02T00:00:00.000Z", "2026-07-02T01:00:00.000Z")).toBe("残り 31 日");
+    expect(formatCertificateDays("2026-08-02T00:00:00.000Z", "2026-07-02T01:00:00.000Z")).toBe("残り 30 日");
   });
 });

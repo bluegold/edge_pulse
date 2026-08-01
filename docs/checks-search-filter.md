@@ -146,7 +146,7 @@
 (&(enabled=1)(cert_expiring_soon=1))
 ```
 
-`tls_days_remaining<=30` を直接使ってもよいが、UI からは派生属性 `cert_expiring_soon` を使う方が安定する。
+残日数は `tls_valid_to` と現在時刻から算出する。`tls_days_remaining<=30` の保存値を直接使わず、UI や検索では派生属性 `cert_expiring_soon` を使う。
 
 ### 24h障害件数
 

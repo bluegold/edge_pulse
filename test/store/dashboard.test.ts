@@ -196,7 +196,7 @@ describe("loadDashboardData", () => {
         checkedAt: "2026-07-10T00:00:00.000Z",
         certificate: {
           status: "warning",
-          daysRemaining: 10,
+        daysRemaining: 9,
           error: null,
         },
         maintenanceEnabled: false,

@@ -139,9 +139,6 @@ func probeCert(host string, port int, serverName string) CertResult {
 
 func certificateDaysRemaining(validTo, now time.Time) int {
 	days := validTo.Sub(now).Hours() / 24
-	if days >= 0 {
-		return int(math.Ceil(days))
-	}
 	return int(math.Floor(days))
 }
 

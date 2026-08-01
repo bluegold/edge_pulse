@@ -6,11 +6,16 @@
 
 主要テーブル:
 
+- `users`
+- `groups`
+- `group_members`
 - `checks`
 - `check_results`
 - `status_events`
 - `incidents`
 - `check_runs`
+
+将来のテナントモデルでは、`check` は単一の `group` に所属し、`user` は複数の `group` に所属する。ユーザーと group の関連は `group_members` で表現する。Group と WebSocket の詳細は [Group とリアルタイム通知](groups-and-realtime.md) を参照する。
 
 ## checks
 
@@ -46,7 +51,7 @@
 - `tls_public_key_class`
 - `tls_valid_from`
 - `tls_valid_to`
-- `tls_days_remaining`
+- `tls_days_remaining`（probe 時点の参考値。残日数の判定には使わない）
 - `tls_dns_names`
 
 `last_state` は `unknown` / `ok` / `fail` を想定します。

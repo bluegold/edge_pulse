@@ -13,13 +13,13 @@ import (
 	"time"
 )
 
-func TestCertificateDaysRemainingUsesExactRenewalBoundary(t *testing.T) {
+func TestCertificateDaysRemainingUsesCalendarDayBoundary(t *testing.T) {
 	now := time.Date(2026, time.July, 2, 1, 0, 0, 0, time.UTC)
 
 	if got := certificateDaysRemaining(now.Add(30*24*time.Hour), now); got != 30 {
 		t.Fatalf("exactly 30 days remaining: got %d", got)
 	}
-	if got := certificateDaysRemaining(now.Add(30*24*time.Hour+time.Hour), now); got != 31 {
+	if got := certificateDaysRemaining(now.Add(30*24*time.Hour+time.Hour), now); got != 30 {
 		t.Fatalf("30 days and one hour remaining: got %d", got)
 	}
 	if got := certificateDaysRemaining(now.Add(-time.Hour), now); got != -1 {

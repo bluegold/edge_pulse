@@ -1,5 +1,5 @@
 import { JsonBodyError, readJsonWithLimit } from "./json-body";
-import type { CheckRow } from "./checks";
+import { calculateCertificateDaysRemaining, type CheckRow } from "./checks";
 import { toErrorMessage } from "./error-message";
 
 export type CertProbeResponse = {
@@ -49,7 +49,7 @@ export const buildCertProbeUrl = (host: string, port: number, serverName: string
 };
 
 export const shouldProbeCertificateSnapshot = (
-  check: Pick<CheckRow, "last_state" | "tls_last_checked_at" | "tls_last_error" | "tls_days_remaining">,
+  check: Pick<CheckRow, "last_state" | "tls_last_checked_at" | "tls_last_error" | "tls_valid_to">,
   checkedAt: string,
   latestRecoveryAt: string | null = null,
 ): boolean => {
@@ -78,8 +78,8 @@ export const shouldProbeCertificateSnapshot = (
   const elapsed = now - lastCheckedAt;
   if (elapsed < 0) return true;
 
-  const daysRemaining = check.tls_days_remaining ?? Number.POSITIVE_INFINITY;
-  if (daysRemaining <= 30) {
+  const currentDaysRemaining = calculateCertificateDaysRemaining(check.tls_valid_to, checkedAt);
+  if (currentDaysRemaining !== null && currentDaysRemaining <= 30) {
     return elapsed >= DAILY_REFRESH_MS;
   }
 
@@ -89,7 +89,7 @@ export const shouldProbeCertificateSnapshot = (
 export const calculateNextCertificateProbeAt = (
   check: Pick<
     CheckRow,
-    "enabled" | "interval_minutes" | "next_check_at" | "last_state" | "tls_last_checked_at" | "tls_last_error" | "tls_days_remaining"
+    "enabled" | "interval_minutes" | "next_check_at" | "last_state" | "tls_last_checked_at" | "tls_last_error" | "tls_valid_to"
   >,
   latestRecoveryAt: string | null = null,
 ): string | null => {
@@ -113,8 +113,20 @@ export const calculateNextCertificateProbeAt = (
   } else if (!check.tls_last_checked_at) {
     eligibleAt = check.next_check_at;
   } else {
-    const refreshMs = (check.tls_days_remaining ?? Number.POSITIVE_INFINITY) <= 30 ? DAILY_REFRESH_MS : WEEKLY_REFRESH_MS;
+    const daysRemaining = calculateCertificateDaysRemaining(check.tls_valid_to, check.next_check_at);
+    const refreshMs = daysRemaining !== null && daysRemaining <= 30 ? DAILY_REFRESH_MS : WEEKLY_REFRESH_MS;
     eligibleAt = addMilliseconds(check.tls_last_checked_at, refreshMs);
+
+    const lastCheckedAtMs = Date.parse(check.tls_last_checked_at);
+    const validToMs = check.tls_valid_to ? Date.parse(check.tls_valid_to) : Number.NaN;
+    if (Number.isFinite(lastCheckedAtMs) && Number.isFinite(validToMs)) {
+      // With floor-based day counting, <= 30 begins when fewer than 31 full
+      // days remain. Probe at the first scheduled check on or after that time.
+      const warningAt = validToMs - 31 * DAY_MS;
+      if (warningAt > lastCheckedAtMs && (!eligibleAt || warningAt < Date.parse(eligibleAt))) {
+        eligibleAt = new Date(warningAt).toISOString();
+      }
+    }
   }
 
   if (!eligibleAt) return null;

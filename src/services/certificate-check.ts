@@ -1,5 +1,5 @@
 import { getContainer } from "@cloudflare/containers";
-import { isCertificateExpiringSoon, type CheckRow, validateMonitorUrl } from "../lib/checks";
+import { calculateCertificateDaysRemaining, isCertificateExpiringSoon, type CheckRow, validateMonitorUrl } from "../lib/checks";
 import { fetchCertificateSnapshot, snapshotToCheckFields, type CertProbeResponse } from "../lib/cert-probe";
 import { toErrorMessage } from "../lib/error-message";
 
@@ -90,17 +90,25 @@ export const refreshCertificateSnapshot = async (
 };
 
 export const describeCertificateAlert = (certificate: CertProbeResponse): { reason: string; error: string } | null => {
-  if (certificate.daysRemaining === null) return null;
-  if (certificate.daysRemaining < 0) {
+  return describeCertificateAlertAt(certificate.validTo, new Date());
+};
+
+export const describeCertificateAlertAt = (
+  validTo: string | null | undefined,
+  now: Date | string,
+): { reason: string; error: string } | null => {
+  const daysRemaining = calculateCertificateDaysRemaining(validTo, now);
+  if (daysRemaining === null) return null;
+  if (daysRemaining < 0) {
     return {
       reason: "tls_expired",
-      error: `certificate expired ${Math.abs(certificate.daysRemaining)} day${Math.abs(certificate.daysRemaining) === 1 ? "" : "s"} ago`,
+      error: `certificate expired ${Math.abs(daysRemaining)} day${Math.abs(daysRemaining) === 1 ? "" : "s"} ago`,
     };
   }
-  if (isCertificateExpiringSoon(certificate.daysRemaining, CERT_EXPIRY_THRESHOLD_DAYS)) {
+  if (isCertificateExpiringSoon(daysRemaining, CERT_EXPIRY_THRESHOLD_DAYS)) {
     return {
       reason: "tls_expiring_soon",
-      error: `certificate expires in ${certificate.daysRemaining} day${certificate.daysRemaining === 1 ? "" : "s"}`,
+      error: `certificate expires in ${daysRemaining} day${daysRemaining === 1 ? "" : "s"}`,
     };
   }
   return null;
