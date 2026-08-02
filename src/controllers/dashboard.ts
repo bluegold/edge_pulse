@@ -13,7 +13,7 @@ export const handleDashboardRequest = factory.createHandlers(async (c) => {
   if (user.role !== "superadmin" && user.groupIds.length === 0) {
     return respondHxOrHtml(c.req.raw, renderPendingAccessPage, () => new Response(renderPendingAccessPage(), { headers: { "content-type": "text/html; charset=utf-8" } }));
   }
-  const data = await loadDashboardData(c.env["pulse-db"], visibleGroupIds(user));
+  const data = await loadDashboardData(c.env["pulse-db"], visibleGroupIds(user), user.id);
   const realtimeGroupIds = user.role === "superadmin"
     ? (await c.env["pulse-db"].prepare("SELECT id FROM groups ORDER BY id").all<{ id: number }>()).results.map((group) => group.id)
     : user.groupIds;

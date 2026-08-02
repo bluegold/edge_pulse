@@ -1,4 +1,4 @@
-export type GroupUpdateReason = "check.updated" | "check.status_changed" | "membership.changed";
+export type GroupUpdateReason = "check.updated" | "check.status_changed" | "membership.changed" | "incident.reaction_changed";
 
 export type GroupUpdatedEvent = {
   type: "group.updated";

@@ -100,6 +100,8 @@ describe("renderChecksPage", () => {
     expect(html).toContain('name="q"');
     expect(html).toContain('name="filter"');
     expect(html).toContain('name="order"');
+    expect(html).toContain('id="checks-stopped-link"');
+    expect(html).toContain('href="/checks?filter=%28enabled%3D0%29"');
     expect(html).toContain('type="hidden" name="order" value=""');
     expect(html).toContain('checks-search-cell');
     expect(html).toContain('>稼働中<');

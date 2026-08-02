@@ -499,7 +499,7 @@ const ChecksShell = ({ data, isSuperadmin }: { data: ChecksPageData; isSuperadmi
         <div class="summary-cell">
           <div class="summary-metric">
             <dt>停止中</dt>
-            <dd>{data.stoppedChecks}</dd>
+            <dd><a id="checks-stopped-link" href={buildChecksUrl({ filter: "(enabled=0)" })} hx-get={buildChecksUrl({ filter: "(enabled=0)" })} hx-target="#content" hx-swap={HX_SWAP_NO_SCROLL} class="hover:underline">{data.stoppedChecks}</a></dd>
           </div>
         </div>
         <SearchPanel q={data.q} filter={data.filter} order={data.order} groupId={data.groupId ?? null} groups={data.groups ?? []} searchError={data.searchError} />

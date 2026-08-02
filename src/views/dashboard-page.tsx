@@ -11,6 +11,7 @@ import { formatNullable, isPlatformFetchError } from "../presenters/common";
 import { formatCertificateDays, formatDuration } from "../presenters/dashboard";
 import { describeCheckState, describeMaintenanceBadge } from "../presenters/checks";
 import type { CloudflareAccessIdentity } from "../http/shared";
+import { INCIDENT_REACTIONS, type IncidentReactionSummary } from "../store/incident-reactions";
 
 export type DashboardData = DashboardDataType;
 
@@ -81,6 +82,39 @@ const SummaryCard = ({
   </div>
 ));
 
+const IncidentReactionButtons = ({ incidentId, reactions = [] }: { incidentId: number; reactions?: IncidentReactionSummary[] }) => (
+  <>
+    {INCIDENT_REACTIONS.map((reaction) => {
+      const summary = reactions.find((item) => item.key === reaction.key) ?? { ...reaction, count: 0, reacted: false };
+      return <button id={`incident-${incidentId}-reaction-${reaction.key}`} class={`inline-flex cursor-pointer items-center gap-1 rounded-md border px-2 py-1 text-xs ${summary.reacted ? "border-sky-200/80 bg-sky-400/20 text-sky-50" : "border-white/15 bg-white/5 text-slate-200"}`} type="button" data-incident-reaction="true" data-reaction-url={`/incidents/${incidentId}/reactions`} data-reaction-key={reaction.key} data-reaction-target={`incident-${incidentId}-reactions`} aria-pressed={summary.reacted}>{reaction.emoji} {reaction.label} <span class="tabular-nums">{summary.count}</span></button>;
+    })}
+  </>
+);
+
+const IncidentReactionControls = ({ incidentId, reactions = [], reactionActors = [] }: { incidentId: number; reactions?: IncidentReactionSummary[]; reactionActors?: IncidentRow["reactionActors"] }) => (
+  <>
+    {reactions.filter((reaction) => reaction.count > 0 || reaction.reacted).map((reaction) => (
+      <button id={`incident-${incidentId}-reaction-${reaction.key}`} class="inline-flex cursor-pointer items-center gap-1 rounded-md border border-sky-200/50 bg-sky-400/10 px-2 py-1 text-xs text-sky-50" type="button" data-incident-reaction="true" data-reaction-url={`/incidents/${incidentId}/reactions`} data-reaction-key={reaction.key} data-reaction-target={`incident-${incidentId}-reactions`} aria-pressed={reaction.reacted} title={`${reactionActors.filter((actor) => actor.reactionKey === reaction.key).map((actor) => actor.displayName).join(" / ") || "参加者なし"}が${reaction.emoji}${reaction.label}${reaction.reacted ? "（クリックで解除）" : ""}`}>
+        {reaction.emoji} <span class="tabular-nums">{reaction.count}</span>
+      </button>
+    ))}
+    <details id={`incident-${incidentId}-reaction-picker`} class="relative">
+      <summary class="inline-flex h-7 w-7 cursor-pointer list-none items-center justify-center rounded-md border border-white/15 bg-white/5 text-base text-slate-200 hover:border-sky-200/60" title="reaction を追加" aria-label="reaction を追加">＋</summary>
+      <div class="absolute left-0 top-9 z-20 grid min-w-max gap-1 rounded-md border border-white/15 bg-slate-950/95 p-2 shadow-xl">
+        <IncidentReactionButtons incidentId={incidentId} reactions={reactions} />
+      </div>
+    </details>
+  </>
+);
+
+export const renderIncidentReactions = (incidentId: number, reactions: IncidentReactionSummary[] = [], reactionActors: IncidentRow["reactionActors"] = []): string => renderToString(<IncidentReactionControls incidentId={incidentId} reactions={reactions} reactionActors={reactionActors} />);
+
+const IncidentReactions = ({ incidentId, reactions = [], reactionActors = [] }: { incidentId: number; reactions?: IncidentReactionSummary[]; reactionActors?: IncidentRow["reactionActors"] }) => (
+  <div id={`incident-${incidentId}-reactions`} class="mt-4 flex flex-wrap items-center justify-end gap-2" aria-label="incident の reaction">
+    <IncidentReactionControls incidentId={incidentId} reactions={reactions} reactionActors={reactionActors} />
+  </div>
+);
+
 const IncidentCard = ({ incident }: { incident: IncidentRow }) => (
   <div id={`current-incident-${incident.id}`} class="border border-rose-400/20 bg-rose-950/25 p-4">
     <div class="flex items-start justify-between gap-4">
@@ -97,6 +131,7 @@ const IncidentCard = ({ incident }: { incident: IncidentRow }) => (
       <StatusBadge enabled={1} state="fail" />
     </div>
     <p class="mt-3 text-sm text-rose-200">理由: {incident.start_reason ?? "unknown"}</p>
+    <IncidentReactions incidentId={incident.id} reactions={incident.reactions} reactionActors={incident.reactionActors} />
   </div>
 );
 

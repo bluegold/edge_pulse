@@ -1,5 +1,6 @@
 import { calculateCertificateDaysRemaining, isCertificateExpiringSoon, type CheckRow, type CheckState } from "../lib/checks";
 import { summarizeChecks } from "../lib/checks-summary";
+import { loadIncidentReactionDetails, loadIncidentReactions, type IncidentReactionActor, type IncidentReactionHistory, type IncidentReactionSummary } from "./incident-reactions";
 
 export type DashboardCheckRow = CheckRow & {
   uptime_started_at?: string | null;
@@ -19,6 +20,9 @@ export type IncidentRow = {
   failure_count: number;
   created_at: string;
   updated_at: string;
+  reactions?: IncidentReactionSummary[];
+  reactionActors?: IncidentReactionActor[];
+  reactionHistory?: IncidentReactionHistory[];
 };
 
 export type CheckResultRow = {
@@ -134,7 +138,7 @@ const isAttentionCheck = (check: CheckRow, now: Date): boolean =>
     Boolean(check.maintenance_enabled)
   );
 
-export const loadDashboardData = async (db: D1Database, groupIds: number[] | null = null): Promise<DashboardData> => {
+export const loadDashboardData = async (db: D1Database, groupIds: number[] | null = null, userId: number | null = null): Promise<DashboardData> => {
   const now = new Date();
   const dayAgo = new Date(now.getTime() - 24 * 60 * 60_000).toISOString();
   const groupClause = groupIds === null ? "" : groupIds.length > 0 ? ` AND c.group_id IN (${groupIds.map(() => "?").join(", ")})` : " AND 1 = 0";
@@ -227,12 +231,20 @@ export const loadDashboardData = async (db: D1Database, groupIds: number[] | nul
     .filter((check) => isAttentionCheck(check, now))
     .sort((a, b) => compareCheckAttention(a, b, now))
     .slice(0, RECENT_CHECKS_LIMIT);
+  const incidentIds = [...new Set([...currentIncidents.results, ...recentIncidents.results].map((incident) => incident.id))];
+  const reactions = userId === null ? new Map<number, IncidentReactionSummary[]>() : await loadIncidentReactions(db, incidentIds, userId);
+  const reactionDetails = userId === null ? new Map<number, { current: IncidentReactionActor[]; history: IncidentReactionHistory[] }>() : await loadIncidentReactionDetails(db, incidentIds);
+  const withReactions = (incidents: IncidentRow[]) => incidents.map((incident) => ({
+    ...incident,
+    reactions: reactions.get(incident.id) ?? [],
+    reactionActors: reactionDetails.get(incident.id)?.current ?? [],
+  }));
 
   return {
     checks: checks.results,
     recentChecks,
-    currentIncidents: currentIncidents.results,
-    recentIncidents: recentIncidents.results,
+    currentIncidents: withReactions(currentIncidents.results),
+    recentIncidents: withReactions(recentIncidents.results),
     recentResults: recentResults.results,
     recentEvents: recentEvents.results,
     incidents24h: incidents24h?.count ?? 0,

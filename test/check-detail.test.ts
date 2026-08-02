@@ -152,6 +152,9 @@ const detailData: CheckDetailData = {
       failure_count: 2,
       created_at: "2026-07-03T11:50:00.000Z",
       updated_at: "2026-07-03T11:55:00.000Z",
+      reactionActors: [
+        { userId: 7, displayName: "田中さん", reactionKey: "investigating", emoji: "👀", label: "調査中", createdAt: "2026-07-03T11:51:00.000Z" },
+      ],
     },
   ],
   latestRecoveryAt: null,
@@ -292,6 +295,8 @@ describe("check detail", () => {
     expect(html).toContain("2026-07-10T11:40:00.000Z");
     expect(html).toContain("状態遷移イベント");
     expect(html).toContain("incident 履歴");
+    expect(html).toContain('id="check-current-incident-collaboration"');
+    expect(html).toContain("田中さんが👀調査中");
     expect(html).toContain("直近のチェック結果");
     expect(html).toContain("有効");
     expect(html).toContain("最終更新");

@@ -332,6 +332,12 @@ describe("renderDashboardPage", () => {
           failure_count: 2,
           created_at: "2026-06-22T00:00:00.000Z",
           updated_at: "2026-06-22T00:00:00.000Z",
+          reactionActors: [
+            { userId: 7, displayName: "田中さん", reactionKey: "investigating", emoji: "👀", label: "調査中", createdAt: "2026-06-22T00:01:00.000Z" },
+          ],
+          reactions: [
+            { key: "investigating", emoji: "👀", label: "調査中", count: 1, reacted: false },
+          ],
         },
       ],
     });
@@ -352,5 +358,8 @@ describe("renderDashboardPage", () => {
     expect(panelHtml).toContain("M12 17h.01");
     expect(panelHtml).not.toContain("m20 6-11 11-5-5");
     expect(panelHtml).toContain('status off status-fail');
+    expect(panelHtml).toContain("調査中");
+    expect(panelHtml).toContain("title=\"田中さんが👀調査中\"");
+    expect(panelHtml).toContain("対応中");
   });
 });

@@ -418,6 +418,7 @@ const IncidentsSection = ({ data }: { data: CheckDetailData }) => (
             <th class="px-4 py-3 font-bold text-right">継続</th>
             <th class="px-4 py-3 font-bold">開始理由</th>
             <th class="px-4 py-3 font-bold">終了理由</th>
+            <th class="px-4 py-3 font-bold">協力状況</th>
           </tr>
         </thead>
         <tbody class="align-top text-slate-300">
@@ -429,11 +430,26 @@ const IncidentsSection = ({ data }: { data: CheckDetailData }) => (
                 <td class="px-4 py-2.5 text-right tabular-nums">{formatDuration(incident.started_at, incident.resolved_at)}</td>
                 <td class="px-4 py-2.5">{formatNullable(incident.start_reason)}</td>
                 <td class="px-4 py-2.5">{formatNullable(incident.end_reason)}</td>
+                <td class="px-4 py-2.5">
+                  {incident.reactionActors && incident.reactionActors.length > 0 ? (
+                    <div class="grid gap-1">
+                      {incident.reactionActors.map((reaction) => <span id={`check-incident-${incident.id}-reaction-${reaction.userId}-${reaction.reactionKey}`} class="whitespace-nowrap text-slate-200">{reaction.displayName}が{reaction.emoji}{reaction.label}</span>)}
+                    </div>
+                  ) : <span class="text-slate-500">なし</span>}
+                  {incident.reactionHistory && incident.reactionHistory.length > 0 ? (
+                    <details id={`check-incident-${incident.id}-reaction-history`} class="mt-2 text-xs text-slate-400">
+                      <summary class="cursor-pointer hover:text-slate-200">履歴 {incident.reactionHistory.length}件</summary>
+                      <div class="mt-1 grid gap-1">
+                        {incident.reactionHistory.map((entry) => <span>{entry.displayName}が{entry.emoji}{entry.label}を{entry.action === "added" ? "追加" : "解除"}（<LocalTime iso={entry.createdAt} />）</span>)}
+                      </div>
+                    </details>
+                  ) : null}
+                </td>
               </tr>
             ))
           ) : (
             <tr>
-              <td colSpan={5} class="px-4 py-6 text-sm text-slate-400">
+              <td colSpan={6} class="px-4 py-6 text-sm text-slate-400">
                 incident はまだありません。
               </td>
             </tr>
@@ -493,6 +509,20 @@ const ResultsSection = ({ data }: { data: CheckDetailData }) => (
   </DetailCard>
 );
 
+const CurrentIncidentCollaboration = ({ data }: { data: CheckDetailData }) => {
+  const incident = data.recentIncidents.find((item) => item.resolved_at === null);
+  if (!incident || !incident.reactionActors || incident.reactionActors.length === 0) return null;
+
+  return (
+    <div id="check-current-incident-collaboration" class="mt-4 border border-rose-300/25 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
+      <p class="text-xs font-bold uppercase tracking-[0.22em] text-rose-200">現在の障害・協力状況</p>
+      <p class="mt-2 font-semibold">
+        {incident.reactionActors.map((reaction, index) => <span>{index > 0 ? " / " : ""}{reaction.displayName}が{reaction.emoji}{reaction.label}</span>)}
+      </p>
+    </div>
+  );
+};
+
 const CheckDetailShell = ({ data, editing = false }: { data: CheckDetailData; editing?: boolean }) => {
   const stateBadge = describeCheckState(data.check.enabled, data.check.last_state);
   const maintenanceBadge = describeMaintenanceBadge(data.check);
@@ -528,6 +558,7 @@ const CheckDetailShell = ({ data, editing = false }: { data: CheckDetailData; ed
                 </span>
               </span>
             </div>
+            <CurrentIncidentCollaboration data={data} />
           </div>
           <div class="flex flex-wrap items-center gap-3">
             {editing ? null : (

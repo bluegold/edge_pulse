@@ -41,6 +41,40 @@
     if (status) status.textContent = text;
   };
 
+  const submitIncidentReaction = async (button) => {
+    if (button.dataset.reactionPending === "true") return;
+    const target = document.getElementById(button.dataset.reactionTarget || "");
+    const url = button.dataset.reactionUrl;
+    const reactionKey = button.dataset.reactionKey;
+    if (!target || !url || !reactionKey) return;
+    button.dataset.reactionPending = "true";
+    button.classList.add("opacity-60");
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "HX-Request": "true",
+        },
+        body: new URLSearchParams({ reaction_key: reactionKey }),
+      });
+      if (!response.ok) throw new Error("incident reaction failed: " + String(response.status));
+      target.innerHTML = await response.text();
+    } catch (error) {
+      console.error("[edge-pulse:reaction]", error);
+    } finally {
+      delete button.dataset.reactionPending;
+      button.classList.remove("opacity-60");
+    }
+  };
+
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest?.("[data-incident-reaction]");
+    if (!button) return;
+    event.preventDefault();
+    void submitIncidentReaction(button);
+  });
+
   const closeSockets = () => {
     for (const socket of sockets) socket.close();
     sockets = [];

@@ -1,5 +1,6 @@
 import type { CheckRow } from "../lib/checks";
 import type { IncidentRow, CheckResultRow, StatusEventRow } from "./dashboard";
+import { loadIncidentReactionDetails } from "./incident-reactions";
 
 export type CheckDetailReport = {
   checks24h: number;
@@ -114,6 +115,7 @@ export const loadCheckDetailData = async (db: D1Database, id: number, groupIds: 
   const checks24h = results24h?.checks24h ?? 0;
   const failures24h = results24h?.failures24h ?? 0;
   const availability24h = checks24h > 0 ? Math.max(0, Math.min(100, ((checks24h - failures24h) / checks24h) * 100)) : null;
+  const reactionDetails = await loadIncidentReactionDetails(db, recentIncidents.results.map((incident) => incident.id));
 
   return {
     check,
@@ -127,7 +129,11 @@ export const loadCheckDetailData = async (db: D1Database, id: number, groupIds: 
     },
     recentResults: recentResults.results,
     recentEvents: recentEvents.results,
-    recentIncidents: recentIncidents.results,
+    recentIncidents: recentIncidents.results.map((incident) => ({
+      ...incident,
+      reactionActors: reactionDetails.get(incident.id)?.current ?? [],
+      reactionHistory: reactionDetails.get(incident.id)?.history ?? [],
+    })),
     latestRecoveryAt: latestRecovery?.occurred_at ?? null,
     generatedAt: new Date().toISOString(),
   };

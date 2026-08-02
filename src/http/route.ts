@@ -4,6 +4,7 @@ import { apiTokenMiddleware } from "./middleware/api-token";
 import { api } from "./routes/api";
 import { admin } from "./routes/admin";
 import { account } from "./routes/account";
+import { incidentReactions } from "./routes/incident-reactions";
 import { checks } from "./routes/checks";
 import { dashboard } from "./routes/dashboard";
 import { realtime } from "./routes/realtime";
@@ -27,6 +28,7 @@ app.route("/", dashboard);
 app.route("/checks", checks);
 app.route("/admin", admin);
 app.route("/account", account);
+app.route("/incidents", incidentReactions);
 app.route("/ws", realtime);
 app.route("/api", api);
 

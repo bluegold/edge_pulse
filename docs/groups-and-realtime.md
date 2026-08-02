@@ -169,28 +169,30 @@ reaction の追加・削除の流れ:
   ↓
 Worker が group membership と権限を確認
   ↓
-D1 に reaction を追加または削除
+    D1 に reaction を追加または削除
   ↓
 D1 から確定した count を取得
   ↓
-Group DO が reaction.changed を broadcast
+  Group DO が group.updated を broadcast
 ```
+
+画面操作は `POST /incidents/:id/reactions`、外部 API は `POST /api/incidents/:id/reactions` を使う。同じ reaction を再度操作すると、そのユーザーの reaction を削除する。いずれも incident の check が属する group の membership を確認する。
 
 reaction イベントの例:
 
 ```json
 {
-  "type": "incident.reaction_changed",
-  "eventId": "...",
+  "type": "group.updated",
+  "eventId": "incident-reaction:123:7:responding:...",
   "groupId": 10,
-  "incidentId": 123,
-  "reaction": "responding",
-  "count": 3,
+  "reason": "incident.reaction_changed",
   "occurredAt": "2026-08-01T00:00:00.000Z"
 }
 ```
 
 reaction の count は D1 の一意制約と保存結果を基準にする。DO のメモリ上の count を正として扱わない。
+
+reaction の追加・削除は `audit_logs` に `incident.reaction_added` / `incident.reaction_removed` として保存する。監視対象の詳細画面では、現在付いている reaction のユーザーと、この履歴を表示する。
 
 reaction は通常、Discord や webhook などの外部通知対象にしない。incident の発生・復旧は外部通知し、reaction は group 内のリアルタイム共有に限定する。
 
@@ -235,9 +237,8 @@ DEV_ACCESS_ROLE     任意。既定値は member。superadmin の動作確認時
 2. superadmin による group・membership・check 移動と監査ログを追加済み
 3. D1 更新後の `group.updated` 通知、Group DO、受信専用 WebSocket を追加済み
 4. `api_tokens` と user 単位の API token 管理を追加済み
-5. `incident_reactions` と reaction 操作 API を追加する
-6. dashboard に reaction UI を追加する
-7. desktop notifier など複数 group 購読クライアントへ拡張する
+5. `incident_reactions`、reaction 操作 API、Dashboard の reaction UI を追加済み
+6. desktop notifier など複数 group 購読クライアントへ拡張する
 
 check の group 移動と作成時の group 選択は、監視一覧または監視対象編集画面に実装する。未選択で作成された check は orphan に入り、superadmin が後から移動する。
 
@@ -249,7 +250,7 @@ check の group 移動と作成時の group 選択は、監視一覧または監
 2. `users` / `groups` / `group_members`、group 境界、superadmin 管理を追加する（完了）
 3. D1 更新後に発行するイベント形式と Group Durable Object / Hibernatable WebSocket を追加する（完了）
 4. user 単位 API token を追加し、既存の `ADMIN_API_TOKEN` と併存させる（完了）
-5. `incident_reactions` と reaction 操作 API、Dashboard の reaction UI を追加する
-6. migration、認証、認可、越境防止、token、WebSocket のテストを拡充する
+5. `incident_reactions`、reaction 操作 API、Dashboard の reaction UI を追加する（完了）
+6. migration、認証、認可、越境防止、token、WebSocket、reaction のテストを拡充する（完了）
 
 各段階で D1 を唯一の状態保存先とし、既存の監視 Queue・incident 状態遷移を維持する。
