@@ -107,6 +107,8 @@ Group DO の責務:
 - group 内のイベントを接続中のユーザーへ broadcast する
 - 再接続・権限削除・購読解除を処理する
 
+初期実装の WebSocket は、現在の Dashboard の「自動更新」ポーリングを置き換える更新通知の受信専用とする。クライアントから DO へのイベント送信、reaction 操作、WebSocket 経由の状態変更は行わない。クライアントは `group.updated` を受信したら、現在表示している画面を HTTP API または D1 ベースで再取得する。WebSocket の payload に画面の状態を含めず、通知は再取得の契機として扱う。
+
 Group DO が担当しないこと:
 
 - check や incident の現在状態を唯一の場所として保持する
@@ -115,6 +117,8 @@ Group DO が担当しないこと:
 - D1 の代わりに dashboard の状態を返す
 
 WebSocket は Hibernatable WebSocket API を使用する。接続単位のユーザー情報は、DO の休止・再初期化後も復元できるようにする。DO の通信は group という協調単位に限定し、全テナントを 1 つの DO に集約しない。
+
+初期段階ではサーバーからクライアントへの一方向通知だけを実装し、クライアントからの WebSocket message handler は設けない。
 
 ## イベントの流れ
 
@@ -138,15 +142,15 @@ D1 の保存を先に完了させる。DO への publish が失敗しても、�
 
 ```json
 {
-  "type": "incident.opened",
+  "type": "group.updated",
   "eventId": "...",
   "groupId": 10,
-  "incidentId": 123,
+  "reason": "check.status_changed",
   "occurredAt": "2026-08-01T00:00:00.000Z"
 }
 ```
 
-`eventId` を使って、再接続や複数 group 購読時の重複イベントをクライアント側で抑止できるようにする。イベントを受信したクライアントは、必要に応じて現在の D1 状態を HTTP で再取得する。
+`group.updated` は check 状態、incident、membership など group に属する D1 の更新をまとめて通知する。`reason` はログ・デバッグ用の補助情報であり、クライアントの状態判定には使わない。`eventId` を使って、再接続や複数 group 購読時の重複イベントをクライアント側で抑止できるようにする。イベントを受信したクライアントは、現在表示している URL を HTTP で再取得する。
 
 ### Reaction
 
@@ -229,11 +233,11 @@ DEV_ACCESS_ROLE     任意。既定値は member。superadmin の動作確認時
 1. `users` / `groups` / `group_members` を追加し、orphan group と既存 check の一時割り当てを行う
 2. `checks.group_id` と group 単位の認可を追加する
 3. superadmin による group 作成と membership 管理を追加する
-4. `api_tokens` と user 単位の API token 管理を追加する
-5. `incident_reactions` と reaction 操作 API を追加する
-6. check 移動などの監査ログを追加する
-7. D1 更新後に発行するイベント形式を定義する
-8. Group DO と Hibernatable WebSocket を追加する
+4. check 移動などの監査ログを追加する
+5. D1 更新後に発行するイベント形式を定義する
+6. Group DO と Hibernatable WebSocket を追加する
+7. `api_tokens` と user 単位の API token 管理を追加する
+8. `incident_reactions` と reaction 操作 API を追加する
 9. dashboard に複数 group 表示と reaction UI を追加する
 10. desktop notifier など複数 group 購読クライアントへ拡張する
 
@@ -248,8 +252,9 @@ check の group 移動と作成時の group 選択は、監視一覧または監
 3. group membership、superadmin 認可、割り当て待ち画面を追加する
 4. check、incident、Dashboard、notification の group 境界を追加する
 5. superadmin の group 管理、check 移動、監査ログを追加する
-6. user 単位 API token を追加し、既存の `ADMIN_API_TOKEN` と併存させる
-7. reaction と Group Durable Object / Hibernatable WebSocket を追加する
-8. migration、認証、認可、越境防止、token、WebSocket のテストを追加する
+6. D1 更新後に発行するイベント形式と Group Durable Object / Hibernatable WebSocket を追加する
+7. user 単位 API token を追加し、既存の `ADMIN_API_TOKEN` と併存させる
+8. `incident_reactions` と reaction 操作 API、Dashboard の reaction UI を追加する
+9. migration、認証、認可、越境防止、token、WebSocket のテストを追加する
 
 各段階で D1 を唯一の状態保存先とし、既存の監視 Queue・incident 状態遷移を維持する。

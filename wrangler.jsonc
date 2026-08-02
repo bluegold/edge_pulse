@@ -15,6 +15,10 @@
 			{
 				"name": "CertProbeContainer",
 				"class_name": "CertProbeContainer"
+			},
+			{
+				"name": "GROUPS",
+				"class_name": "GroupDurableObject"
 			}
 		]
 	},
@@ -23,6 +27,12 @@
 			"tag": "v1",
 			"new_sqlite_classes": [
 				"CertProbeContainer"
+			]
+		},
+		{
+			"tag": "v2",
+			"new_sqlite_classes": [
+				"GroupDurableObject"
 			]
 		}
 	],

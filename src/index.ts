@@ -2,9 +2,11 @@ import { CertProbeContainer } from "./lib/cert-probe-container";
 import type { CheckJob } from "./lib/checks";
 import { app } from "./http/route";
 import { handleScheduled, runCheck } from "./services/check-execution";
+import { GroupDurableObject } from "./durable-objects/group";
 
 export { app };
 export { CertProbeContainer };
+export { GroupDurableObject };
 
 export default {
   fetch: app.fetch.bind(app),

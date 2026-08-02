@@ -930,9 +930,6 @@ export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, isS
             url("data:image/svg+xml,%3Csvg width='150' height='24' viewBox='0 0 150 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 18L12 14L22 19L34 10L45 18L55 13L65 17L78 8L91 14L103 13L114 7L126 10L138 5L150 8' stroke='%2338bdf8' stroke-width='2'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
         }
         .flatline { height: 1px; background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.95), transparent); }
-        .auto-reload-ring {
-          background: conic-gradient(#38bdf8 calc(var(--auto-progress, 0) * 1%), rgba(148, 163, 184, 0.2) 0);
-        }
         .status-strip {
           border-top: 1px solid rgba(148, 163, 184, 0.12);
           border-bottom: 1px solid rgba(148, 163, 184, 0.12);
@@ -1139,7 +1136,7 @@ export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, isS
         </div>
       </header>
       <main id="content">{children}</main>
-      <script src="/assets/auto-reload.js" defer></script>
+      <script id="realtime-controls" src="/assets/realtime.js" defer></script>
       <script id="checks-page-controls" src="/assets/checks-page.js" defer></script>
       <script type="module" src="/assets/check-detail-graphs.js" defer></script>
       <footer class="footerbar mt-auto w-full">

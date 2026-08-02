@@ -5,6 +5,7 @@ import { api } from "./routes/api";
 import { admin } from "./routes/admin";
 import { checks } from "./routes/checks";
 import { dashboard } from "./routes/dashboard";
+import { realtime } from "./routes/realtime";
 
 app.use("*", async (c, next) => {
   if (c.req.path.startsWith("/api/")) {
@@ -24,6 +25,7 @@ app.get("/assets/*", async (c) => {
 app.route("/", dashboard);
 app.route("/checks", checks);
 app.route("/admin", admin);
+app.route("/ws", realtime);
 app.route("/api", api);
 
 export { app };

@@ -4,6 +4,7 @@
 interface __BaseEnv_Env {
 	"pulse-db": D1Database;
 	"pulse-queue": Queue;
+	GROUPS: DurableObjectNamespace<import("./index").GroupDurableObject>;
 	ASSETS: Fetcher;
 	CF_ACCESS_TEAM_DOMAIN: "tkaneko188.cloudflareaccess.com";
 	CF_ACCESS_AUDIENCE: "45d7977f183398962d095d71eb77061173d0c55bb7f869e645bc63997dd342ef";
@@ -20,7 +21,7 @@ interface __BaseEnv_Env {
 declare namespace Cloudflare {
 	interface GlobalProps {
 		mainModule: typeof import("./index");
-		durableNamespaces: "CertProbeContainer";
+		durableNamespaces: "CertProbeContainer" | "GroupDurableObject";
 	}
 	interface Env extends __BaseEnv_Env {}
 }

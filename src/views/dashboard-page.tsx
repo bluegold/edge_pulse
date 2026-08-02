@@ -326,7 +326,7 @@ const SectionDivider = () => (
   </div>
 );
 
-const DashboardShell = ({ data }: { data: DashboardData }) => {
+const DashboardShell = ({ data, groupIds = [] }: { data: DashboardData; groupIds?: number[] }) => {
   const summary = summarizeDashboard(data.checks, data.recentIncidents);
   const recentChecks = data.recentChecks;
   const hasCurrentIncidents = data.currentIncidents.length > 0;
@@ -346,7 +346,7 @@ const DashboardShell = ({ data }: { data: DashboardData }) => {
   );
 
   return (
-    <section id="dashboard-shell" class="w-full">
+    <section id="dashboard-shell" class="w-full" data-realtime-group-ids={groupIds.join(",")}>
       <div class="dashboard-frame overflow-hidden rounded-xl">
         <header class="section-head flex flex-col gap-5 px-6 py-6 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -355,28 +355,7 @@ const DashboardShell = ({ data }: { data: DashboardData }) => {
             <p class="mt-3 max-w-2xl text-sm text-slate-300">D1 を唯一の状態保存先として、現在状態・障害・直近の追加情報だけを表示します。</p>
           </div>
           <div class="flex flex-wrap items-center gap-3">
-            <button
-              id="dashboard-auto-reload-toggle"
-              type="button"
-              class="glass-button inline-flex items-center gap-3 rounded-md px-4 py-3 text-left text-slate-100 transition focus-visible:outline-none"
-              aria-pressed="false"
-              data-active="false"
-            >
-              <span id="dashboard-auto-reload-idle" class="text-sm font-semibold text-slate-50">
-                自動更新
-              </span>
-              <span id="dashboard-auto-reload-active" class="hidden items-center gap-3">
-                <span
-                  id="dashboard-auto-reload-ring"
-                  class="auto-reload-ring relative grid h-12 w-12 place-items-center rounded-full border border-slate-700 bg-slate-950/90 text-sm font-black text-slate-50"
-                  aria-hidden="true"
-                >
-                  <span data-role="center" class="pointer-events-none select-none">
-                    30s
-                  </span>
-                </span>
-              </span>
-            </button>
+            <span id="dashboard-realtime-status" class="text-xs text-slate-400">リアルタイム接続準備中</span>
             <a id="dashboard-checks-link" href="/checks" class="glass-button inline-flex items-center rounded-md px-4 py-3 text-sm font-semibold text-slate-100">
               監視一覧へ
             </a>
@@ -607,7 +586,7 @@ const DashboardShell = ({ data }: { data: DashboardData }) => {
   );
 };
 
-const DashboardDocument = ({ data, accessIdentity, isSuperadmin }: { data: DashboardData; accessIdentity: CloudflareAccessIdentity | null; isSuperadmin: boolean }) => (
+const DashboardDocument = ({ data, accessIdentity, isSuperadmin, groupIds }: { data: DashboardData; accessIdentity: CloudflareAccessIdentity | null; isSuperadmin: boolean; groupIds: number[] }) => (
   <AppLayout
     title="Edge Pulse"
     activeHref="/"
@@ -616,14 +595,14 @@ const DashboardDocument = ({ data, accessIdentity, isSuperadmin }: { data: Dashb
     isSuperadmin={isSuperadmin}
     resetScrollOnLoad={true}
   >
-    <DashboardShell data={data} />
+    <DashboardShell data={data} groupIds={groupIds} />
   </AppLayout>
 );
 
-export const renderDashboardShell = (data: DashboardData): string => renderToString(<DashboardShell data={data} />);
+export const renderDashboardShell = (data: DashboardData, groupIds: number[] = []): string => renderToString(<DashboardShell data={data} groupIds={groupIds} />);
 
-export const renderDashboardPage = (data: DashboardData, accessIdentity: CloudflareAccessIdentity | null = null, isSuperadmin = false): Response =>
-  new Response(renderToString(<DashboardDocument data={data} accessIdentity={accessIdentity} isSuperadmin={isSuperadmin} />), {
+export const renderDashboardPage = (data: DashboardData, accessIdentity: CloudflareAccessIdentity | null = null, isSuperadmin = false, groupIds: number[] = []): Response =>
+  new Response(renderToString(<DashboardDocument data={data} accessIdentity={accessIdentity} isSuperadmin={isSuperadmin} groupIds={groupIds} />), {
     headers: {
       "content-type": "text/html; charset=utf-8",
       "cache-control": "no-store",
