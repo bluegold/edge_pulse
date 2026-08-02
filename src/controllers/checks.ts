@@ -1,4 +1,6 @@
 import { createFactory } from "hono/factory";
+import { visibleGroupIds } from "../auth/authorization";
+import type { AppEnv } from "../auth/types";
 import { validateCheckInput, type CheckInput } from "../lib/checks";
 import { JsonBodyError } from "../lib/json-body";
 import { getCheckById, insertCheck, loadChecksPageData, updateCheck } from "../store/checks";
@@ -8,8 +10,9 @@ import { renderCheckDetailPage, renderCheckDetailShell } from "../views/check-de
 import { renderRecentCheckCard } from "../views/dashboard-page.tsx";
 import { isHxRequest, readCheckInputFromRequest, respondHtml, respondJson, respondHxOrHtml } from "../http/shared";
 import { refreshCertificateSnapshot } from "../services/certificate-check";
+import { renderPendingAccessPage } from "../views/pending-access";
 
-const factory = createFactory<{ Bindings: Env }>();
+const factory = createFactory<AppEnv>();
 
 const unsupportedContentTypeResponse = () =>
   respondHtml(
@@ -105,31 +108,35 @@ const renderChecksPageResponse = async (
   q = "",
   filter = "",
   order = "",
+  groupIds: number[] | null = null,
+  isSuperadmin = false,
 ): Promise<Response> => {
-  const data = await loadChecksPageData(env["pulse-db"], page, editId, highlightId, q, filter, order, getChecksPageSize(env));
-  return respondHxOrHtml(request, () => renderChecksShell(data), () => renderChecksPage(data));
+  const data = await loadChecksPageData(env["pulse-db"], page, editId, highlightId, q, filter, order, getChecksPageSize(env), groupIds);
+  return respondHxOrHtml(request, () => renderChecksShell(data), () => renderChecksPage(data, isSuperadmin));
 };
 
-const renderCheckDetailPageResponse = async (request: Request, env: Env, id: number): Promise<Response> => {
-  const data = await loadCheckDetailData(env["pulse-db"], id);
+const renderCheckDetailPageResponse = async (request: Request, env: Env, id: number, groupIds: number[] | null = null, isSuperadmin = false): Promise<Response> => {
+  const data = await loadCheckDetailData(env["pulse-db"], id, groupIds);
   if (!data) {
     return notFoundResponse();
   }
   const editing = new URL(request.url).searchParams.get("edit") === "1";
 
-  return respondHxOrHtml(request, () => renderCheckDetailShell(data, editing), () => renderCheckDetailPage(data));
+  return respondHxOrHtml(request, () => renderCheckDetailShell(data, editing), () => renderCheckDetailPage(data, null, isSuperadmin));
 };
 
 export const handleChecksRequest = factory.createHandlers(async (c) => {
+  const user = c.get("user");
+  if (user.role !== "superadmin" && user.groupIds.length === 0) return new Response(renderPendingAccessPage(), { headers: { "content-type": "text/html; charset=utf-8" } });
   const page = Number(c.req.query("page") ?? "1");
   const editId = c.req.query("edit");
   const focusId = c.req.query("focus");
   const { q, filter, order } = getSearchParamsFromRequest(c.req.raw);
-  return renderChecksPageResponse(c.req.raw, c.env, page, editId ? Number(editId) : null, focusId ? Number(focusId) : null, q, filter, order);
+  return renderChecksPageResponse(c.req.raw, c.env, page, editId ? Number(editId) : null, focusId ? Number(focusId) : null, q, filter, order, visibleGroupIds(user));
 });
 
 export const handleCheckDetailRequest = factory.createHandlers(async (c) => {
-  return renderCheckDetailPageResponse(c.req.raw, c.env, Number(c.req.param("id")));
+  return renderCheckDetailPageResponse(c.req.raw, c.env, Number(c.req.param("id")), visibleGroupIds(c.get("user")), c.get("user").role === "superadmin");
 });
 
 export const handleCreateCheck = factory.createHandlers(async (c) => {
@@ -143,7 +150,7 @@ export const handleCreateCheck = factory.createHandlers(async (c) => {
 
   const now = new Date().toISOString();
   await insertCheck(c.env["pulse-db"], input, now);
-  return renderChecksPageResponse(c.req.raw, c.env, page, null, null, q, filter, order);
+  return renderChecksPageResponse(c.req.raw, c.env, page, null, null, q, filter, order, visibleGroupIds(c.get("user")), c.get("user").role === "superadmin");
 });
 
 export const handleUpdateCheck = factory.createHandlers(async (c) => {

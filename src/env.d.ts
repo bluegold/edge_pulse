@@ -11,6 +11,10 @@ interface __BaseEnv_Env {
 	CERT_PROBE_URL: string;
 	ADMIN_API_TOKEN: string;
 	DISCORD_WEBHOOK_URL: string;
+	DEV_ACCESS_SUBJECT: string;
+	DEV_ACCESS_EMAIL: string;
+	DEV_ACCESS_NAME: string;
+	DEV_ACCESS_ROLE: string;
 	CertProbeContainer: DurableObjectNamespace<import("./index").CertProbeContainer>;
 }
 declare namespace Cloudflare {

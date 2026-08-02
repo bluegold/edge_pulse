@@ -4,6 +4,7 @@ import type { CheckRow } from "../../src/lib/checks";
 
 const check: CheckRow = {
   id: 1,
+  group_id: 1,
   name: "api",
   url: "https://api.example.com",
   method: "GET",

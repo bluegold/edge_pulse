@@ -106,11 +106,17 @@ TLS 証明書情報は Worker の `fetch()` だけでは取り切れないため
 
 ## Group とリアルタイム通知
 
-将来、`group` をテナント単位、`user` を group のメンバーとして追加します。`check` は 1 つの group に所属し、user は複数の group に所属できます。詳細は [Group とリアルタイム通知](groups-and-realtime.md) を参照してください。
+`group` をテナント単位、`user` を group のメンバーとして追加します。`check` は 1 つの group に所属し、user は複数の group に所属できます。membership が 0 件の user は割り当て待ちとし、superadmin は membership に関係なく全 group を管理できます。詳細は [Group とリアルタイム通知](groups-and-realtime.md) を参照してください。
+
+初期 migration では予約済みの `orphan` group を作成して既存 check を一時的に割り当てます。orphan は通常 user のアクセス対象外で、superadmin だけが閲覧・操作できます。通常運用では orphan に check を残しません。check が存在する group は削除できません。
+
+管理者画面は group と user の管理を担当します。check の group 移動は対象の状態を確認しやすい監視一覧または監視対象編集画面で行い、superadmin にだけ操作欄を表示します。移動は監査ログに保存します。
 
 group ごとの Durable Object は WebSocket 接続とイベント broadcast だけを担当します。監視結果、incident、reaction、membership は D1 に保存し、D1 を状態の唯一の保存先とします。
 
 監視結果や reaction の D1 保存が完了した後に Group DO へイベントを送ります。DO への送信失敗は D1 の保存を巻き戻さず、クライアントは再接続時またはイベント受信後に D1 ベースの状態を再取得します。
+
+Access の安定した subject を `identity_provider + identity_subject` として user に保存します。初回ログイン時は user を冪等に自動作成しますが、group membership は自動作成しません。group の作成、membership の変更、check の group 移動は superadmin のみが行えます。check の group 移動は監査ログに保存し、監査ログは superadmin のみが閲覧できます。
 
 ## ダッシュボード集計方針
 

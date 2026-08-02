@@ -581,15 +581,18 @@ const CheckDetailShell = ({ data, editing = false }: { data: CheckDetailData; ed
 const CheckDetailDocument = ({
   data,
   accessIdentity,
+  isSuperadmin,
 }: {
   data: CheckDetailData;
   accessIdentity: CloudflareAccessIdentity | null;
+  isSuperadmin: boolean;
 }) => (
   <AppLayout
     title={`Edge Pulse / ${data.check.name}`}
     activeHref="/checks"
     footerStatus={data.check.last_state === "fail" ? "degraded" : "healthy"}
     accessIdentity={accessIdentity}
+    isSuperadmin={isSuperadmin}
   >
     <CheckDetailShell data={data} />
   </AppLayout>
@@ -597,8 +600,8 @@ const CheckDetailDocument = ({
 
 export const renderCheckDetailShell = (data: CheckDetailData, editing = false): string => renderToString(<CheckDetailShell data={data} editing={editing} />);
 
-export const renderCheckDetailPage = (data: CheckDetailData, accessIdentity: CloudflareAccessIdentity | null = null): Response =>
-  new Response(renderToString(<CheckDetailDocument data={data} accessIdentity={accessIdentity} />), {
+export const renderCheckDetailPage = (data: CheckDetailData, accessIdentity: CloudflareAccessIdentity | null = null, isSuperadmin = false): Response =>
+  new Response(renderToString(<CheckDetailDocument data={data} accessIdentity={accessIdentity} isSuperadmin={isSuperadmin} />), {
     headers: {
       "content-type": "text/html; charset=utf-8",
       "cache-control": "no-store",

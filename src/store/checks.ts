@@ -23,7 +23,8 @@ export type ChecksPageData = {
   generatedAt: string;
 };
 
-export const getCheckById = async (db: D1Database, id: number): Promise<ChecksPageRow | null> => {
+export const getCheckById = async (db: D1Database, id: number, groupIds: number[] | null = null): Promise<ChecksPageRow | null> => {
+  const groupClause = groupIds === null ? "" : groupIds.length > 0 ? ` AND c.group_id IN (${groupIds.map(() => "?").join(", ")})` : " AND 1 = 0";
   return db
     .prepare(
       `
@@ -46,11 +47,11 @@ export const getCheckById = async (db: D1Database, id: number): Promise<ChecksPa
         WHERE to_state = 'ok'
         GROUP BY check_id
       ) AS uptime ON uptime.check_id = c.id
-      WHERE c.id = ?
+      WHERE c.id = ?${groupClause}
       LIMIT 1
     `,
     )
-    .bind(id)
+    .bind(id, ...(groupIds ?? []))
     .first<ChecksPageRow>();
 };
 
@@ -61,12 +62,12 @@ export const insertCheck = async (db: D1Database, input: CheckInput, now: string
       INSERT INTO checks (
         name, url, method, enabled,
         expected_status_min, expected_status_max, timeout_ms, interval_minutes,
-        maintenance_enabled,
+        maintenance_enabled, group_id,
         next_check_at, last_enqueued_at, last_checked_at,
         last_state, last_status_code, last_latency_ms, last_error,
         fail_threshold, recovery_threshold, consecutive_failures, consecutive_successes,
         first_failure_at, first_success_at, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, 'unknown', NULL, NULL, NULL, ?, ?, 0, 0, NULL, NULL, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NULL, NULL, NULL, 'unknown', NULL, NULL, NULL, ?, ?, 0, 0, NULL, NULL, ?, ?)
       RETURNING id
     `,
     )
@@ -129,6 +130,7 @@ export const loadChecksPageData = async (
   filter = "",
   order = "",
   pageSize = 20,
+  groupIds: number[] | null = null,
 ): Promise<ChecksPageData> => {
   const normalizedPageSize = normalizePageSize(pageSize);
   const normalizedQuery = q.trim();
@@ -138,20 +140,23 @@ export const loadChecksPageData = async (
 
   const { sql: whereSql, params: whereParams, searchError } = buildChecksSearchWhereClause(normalizedQuery, normalizedFilter, dayAgo);
   const orderBySql = buildCheckOrderByClause(normalizedOrder);
-  const whereClause = whereSql ? `WHERE ${whereSql}` : "";
+  const groupClause = groupIds === null ? "" : groupIds.length > 0 ? `c.group_id IN (${groupIds.map(() => "?").join(", ")})` : "1 = 0";
+  const whereParts = [whereSql, groupClause].filter(Boolean);
+  const whereClause = whereParts.length > 0 ? `WHERE ${whereParts.join(" AND ")}` : "";
+  const scopedWhereParams = [...whereParams, ...(groupIds ?? [])];
 
   const countQuery = `
         SELECT COUNT(*) AS count
         FROM checks c
         ${whereClause}
       `;
-  const countResult = await db.prepare(countQuery).bind(...whereParams).first<{ count: number }>();
+  const countResult = await db.prepare(countQuery).bind(...scopedWhereParams).first<{ count: number }>();
   const summaryQuery = `
         SELECT c.*
         FROM checks c
         ${whereClause}
       `;
-  const summaryChecks = searchError ? { results: [] as CheckRow[] } : await db.prepare(summaryQuery).bind(...whereParams).all<CheckRow>();
+  const summaryChecks = searchError ? { results: [] as CheckRow[] } : await db.prepare(summaryQuery).bind(...scopedWhereParams).all<CheckRow>();
 
   const totalChecks = searchError ? 0 : countResult?.count ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalChecks / normalizedPageSize));
@@ -183,7 +188,7 @@ export const loadChecksPageData = async (
       `;
   const checksResult = searchError
     ? { results: [] as ChecksPageRow[] }
-    : await db.prepare(dataQuery).bind(...whereParams, normalizedPageSize, offset).all<ChecksPageRow>();
+    : await db.prepare(dataQuery).bind(...scopedWhereParams, normalizedPageSize, offset).all<ChecksPageRow>();
   const checks = checksResult.results;
 
   const summary = summarizeChecks(summaryChecks.results);

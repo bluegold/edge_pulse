@@ -17,6 +17,7 @@ type MockState = {
 
 const makeCheck = (id: number, overrides: Partial<CheckRow> = {}): CheckRow => ({
   id,
+  group_id: 1,
   name: "api",
   url: "https://api.example.com",
   method: "GET",
@@ -53,6 +54,16 @@ const createDb = (state: MockState) => ({
         return statement(nextParams);
       },
       async first<T>() {
+        if (normalized.includes("FROM users")) {
+          return {
+            id: 1,
+            identity_provider: "cloudflare-access",
+            identity_subject: "test-access-subject",
+            display_name: "Kaneko",
+            email: "kaneko@example.com",
+            role: "superadmin",
+          } as T;
+        }
         if (normalized.includes("INSERT INTO checks") && normalized.includes("RETURNING id")) {
           const [
             name,
@@ -121,6 +132,9 @@ const createDb = (state: MockState) => ({
         return null as T;
       },
       async all<T>() {
+        if (normalized.includes("FROM group_members")) {
+          return { results: [] } as T;
+        }
         if (normalized.startsWith("SELECT * FROM checks ORDER BY")) {
           const [limit, offset] = params as [number, number];
           return {
@@ -161,6 +175,10 @@ const makeEnv = (state: MockState) => ({
   ADMIN_API_TOKEN: "secret-token",
   CF_ACCESS_TEAM_DOMAIN: "edge-pulse.cloudflareaccess.com",
   CF_ACCESS_AUDIENCE: "edge-pulse-dashboard",
+  DEV_ACCESS_SUBJECT: "dev-subject",
+  DEV_ACCESS_EMAIL: "dev@example.com",
+  DEV_ACCESS_NAME: "Developer",
+  DEV_ACCESS_ROLE: "superadmin",
 });
 
 const base64UrlEncode = (input: ArrayBuffer | Uint8Array | string): string => {
@@ -203,6 +221,7 @@ const createAccessToken = async (kid = "test-key-1"): Promise<{ token: string; j
     nbf: Math.floor(Date.now() / 1000) - 30,
     email: "kaneko@example.com",
     name: "Kaneko",
+    sub: "test-access-subject",
   };
 
   const encodedHeader = base64UrlEncode(JSON.stringify(header));

@@ -2,6 +2,7 @@ import { app } from "./app";
 import { accessMiddleware } from "./middleware/access";
 import { apiTokenMiddleware } from "./middleware/api-token";
 import { api } from "./routes/api";
+import { admin } from "./routes/admin";
 import { checks } from "./routes/checks";
 import { dashboard } from "./routes/dashboard";
 
@@ -22,6 +23,7 @@ app.get("/assets/*", async (c) => {
 });
 app.route("/", dashboard);
 app.route("/checks", checks);
+app.route("/admin", admin);
 app.route("/api", api);
 
 export { app };

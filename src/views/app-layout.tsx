@@ -6,6 +6,7 @@ type AppLayoutProps = {
   activeHref: "/" | "/checks";
   footerStatus: "healthy" | "degraded";
   accessIdentity?: CloudflareAccessIdentity | null;
+  isSuperadmin?: boolean;
   resetScrollOnLoad?: boolean;
   children: Child;
 };
@@ -17,7 +18,7 @@ const AccessBadge = ({ label, value }: { label: string; value: string }) => (
   </div>
 );
 
-export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, resetScrollOnLoad = false, children }: AppLayoutProps) => (
+export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, isSuperadmin = false, resetScrollOnLoad = false, children }: AppLayoutProps) => (
   <html lang="ja">
     <head>
       <meta charSet="utf-8" />
@@ -1102,6 +1103,7 @@ export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, res
                 aria-current={activeHref === "/checks" ? "page" : undefined}
                 class="nav-link text-sm"
               >監視一覧</a>
+              {isSuperadmin ? <a href="/admin" hx-boost="false" class="nav-link text-sm">管理者</a> : null}
             </nav>
             <span class="hidden h-8 w-px bg-slate-700/70 sm:block"></span>
             {accessIdentity ? (
@@ -1111,9 +1113,6 @@ export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, res
             ) : null}
             <button id="topbar-notify-button" class="icon-button" aria-label="通知">
               <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-            </button>
-            <button id="topbar-theme-button" class="icon-button" aria-label="表示モード">
-              <svg viewBox="0 0 24 24" class="h-5 w-5" fill="currentColor"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3 6.7 6.7 0 0 0 21 12.8Z"/></svg>
             </button>
           </div>
         </div>

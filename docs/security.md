@@ -18,6 +18,23 @@
 
 画面リクエストでは `CF-Access-Jwt-Assertion` を検証し、Access を通らない直アクセスは拒否します。
 
+Access の安定した subject を `identity_provider + identity_subject` として user の識別に使います。email や表示名は識別子に使いません。初回ログイン時は D1 に user を冪等に自動作成しますが、group membership は自動作成せず、membership がない user は割り当て待ちとします。
+
+`users.role = 'superadmin'` を全 group に対する管理権限の正本とします。group の作成、user の membership 変更、check の group 移動、orphan check の閲覧は superadmin のみ許可します。superadmin の初回作成方法は bootstrap 用の Access subject allowlist などで別途設定します。
+
+### 開発時の認証
+
+localhost では Cloudflare Access の JWT 検証を省略し、次の環境変数から開発用 user identity を注入します。
+
+```text
+DEV_ACCESS_SUBJECT  必須
+DEV_ACCESS_EMAIL    任意
+DEV_ACCESS_NAME     任意
+DEV_ACCESS_ROLE     任意。既定値は member
+```
+
+開発用 identity の provider は固定値 `cloudflare-access-dev` とし、本番の user と混同しないようにします。`DEV_ACCESS_ROLE=superadmin` は localhost での管理機能確認に限って使用します。localhost 以外ではこれらの環境変数を認証情報として扱わず、通常の Access JWT 検証を必須とします。API token の検証は別経路のため、開発時も `ADMIN_API_TOKEN` または user token を必要とします。
+
 ## 管理用 API
 
 `/api/*` は Cloudflare Access ではなく Bearer token で保護します。
@@ -31,6 +48,10 @@ secret:
 - 自動登録
 - 運用スクリプト
 - 外部の管理経路
+
+将来の user 向け API token は user 単位で管理します。token の平文は保存せず hash のみを D1 に保存し、失効・有効期限・最終利用日時を管理します。group 単位の共有 token は採用しません。既存の `ADMIN_API_TOKEN` は機械連携用の環境変数 token として別扱いにします。
+
+API token による操作でも、token 所有 user の `superadmin` または対象 check の group membership を毎回確認します。
 
 ## CSRF
 

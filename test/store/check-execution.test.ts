@@ -71,6 +71,7 @@ const makeDb = (overrides: Partial<TestState> = {}) => {
   const state: TestState = {
     check: {
       id: 1,
+      group_id: 1,
       name: "api",
       url: "https://api.example.com",
       method: "GET",
@@ -493,6 +494,7 @@ const makeDb = (overrides: Partial<TestState> = {}) => {
 
 const baseCheck: CheckRow = {
   id: 1,
+  group_id: 1,
   name: "api",
   url: "https://api.example.com",
   method: "GET",

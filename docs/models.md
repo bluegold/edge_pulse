@@ -14,8 +14,19 @@
 - `status_events`
 - `incidents`
 - `check_runs`
+- `incident_reactions`
+- `api_tokens`
+- `audit_logs`
 
-将来のテナントモデルでは、`check` は単一の `group` に所属し、`user` は複数の `group` に所属する。ユーザーと group の関連は `group_members` で表現する。Group と WebSocket の詳細は [Group とリアルタイム通知](groups-and-realtime.md) を参照する。
+テナントモデルでは、`check` は単一の `group` に所属し、`user` は複数の `group` に所属する。ユーザーと group の関連は `group_members` で表現する。membership が 0 件の user は割り当て待ちとし、superadmin は membership に関係なく全 group を管理できる。Group と WebSocket の詳細は [Group とリアルタイム通知](groups-and-realtime.md) を参照する。
+
+`groups.slug` は一意とし、予約済み slug `orphan` を持つ system group を作成する。初期 migration では既存 check を orphan に割り当てるが、通常運用では orphan に check を残さない。check が存在する group は削除できず、orphan は削除・改名できない。
+
+ユーザーは Cloudflare Access などの認証プロバイダーが発行する安定した subject で識別する。`identity_provider` と `identity_subject` の組み合わせに UNIQUE 制約を置き、email は識別子に使わない。Access による初回ログイン時、user は冪等に自動作成するが group membership は自動作成しない。
+
+`users.role` は当面 `superadmin` / `member` とする。`group_members` に group 内 role は持たせない。group 作成、membership の変更、check の group 移動は superadmin のみが実行できる。
+
+API token は user 単位で管理し、D1 には hash のみ保存する。現在の環境変数 `ADMIN_API_TOKEN` は既存の機械連携用 token として別に扱う。
 
 ## checks
 

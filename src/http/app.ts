@@ -1,3 +1,4 @@
 import { Hono } from "hono";
+import type { AppEnv } from "../auth/types";
 
-export const app = new Hono<{ Bindings: Env }>();
+export const app = new Hono<AppEnv>();

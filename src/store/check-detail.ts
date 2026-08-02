@@ -20,8 +20,9 @@ export type CheckDetailData = {
   generatedAt: string;
 };
 
-export const loadCheckDetailData = async (db: D1Database, id: number): Promise<CheckDetailData | null> => {
-  const check = await db.prepare(`SELECT * FROM checks WHERE id = ? LIMIT 1`).bind(id).first<CheckRow>();
+export const loadCheckDetailData = async (db: D1Database, id: number, groupIds: number[] | null = null): Promise<CheckDetailData | null> => {
+  const groupClause = groupIds === null ? "" : groupIds.length > 0 ? ` AND group_id IN (${groupIds.map(() => "?").join(", ")})` : " AND 1 = 0";
+  const check = await db.prepare(`SELECT * FROM checks WHERE id = ?${groupClause} LIMIT 1`).bind(id, ...(groupIds ?? [])).first<CheckRow>();
   if (!check) return null;
 
   const dayAgo = new Date(Date.now() - 24 * 60 * 60_000).toISOString();

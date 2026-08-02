@@ -48,6 +48,7 @@ const now = "2026-07-03T12:00:00.000Z";
 
 const check: CheckRow = {
   id: 1,
+  group_id: 1,
   name: "api-a",
   url: "https://api-a.example.com",
   method: "GET",
@@ -165,6 +166,16 @@ const createDb = (result: CheckDetailData | null): D1Database => ({
         return statement(nextParams);
       },
       async first<T>() {
+        if (normalized.includes("FROM users")) {
+          return {
+            id: 1,
+            identity_provider: "cloudflare-access-dev",
+            identity_subject: "dev-subject",
+            display_name: "Developer",
+            email: "dev@example.com",
+            role: "superadmin",
+          } as T;
+        }
         if (normalized === "SELECT * FROM checks WHERE id = ? LIMIT 1" || normalized.includes("FROM checks c WHERE c.id = ?")) {
           return (result?.check ?? null) as T;
         }
@@ -177,6 +188,9 @@ const createDb = (result: CheckDetailData | null): D1Database => ({
         return null as T;
       },
       async all<T>() {
+        if (normalized.includes("FROM group_members")) {
+          return { results: [] } as T;
+        }
         if (normalized.includes("FROM check_results")) {
           return { results: result?.recentResults ?? [] } as T;
         }
@@ -322,6 +336,10 @@ describe("check detail", () => {
       {
         "pulse-db": createDb(detailData),
         CertProbeContainer: {} as never,
+        DEV_ACCESS_SUBJECT: "dev-subject",
+        DEV_ACCESS_EMAIL: "dev@example.com",
+        DEV_ACCESS_NAME: "Developer",
+        DEV_ACCESS_ROLE: "superadmin",
       } as never,
     );
 
@@ -360,6 +378,10 @@ describe("check detail", () => {
       {
         "pulse-db": createDb(state),
         CertProbeContainer: {} as never,
+        DEV_ACCESS_SUBJECT: "dev-subject",
+        DEV_ACCESS_EMAIL: "dev@example.com",
+        DEV_ACCESS_NAME: "Developer",
+        DEV_ACCESS_ROLE: "superadmin",
       } as never,
     );
 

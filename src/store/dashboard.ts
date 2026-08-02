@@ -134,9 +134,16 @@ const isAttentionCheck = (check: CheckRow, now: Date): boolean =>
     Boolean(check.maintenance_enabled)
   );
 
-export const loadDashboardData = async (db: D1Database): Promise<DashboardData> => {
+export const loadDashboardData = async (db: D1Database, groupIds: number[] | null = null): Promise<DashboardData> => {
   const now = new Date();
   const dayAgo = new Date(now.getTime() - 24 * 60 * 60_000).toISOString();
+  const groupClause = groupIds === null ? "" : groupIds.length > 0 ? ` AND c.group_id IN (${groupIds.map(() => "?").join(", ")})` : " AND 1 = 0";
+  const groupParams = groupIds ?? [];
+  const incidents24hQuery = groupIds === null
+    ? db.prepare("SELECT COUNT(*) AS count FROM incidents WHERE started_at >= ?").bind(dayAgo)
+    : db
+        .prepare(`SELECT COUNT(*) AS count FROM incidents i JOIN checks c ON c.id = i.check_id WHERE i.started_at >= ?${groupClause}`)
+        .bind(dayAgo, ...groupParams);
 
   const [checks, currentIncidents, recentIncidents, recentResults, recentEvents, incidents24h] = await Promise.all([
     db
@@ -154,9 +161,11 @@ export const loadDashboardData = async (db: D1Database): Promise<DashboardData> 
           WHERE to_state = 'ok'
           GROUP BY check_id
         ) AS uptime ON uptime.check_id = c.id
-        ORDER BY c.created_at DESC, c.id DESC
+          WHERE 1 = 1${groupClause}
+          ORDER BY c.created_at DESC, c.id DESC
       `,
       )
+      .bind(...groupParams)
       .all<DashboardCheckRow>(),
     db
       .prepare(
@@ -166,9 +175,11 @@ export const loadDashboardData = async (db: D1Database): Promise<DashboardData> 
         JOIN checks c ON c.id = i.check_id
         WHERE i.resolved_at IS NULL
           AND c.enabled = 1
+          ${groupClause}
         ORDER BY i.started_at DESC, i.id DESC
       `,
       )
+      .bind(...groupParams)
       .all<IncidentRow>(),
     db
       .prepare(
@@ -176,10 +187,12 @@ export const loadDashboardData = async (db: D1Database): Promise<DashboardData> 
         SELECT i.*, c.name AS check_name, c.url AS check_url
         FROM incidents i
         JOIN checks c ON c.id = i.check_id
+        WHERE 1 = 1${groupClause}
         ORDER BY i.started_at DESC, i.id DESC
         LIMIT 12
       `,
       )
+      .bind(...groupParams)
       .all<IncidentRow>(),
     db
       .prepare(
@@ -187,10 +200,12 @@ export const loadDashboardData = async (db: D1Database): Promise<DashboardData> 
         SELECT r.*, c.name AS check_name
         FROM check_results r
         JOIN checks c ON c.id = r.check_id
+        WHERE 1 = 1${groupClause}
         ORDER BY r.checked_at DESC, r.id DESC
         LIMIT 12
       `,
       )
+      .bind(...groupParams)
       .all<CheckResultRow & { check_name: string }>(),
     db
       .prepare(
@@ -198,21 +213,14 @@ export const loadDashboardData = async (db: D1Database): Promise<DashboardData> 
         SELECT e.*, c.name AS check_name
         FROM status_events e
         JOIN checks c ON c.id = e.check_id
+        WHERE 1 = 1${groupClause}
         ORDER BY e.occurred_at DESC, e.id DESC
         LIMIT 12
       `,
       )
+      .bind(...groupParams)
       .all<StatusEventRow & { check_name: string }>(),
-    db
-      .prepare(
-        `
-        SELECT COUNT(*) AS count
-        FROM incidents
-        WHERE started_at >= ?
-      `,
-      )
-      .bind(dayAgo)
-      .first<{ count: number }>(),
+    incidents24hQuery.first<{ count: number }>(),
   ]);
 
   const recentChecks = checks.results

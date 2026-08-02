@@ -1,5 +1,7 @@
 import type { MiddlewareHandler } from "hono";
 import { JsonBodyError, readJsonWithLimit } from "../../lib/json-body";
+import type { AppEnv } from "../../auth/types";
+import { ensureUser } from "../../store/users";
 import { respondHtml } from "../shared";
 
 const isLocalDevHost = (hostname: string): boolean => {
@@ -163,9 +165,15 @@ const verifyAccessJwtSignature = async (
   return false;
 };
 
-const requireCloudflareAccess = async (request: Request, env: Pick<Env, "CF_ACCESS_TEAM_DOMAIN" | "CF_ACCESS_AUDIENCE">): Promise<Response | null> => {
+const requireCloudflareAccess = async (
+  request: Request,
+  env: Pick<Env, "CF_ACCESS_TEAM_DOMAIN" | "CF_ACCESS_AUDIENCE" | "DEV_ACCESS_SUBJECT" | "DEV_ACCESS_EMAIL" | "DEV_ACCESS_NAME" | "DEV_ACCESS_ROLE">,
+): Promise<Response | null> => {
   const { hostname } = new URL(request.url);
   if (isLocalDevHost(hostname)) {
+    if (!env.DEV_ACCESS_SUBJECT?.trim()) {
+      return respondHtml(`<main id="content" class="p-6 text-sm text-rose-200" role="alert">DEV_ACCESS_SUBJECT が設定されていません</main>`, 500);
+    }
     return null;
   }
 
@@ -197,8 +205,54 @@ const requireCloudflareAccess = async (request: Request, env: Pick<Env, "CF_ACCE
   return null;
 };
 
-export const accessMiddleware: MiddlewareHandler<{ Bindings: Env }> = async (c, next) => {
+export const accessMiddleware: MiddlewareHandler<AppEnv> = async (c, next) => {
   const accessCheck = await requireCloudflareAccess(c.req.raw, c.env);
   if (accessCheck) return accessCheck;
+
+  const isLocal = isLocalDevHost(new URL(c.req.url).hostname);
+  const identity = isLocal
+    ? {
+        displayName: c.env.DEV_ACCESS_NAME?.trim() || c.env.DEV_ACCESS_EMAIL?.trim() || c.env.DEV_ACCESS_SUBJECT.trim(),
+        email: c.env.DEV_ACCESS_EMAIL?.trim() || null,
+        subject: c.env.DEV_ACCESS_SUBJECT.trim(),
+        identityProvider: "cloudflare-access-dev",
+        role: c.env.DEV_ACCESS_ROLE?.trim() === "superadmin" ? ("superadmin" as const) : ("member" as const),
+      }
+    : (() => {
+        const accessAssertion = c.req.raw.headers.get("cf-access-jwt-assertion");
+        if (!accessAssertion) return null;
+        const [, payloadPart] = accessAssertion.split(".");
+        if (!payloadPart) return null;
+        const payload = decodeJwtPart<{ sub?: string; email?: string; name?: string }>(payloadPart);
+        if (!payload?.sub?.trim()) return null;
+        return {
+          displayName: payload.name?.trim() || payload.email?.trim() || payload.sub.trim(),
+          email: payload.email?.trim() || null,
+          subject: payload.sub.trim(),
+          identityProvider: "cloudflare-access",
+          role: "member" as const,
+        };
+      })();
+
+  if (!identity) return respondHtml(`<main id="content" class="p-6 text-sm text-rose-200" role="alert">ユーザー identity を取得できません</main>`, 403);
+
+  const user = await ensureUser(c.env["pulse-db"], {
+    identityProvider: identity.identityProvider,
+    identitySubject: identity.subject,
+    displayName: identity.displayName,
+    email: identity.email,
+  });
+
+  if (isLocal && identity.role === "superadmin" && user.role !== "superadmin") {
+    await c.env["pulse-db"].prepare("UPDATE users SET role = 'superadmin', updated_at = CURRENT_TIMESTAMP WHERE id = ?").bind(user.id).run();
+    user.role = "superadmin";
+  }
+
+  if (c.req.path.startsWith("/assets/")) {
+    await next();
+    return;
+  }
+
+  c.set("user", user);
   await next();
 };

@@ -32,6 +32,7 @@ import { runCheck, handleScheduled } from "../../src/services/check-execution";
 
 const baseCheck: CheckRow = {
   id: 1,
+  group_id: 1,
   name: "api",
   url: "https://api.example.com",
   method: "GET",

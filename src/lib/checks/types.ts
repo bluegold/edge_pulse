@@ -57,6 +57,7 @@ export type CertificateSnapshot = {
 
 export type CheckRow = {
   id: number;
+  group_id: number;
   name: string;
   url: string;
   method: string;

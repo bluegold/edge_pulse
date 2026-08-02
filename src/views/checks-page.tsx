@@ -535,11 +535,12 @@ const ChecksShell = ({ data }: { data: ChecksPageData }) => (
   </section>
 );
 
-const ChecksDocument = ({ data }: { data: ChecksPageData }) => (
+const ChecksDocument = ({ data, isSuperadmin }: { data: ChecksPageData; isSuperadmin: boolean }) => (
   <AppLayout
     title="Edge Pulse / 監視一覧"
     activeHref="/checks"
     footerStatus={data.checks.some((check) => check.enabled === 1 && check.last_state === "fail") ? "degraded" : "healthy"}
+    isSuperadmin={isSuperadmin}
   >
     <ChecksShell data={data} />
   </AppLayout>
@@ -547,8 +548,8 @@ const ChecksDocument = ({ data }: { data: ChecksPageData }) => (
 
 export const renderChecksShell = (data: ChecksPageData): string => renderToString(<ChecksShell data={data} />);
 
-export const renderChecksPage = (data: ChecksPageData): Response =>
-  new Response(renderToString(<ChecksDocument data={data} />), {
+export const renderChecksPage = (data: ChecksPageData, isSuperadmin = false): Response =>
+  new Response(renderToString(<ChecksDocument data={data} isSuperadmin={isSuperadmin} />), {
     headers: {
       "content-type": "text/html; charset=utf-8",
       "cache-control": "no-store",

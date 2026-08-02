@@ -5,6 +5,7 @@ const checksPageData: ChecksPageData = {
   checks: [
     {
       id: 1,
+      group_id: 1,
       name: "api-a",
       url: "https://api-a.example.com",
       method: "GET",
@@ -33,6 +34,7 @@ const checksPageData: ChecksPageData = {
     },
     {
       id: 2,
+      group_id: 1,
       name: "api-b",
       url: "https://api-b.example.com",
       method: "GET",

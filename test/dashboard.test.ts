@@ -6,6 +6,7 @@ const dashboardData: DashboardData = {
   checks: [
     {
       id: 1,
+      group_id: 1,
       name: 'api<&>"\'',
       url: "https://api.example.com",
       method: "GET",
@@ -34,6 +35,7 @@ const dashboardData: DashboardData = {
   recentChecks: [
     {
       id: 2,
+      group_id: 1,
       name: "api-fail",
       url: "https://api-fail.example.com",
       method: "GET",
@@ -60,6 +62,7 @@ const dashboardData: DashboardData = {
     },
     {
       id: 4,
+      group_id: 1,
       name: "maintenance",
       url: "https://maintenance.example.com",
       method: "GET",
@@ -87,6 +90,7 @@ const dashboardData: DashboardData = {
     },
     {
       id: 3,
+      group_id: 1,
       name: "cert-warning",
       url: "https://cert-warning.example.com",
       method: "GET",
@@ -123,6 +127,7 @@ const dashboardData: DashboardData = {
     },
     {
       id: 5,
+      group_id: 1,
       name: "cert-error",
       url: "https://cert-error.example.com",
       method: "GET",
@@ -302,7 +307,7 @@ describe("renderDashboardPage", () => {
     const response = await renderDashboardPage(dashboardData, accessIdentity);
     const html = await response.text();
 
-    expect(html).toContain('id="topbar-theme-button"');
+    expect(html).not.toContain('id="topbar-theme-button"');
     expect(html).toContain("USER");
     expect(html).toContain("kaneko@example.com");
   });

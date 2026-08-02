@@ -607,12 +607,13 @@ const DashboardShell = ({ data }: { data: DashboardData }) => {
   );
 };
 
-const DashboardDocument = ({ data, accessIdentity }: { data: DashboardData; accessIdentity: CloudflareAccessIdentity | null }) => (
+const DashboardDocument = ({ data, accessIdentity, isSuperadmin }: { data: DashboardData; accessIdentity: CloudflareAccessIdentity | null; isSuperadmin: boolean }) => (
   <AppLayout
     title="Edge Pulse"
     activeHref="/"
     footerStatus={data.currentIncidents.length > 0 || data.checks.some((check) => check.enabled === 1 && check.last_state === "fail") ? "degraded" : "healthy"}
     accessIdentity={accessIdentity}
+    isSuperadmin={isSuperadmin}
     resetScrollOnLoad={true}
   >
     <DashboardShell data={data} />
@@ -621,8 +622,8 @@ const DashboardDocument = ({ data, accessIdentity }: { data: DashboardData; acce
 
 export const renderDashboardShell = (data: DashboardData): string => renderToString(<DashboardShell data={data} />);
 
-export const renderDashboardPage = (data: DashboardData, accessIdentity: CloudflareAccessIdentity | null = null): Response =>
-  new Response(renderToString(<DashboardDocument data={data} accessIdentity={accessIdentity} />), {
+export const renderDashboardPage = (data: DashboardData, accessIdentity: CloudflareAccessIdentity | null = null, isSuperadmin = false): Response =>
+  new Response(renderToString(<DashboardDocument data={data} accessIdentity={accessIdentity} isSuperadmin={isSuperadmin} />), {
     headers: {
       "content-type": "text/html; charset=utf-8",
       "cache-control": "no-store",

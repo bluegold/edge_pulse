@@ -14,6 +14,7 @@ import { calculateNextCertificateProbeAt, shouldProbeCertificateSnapshot } from 
 
 const baseCheck: CheckRow = {
   id: 1,
+  group_id: 1,
   name: "api",
   url: "https://api.example.com",
   method: "GET",
