@@ -353,7 +353,7 @@ describe("cloudflare access gate", () => {
   });
 
   it("allows non-api routes when a cloudflare access assertion is valid", async () => {
-    const { token, jwk } = await createAccessToken();
+    const { token, jwk } = await createAccessToken("test-key-2");
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(JSON.stringify({ keys: [jwk] }), {
         status: 200,
@@ -379,7 +379,7 @@ describe("cloudflare access gate", () => {
   });
 
   it("allows non-api routes when the access audience is empty and the signature is valid", async () => {
-    const { token, jwk } = await createAccessToken();
+    const { token, jwk } = await createAccessToken("test-key-3");
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(JSON.stringify({ keys: [jwk] }), {
         status: 200,

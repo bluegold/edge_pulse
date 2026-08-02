@@ -55,6 +55,16 @@ const toAudienceList = (value: AccessJwtPayload["aud"]): string[] => {
 
 type AccessJsonWebKey = JsonWebKey & { kid?: string };
 
+type AccessKeysCache = {
+  teamDomain: string;
+  keys: AccessJsonWebKey[];
+  expiresAt: number;
+};
+
+const ACCESS_KEYS_CACHE_TTL_MS = 5 * 60 * 1000;
+let accessKeysCache: AccessKeysCache | null = null;
+let accessKeysFetchPromise: Promise<AccessJsonWebKey[]> | null = null;
+
 const isJsonWebKey = (value: unknown): value is AccessJsonWebKey => {
   return Boolean(value && typeof value === "object");
 };
@@ -77,6 +87,49 @@ const extractAccessKeys = (payload: unknown): AccessJsonWebKey[] => {
   }
 
   return [];
+};
+
+const fetchAccessKeys = async (teamDomain: string): Promise<AccessJsonWebKey[]> => {
+  const certResponse = await fetch(`https://${teamDomain}/cdn-cgi/access/certs`);
+  if (!certResponse.ok) {
+    throw new Error(`Cloudflare Access cert fetch failed: ${certResponse.status}`);
+  }
+
+  let certPayloadRaw: unknown;
+  try {
+    certPayloadRaw = await readJsonWithLimit<unknown>(certResponse);
+  } catch (error) {
+    if (error instanceof JsonBodyError) {
+      throw new Error("Cloudflare Access cert response is invalid");
+    }
+    throw error;
+  }
+
+  const keys = extractAccessKeys(certPayloadRaw);
+  if (keys.length === 0) {
+    throw new Error("Cloudflare Access cert response has no keys");
+  }
+
+  accessKeysCache = {
+    teamDomain,
+    keys,
+    expiresAt: Date.now() + ACCESS_KEYS_CACHE_TTL_MS,
+  };
+  return keys;
+};
+
+const getAccessKeys = async (teamDomain: string, forceRefresh = false): Promise<AccessJsonWebKey[]> => {
+  if (!forceRefresh && accessKeysCache?.teamDomain === teamDomain && accessKeysCache.expiresAt > Date.now()) {
+    return accessKeysCache.keys;
+  }
+
+  if (!accessKeysFetchPromise) {
+    accessKeysFetchPromise = fetchAccessKeys(teamDomain).finally(() => {
+      accessKeysFetchPromise = null;
+    });
+  }
+
+  return accessKeysFetchPromise;
 };
 
 const verifyAccessJwtSignature = async (
@@ -110,29 +163,29 @@ const verifyAccessJwtSignature = async (
   if (typeof payload.exp === "number" && nowSeconds >= payload.exp) return false;
   if (typeof payload.nbf === "number" && nowSeconds < payload.nbf) return false;
 
-  const certResponse = await fetch(`https://${teamDomain}/cdn-cgi/access/certs`);
-  if (!certResponse.ok) {
-    return false;
-  }
-
-  let certPayloadRaw: unknown;
+  let certPayload: AccessJsonWebKey[];
   try {
-    certPayloadRaw = await readJsonWithLimit<unknown>(certResponse);
+    certPayload = await getAccessKeys(teamDomain);
   } catch (error) {
-    if (error instanceof JsonBodyError) {
-      return false;
-    }
+    if (error instanceof Error && error.message.startsWith("Cloudflare Access cert")) return false;
     throw error;
-  }
-
-  const certPayload = extractAccessKeys(certPayloadRaw);
-  if (certPayload.length === 0) {
-    return false;
   }
 
   const data = textEncoder.encode(`${headerPart}.${payloadPart}`);
   const signature = decodeBase64Url(signaturePart);
-  const candidates = header.kid ? certPayload.filter((key) => key.kid === header.kid) : certPayload;
+  let candidates = header.kid ? certPayload.filter((key) => key.kid === header.kid) : certPayload;
+
+  if (header.kid && candidates.length === 0) {
+    try {
+      const refreshedKeys = await getAccessKeys(teamDomain, true);
+      candidates = refreshedKeys.filter((key) => key.kid === header.kid);
+      certPayload = refreshedKeys;
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith("Cloudflare Access cert")) return false;
+      throw error;
+    }
+  }
+
   const keysToTry = candidates.length > 0 ? candidates : certPayload;
 
   for (const key of keysToTry) {
