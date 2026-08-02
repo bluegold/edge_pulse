@@ -90,7 +90,7 @@ group の作成、user の membership 追加・削除、check の group 移動�
 
 check の group 移動は監査ログに保存し、監査ログは superadmin のみが閲覧できる。incident、reaction、status event は check に紐づくため、移動後は移動先 group の履歴として扱う。
 
-API token は user 単位で管理する。token の平文は保存せず hash のみを D1 に保存し、発行・失効・有効期限・最終利用日時を管理する。現在の環境変数 `ADMIN_API_TOKEN` は既存の機械連携用 token として別扱いにする。
+API token は user 単位で管理する。認証済みユーザーは `/account` から自分の token を発行・削除でき、平文は発行時のレスポンスで一度だけ返す。superadmin は管理画面の管理用操作として対象 user の token も発行・削除できる。D1 には hash のみを保存し、有効期限、最終利用日時を管理する。削除した token は復元できない。現在の環境変数 `ADMIN_API_TOKEN` は既存の機械連携用 token として別扱いにする。
 
 ## Group Durable Object
 
@@ -211,7 +211,8 @@ acknowledged  = 👍
 - membership を削除したときは、該当 group DO に通知して既存 WebSocket を切断する
 - group をまたいだイベント broadcast は行わない
 - 複数 group を購読するユーザーは group ごとに WebSocket 接続を持つ
-- 接続切断後は指数バックオフで再接続し、再接続時に D1 ベースの最新状態を取得する
+- 接続切断後は一定時間後に再接続し、再接続に成功したときは D1 ベースの最新状態を取得する
+- 受信済み `eventId` はクライアント側で保持し、重複通知による再取得を抑止する
 
 Access の JWT から取得する安定した subject を user の識別に使う。初回ログイン処理は `identity_provider + identity_subject` をキーに冪等に行い、同時ログインでも user を重複作成しない。
 
@@ -228,18 +229,15 @@ DEV_ACCESS_ROLE     任意。既定値は member。superadmin の動作確認時
 
 開発用 identity も本番と同じ初回ログイン処理を通り、`identity_provider = 'cloudflare-access-dev'` と `DEV_ACCESS_SUBJECT` の組み合わせで user を冪等に作成・更新する。localhost 以外では `DEV_ACCESS_*` を無視し、通常の Cloudflare Access 検証を行う。API の動作確認には既存の `ADMIN_API_TOKEN` または user token を使う。
 
-## 実装順序
+## 実装状況と今後の順序
 
-1. `users` / `groups` / `group_members` を追加し、orphan group と既存 check の一時割り当てを行う
-2. `checks.group_id` と group 単位の認可を追加する
-3. superadmin による group 作成と membership 管理を追加する
-4. check 移動などの監査ログを追加する
-5. D1 更新後に発行するイベント形式を定義する
-6. Group DO と Hibernatable WebSocket を追加する
-7. `api_tokens` と user 単位の API token 管理を追加する
-8. `incident_reactions` と reaction 操作 API を追加する
-9. dashboard に複数 group 表示と reaction UI を追加する
-10. desktop notifier など複数 group 購読クライアントへ拡張する
+1. `users` / `groups` / `group_members`、orphan group、group 単位の認可を追加済み
+2. superadmin による group・membership・check 移動と監査ログを追加済み
+3. D1 更新後の `group.updated` 通知、Group DO、受信専用 WebSocket を追加済み
+4. `api_tokens` と user 単位の API token 管理を追加済み
+5. `incident_reactions` と reaction 操作 API を追加する
+6. dashboard に reaction UI を追加する
+7. desktop notifier など複数 group 購読クライアントへ拡張する
 
 check の group 移動と作成時の group 選択は、監視一覧または監視対象編集画面に実装する。未選択で作成された check は orphan に入り、superadmin が後から移動する。
 
@@ -247,14 +245,11 @@ check の group 移動と作成時の group 選択は、監視一覧または監
 
 実装は次の順序で進める。
 
-1. 認証コンテキストと開発用 identity 注入を追加する
-2. `users` / `groups` / `group_members` を追加し、`orphan` group と既存 check の一時割り当てを行う
-3. group membership、superadmin 認可、割り当て待ち画面を追加する
-4. check、incident、Dashboard、notification の group 境界を追加する
-5. superadmin の group 管理、check 移動、監査ログを追加する
-6. D1 更新後に発行するイベント形式と Group Durable Object / Hibernatable WebSocket を追加する
-7. user 単位 API token を追加し、既存の `ADMIN_API_TOKEN` と併存させる
-8. `incident_reactions` と reaction 操作 API、Dashboard の reaction UI を追加する
-9. migration、認証、認可、越境防止、token、WebSocket のテストを追加する
+1. 認証コンテキストと開発用 identity 注入を追加する（完了）
+2. `users` / `groups` / `group_members`、group 境界、superadmin 管理を追加する（完了）
+3. D1 更新後に発行するイベント形式と Group Durable Object / Hibernatable WebSocket を追加する（完了）
+4. user 単位 API token を追加し、既存の `ADMIN_API_TOKEN` と併存させる（完了）
+5. `incident_reactions` と reaction 操作 API、Dashboard の reaction UI を追加する
+6. migration、認証、認可、越境防止、token、WebSocket のテストを拡充する
 
 各段階で D1 を唯一の状態保存先とし、既存の監視 Queue・incident 状態遷移を維持する。

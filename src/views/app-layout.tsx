@@ -1098,6 +1098,13 @@ export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, isS
           background: rgba(2, 8, 23, 0.86);
           backdrop-filter: blur(18px);
         }
+        .account-token-removing {
+          max-height: 8rem;
+          opacity: 0;
+          transform: translateY(-0.35rem);
+          transition: max-height 250ms ease, opacity 250ms ease, transform 250ms ease;
+          overflow: hidden;
+        }
       `}</style>
     </head>
     <body class="flex min-h-screen flex-col text-slate-100" hx-boost="true" hx-target="#content" hx-swap="outerHTML show:none">
@@ -1125,9 +1132,9 @@ export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, isS
             </nav>
             <span class="hidden h-8 w-px bg-slate-700/70 sm:block"></span>
             {accessIdentity ? (
-              <div class="hidden items-center gap-3 lg:flex">
+              <a id="topbar-user-link" href="/account" hx-boost="false" class="no-underline" aria-label="ユーザー設定を開く">
                 <AccessBadge label="USER" value={accessIdentity.displayName === accessIdentity.email ? accessIdentity.displayName : accessIdentity.email ?? accessIdentity.displayName} />
-              </div>
+              </a>
             ) : null}
             <button id="topbar-notify-button" class="icon-button" aria-label="通知">
               <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
@@ -1137,6 +1144,7 @@ export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, isS
       </header>
       <main id="content">{children}</main>
       <script id="realtime-controls" src="/assets/realtime.js" defer></script>
+      <script id="account-controls" src="/assets/account.js" defer></script>
       <script id="checks-page-controls" src="/assets/checks-page.js" defer></script>
       <script type="module" src="/assets/check-detail-graphs.js" defer></script>
       <footer class="footerbar mt-auto w-full">

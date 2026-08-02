@@ -7,6 +7,7 @@ import { LocalTime } from "./time.tsx";
 import { formatNullable } from "../presenters/common";
 import { formatDuration } from "../presenters/dashboard";
 import { describeCertificateBadge, describeCheckState, describeMaintenanceBadge } from "../presenters/checks";
+import type { CloudflareAccessIdentity } from "../http/shared";
 
 export type ChecksPageData = ChecksPageDataType;
 
@@ -579,11 +580,12 @@ const ChecksShell = ({ data, isSuperadmin }: { data: ChecksPageData; isSuperadmi
   </section>
 );
 
-const ChecksDocument = ({ data, isSuperadmin }: { data: ChecksPageData; isSuperadmin: boolean }) => (
+const ChecksDocument = ({ data, isSuperadmin, accessIdentity }: { data: ChecksPageData; isSuperadmin: boolean; accessIdentity: CloudflareAccessIdentity | null }) => (
   <AppLayout
     title="Edge Pulse / 監視一覧"
     activeHref="/checks"
     footerStatus={data.checks.some((check) => check.enabled === 1 && check.last_state === "fail") ? "degraded" : "healthy"}
+    accessIdentity={accessIdentity}
     isSuperadmin={isSuperadmin}
   >
     <ChecksShell data={data} isSuperadmin={isSuperadmin} />
@@ -592,8 +594,8 @@ const ChecksDocument = ({ data, isSuperadmin }: { data: ChecksPageData; isSupera
 
 export const renderChecksShell = (data: ChecksPageData, isSuperadmin = false): string => renderToString(<ChecksShell data={data} isSuperadmin={isSuperadmin} />);
 
-export const renderChecksPage = (data: ChecksPageData, isSuperadmin = false): Response =>
-  new Response(renderToString(<ChecksDocument data={data} isSuperadmin={isSuperadmin} />), {
+export const renderChecksPage = (data: ChecksPageData, isSuperadmin = false, accessIdentity: CloudflareAccessIdentity | null = null): Response =>
+  new Response(renderToString(<ChecksDocument data={data} isSuperadmin={isSuperadmin} accessIdentity={accessIdentity} />), {
     headers: {
       "content-type": "text/html; charset=utf-8",
       "cache-control": "no-store",

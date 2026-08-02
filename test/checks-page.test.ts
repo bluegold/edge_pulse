@@ -113,6 +113,16 @@ describe("renderChecksPage", () => {
     expect(html).toContain('title="監視対象: なし"');
     expect(html).toContain('title="最終確認: なし"');
     expect(html).toContain('title="証明書: なし"');
+
+    const userResponse = await renderChecksPage(checksPageData, false, {
+      displayName: "Kaneko",
+      email: "kaneko@example.com",
+      audience: null,
+      subject: "subject-1",
+    });
+    const userHtml = await userResponse.text();
+    expect(userHtml).toContain('id="topbar-user-link"');
+    expect(userHtml).toContain('href="/account"');
     expect(html).toContain('sort-toggle-icon');
     expect(html).not.toContain('id="checks-search-submit"');
     expect(html).not.toContain('id="checks-search-reset"');

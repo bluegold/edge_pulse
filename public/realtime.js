@@ -4,6 +4,8 @@
   let refreshTimer = null;
   let refreshing = false;
   let connectionGeneration = 0;
+  let refreshOnNextOpen = false;
+  const receivedEventIds = new Set();
 
   const getDashboard = () => document.getElementById("dashboard-shell");
 
@@ -82,6 +84,9 @@
 
   const connect = () => {
     const generation = ++connectionGeneration;
+    const refreshAfterReconnect = refreshOnNextOpen;
+    refreshOnNextOpen = false;
+    let refreshedAfterReconnect = false;
     const dashboard = getDashboard();
     if (!dashboard) {
       closeSockets();
@@ -105,11 +110,24 @@
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     sockets = ids.map((groupId) => {
       const socket = new WebSocket(`${protocol}//${window.location.host}/ws/groups/${groupId}`);
-      socket.addEventListener("open", () => setStatus("リアルタイム接続中"));
+      socket.addEventListener("open", () => {
+        setStatus("リアルタイム接続中");
+        if (refreshAfterReconnect && !refreshedAfterReconnect) {
+          refreshedAfterReconnect = true;
+          scheduleRefresh();
+        }
+      });
       socket.addEventListener("message", (event) => {
         try {
           const payload = JSON.parse(event.data);
-          if (payload?.type === "group.updated") scheduleRefresh();
+          if (payload?.type !== "group.updated" || typeof payload.eventId !== "string") return;
+          if (receivedEventIds.has(payload.eventId)) return;
+          receivedEventIds.add(payload.eventId);
+          if (receivedEventIds.size > 100) {
+            const oldest = receivedEventIds.values().next().value;
+            if (oldest) receivedEventIds.delete(oldest);
+          }
+          scheduleRefresh();
         } catch {
           // Ignore malformed events and keep the connection alive.
         }
@@ -117,6 +135,7 @@
       socket.addEventListener("close", () => {
         if (generation !== connectionGeneration) return;
         setStatus("リアルタイム再接続待ち");
+        refreshOnNextOpen = true;
         if (reconnectTimer === null) reconnectTimer = setTimeout(connect, 5000);
       });
       socket.addEventListener("error", () => setStatus("リアルタイム再接続待ち"));

@@ -8,12 +8,19 @@ import { loadCheckDetailData } from "../store/check-detail";
 import { renderChecksPage, renderChecksShell } from "../views/checks-page.tsx";
 import { renderCheckDetailPage, renderCheckDetailShell } from "../views/check-detail-page.tsx";
 import { renderRecentCheckCard } from "../views/dashboard-page.tsx";
-import { isHxRequest, readCheckInputFromRequest, respondHtml, respondJson, respondHxOrHtml } from "../http/shared";
+import { isHxRequest, readCheckInputFromRequest, respondHtml, respondJson, respondHxOrHtml, type CloudflareAccessIdentity } from "../http/shared";
 import { refreshCertificateSnapshot } from "../services/certificate-check";
 import { renderPendingAccessPage } from "../views/pending-access";
 import { moveCheckToGroup } from "../store/admin";
 
 const factory = createFactory<AppEnv>();
+
+const accessIdentityForUser = (user: AppEnv["Variables"]["user"]): CloudflareAccessIdentity => ({
+  displayName: user.displayName,
+  email: user.email,
+  audience: null,
+  subject: user.identitySubject,
+});
 
 const unsupportedContentTypeResponse = () =>
   respondHtml(
@@ -114,9 +121,10 @@ const renderChecksPageResponse = async (
   groupIds: number[] | null = null,
   isSuperadmin = false,
   groupId: number | null = null,
+  accessIdentity: CloudflareAccessIdentity | null = null,
 ): Promise<Response> => {
   const data = await loadChecksPageData(env["pulse-db"], page, editId, highlightId, q, filter, order, getChecksPageSize(env), groupIds, groupId);
-  return respondHxOrHtml(request, () => renderChecksShell(data, isSuperadmin), () => renderChecksPage(data, isSuperadmin));
+  return respondHxOrHtml(request, () => renderChecksShell(data, isSuperadmin), () => renderChecksPage(data, isSuperadmin, accessIdentity));
 };
 
 const renderCheckDetailPageResponse = async (request: Request, env: Env, id: number, groupIds: number[] | null = null, isSuperadmin = false): Promise<Response> => {
@@ -136,7 +144,7 @@ export const handleChecksRequest = factory.createHandlers(async (c) => {
   const editId = c.req.query("edit");
   const focusId = c.req.query("focus");
   const { q, filter, order, groupId } = getSearchParamsFromRequest(c.req.raw);
-  return renderChecksPageResponse(c.req.raw, c.env, page, editId ? Number(editId) : null, focusId ? Number(focusId) : null, q, filter, order, visibleGroupIds(user), user.role === "superadmin", groupId);
+  return renderChecksPageResponse(c.req.raw, c.env, page, editId ? Number(editId) : null, focusId ? Number(focusId) : null, q, filter, order, visibleGroupIds(user), user.role === "superadmin", groupId, accessIdentityForUser(user));
 });
 
 export const handleCheckDetailRequest = factory.createHandlers(async (c) => {
@@ -154,7 +162,8 @@ export const handleCreateCheck = factory.createHandlers(async (c) => {
 
   const now = new Date().toISOString();
   await insertCheck(c.env["pulse-db"], input, now);
-  return renderChecksPageResponse(c.req.raw, c.env, page, null, null, q, filter, order, visibleGroupIds(c.get("user")), c.get("user").role === "superadmin", groupId);
+  const user = c.get("user");
+  return renderChecksPageResponse(c.req.raw, c.env, page, null, null, q, filter, order, visibleGroupIds(user), user.role === "superadmin", groupId, accessIdentityForUser(user));
 });
 
 export const handleUpdateCheck = factory.createHandlers(async (c) => {
@@ -173,7 +182,8 @@ export const handleUpdateCheck = factory.createHandlers(async (c) => {
   if (view === "detail") {
     return renderCheckDetailPageResponse(c.req.raw, c.env, id);
   }
-  return renderChecksPageResponse(c.req.raw, c.env, page, null, id, q, filter, order, visibleGroupIds(c.get("user")), c.get("user").role === "superadmin", groupId);
+  const user = c.get("user");
+  return renderChecksPageResponse(c.req.raw, c.env, page, null, id, q, filter, order, visibleGroupIds(user), user.role === "superadmin", groupId, accessIdentityForUser(user));
 });
 
 export const handleCertificateRecheck = factory.createHandlers(async (c) => {
@@ -222,13 +232,14 @@ export const handleMoveCheckToGroup = factory.createHandlers(async (c) => {
 
   const page = getPageFromRequest(c.req.raw);
   const { q, filter, order, groupId: selectedGroupId } = getSearchParamsFromRequest(c.req.raw);
-  return renderChecksPageResponse(c.req.raw, c.env, page, null, checkId, q, filter, order, null, true, selectedGroupId);
+  return renderChecksPageResponse(c.req.raw, c.env, page, null, checkId, q, filter, order, null, true, selectedGroupId, accessIdentityForUser(user));
 });
 
 export const handleApiListChecks = factory.createHandlers(async (c) => {
+  const user = c.get("user");
   const page = getPageFromRequest(c.req.raw);
   const { q, filter, order } = getSearchParamsFromRequest(c.req.raw);
-  const data = await loadChecksPageData(c.env["pulse-db"], page, null, null, q, filter, order, getChecksPageSize(c.env));
+  const data = await loadChecksPageData(c.env["pulse-db"], page, null, null, q, filter, order, getChecksPageSize(c.env), visibleGroupIds(user));
   return respondJson({
     checks: data.checks,
     page: data.page,
@@ -239,6 +250,7 @@ export const handleApiListChecks = factory.createHandlers(async (c) => {
 });
 
 export const handleApiCreateCheck = factory.createHandlers(async (c) => {
+  if (c.get("user").role !== "superadmin") return respondJson({ error: "forbidden" }, 403);
   const inputResult = await readValidatedCheckInput(c.req.raw);
   if (!inputResult.ok) {
     return respondJson({ error: inputResult.error }, inputResult.status);
@@ -252,6 +264,7 @@ export const handleApiCreateCheck = factory.createHandlers(async (c) => {
 });
 
 export const handleApiUpdateCheck = factory.createHandlers(async (c) => {
+  const user = c.get("user");
   const inputResult = await readValidatedCheckInput(c.req.raw);
   if (!inputResult.ok) {
     return respondJson({ error: inputResult.error }, inputResult.status);
@@ -260,8 +273,9 @@ export const handleApiUpdateCheck = factory.createHandlers(async (c) => {
 
   const now = new Date().toISOString();
   const id = Number(c.req.param("id"));
+  if (!await getCheckById(c.env["pulse-db"], id, visibleGroupIds(user))) return respondJson({ error: "not_found" }, 404);
   await updateCheck(c.env["pulse-db"], id, input, now);
-  const check = await getCheckById(c.env["pulse-db"], id);
+  const check = await getCheckById(c.env["pulse-db"], id, visibleGroupIds(user));
   if (!check) {
     return respondJson({ error: "not_found" }, 404);
   }
@@ -270,8 +284,9 @@ export const handleApiUpdateCheck = factory.createHandlers(async (c) => {
 });
 
 export const handleApiGetCheck = factory.createHandlers(async (c) => {
+  const user = c.get("user");
   const id = Number(c.req.param("id"));
-  const check = await getCheckById(c.env["pulse-db"], id);
+  const check = await getCheckById(c.env["pulse-db"], id, visibleGroupIds(user));
   if (!check) {
     return respondJson({ error: "not_found" }, 404);
   }

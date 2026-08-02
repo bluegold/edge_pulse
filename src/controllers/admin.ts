@@ -1,9 +1,11 @@
 import { createFactory } from "hono/factory";
 import type { AppEnv } from "../auth/types";
 import { createGroup, loadAdminData, setUserGroupMembership } from "../store/admin";
+import { createApiToken, deleteApiToken } from "../store/api-tokens";
 import { renderAdminPage, renderAdminPanel } from "../views/admin-page.tsx";
-import { respondHtml } from "../http/shared";
+import { respondHtml, respondJson } from "../http/shared";
 import { toErrorMessage } from "../lib/error-message";
+import { disconnectGroupUser, publishGroupUpdated } from "../realtime/events";
 
 const factory = createFactory<AppEnv>();
 const forbidden = () => respondHtml(`<main id="content" class="p-6 text-sm text-rose-200" role="alert">管理者権限が必要です</main>`, 403);
@@ -68,10 +70,51 @@ export const handleAdminSetUserGroup = factory.createHandlers(async (c) => {
   if (!Number.isInteger(groupId) || groupId < 1 || !Number.isInteger(targetUserId) || targetUserId < 1) {
     return operationResponse(c, "user または group の指定が不正です。", 400);
   }
+  const add = form.get("operation") === "add";
+  const now = new Date().toISOString();
   try {
-    await setUserGroupMembership(c.env["pulse-db"], user.id, targetUserId, groupId, form.get("operation") === "add");
+    await setUserGroupMembership(c.env["pulse-db"], user.id, targetUserId, groupId, add);
   } catch (error) {
     return adminError(c, error);
   }
+  try {
+    if (!add) await disconnectGroupUser(c.env, groupId, targetUserId);
+    await publishGroupUpdated(c.env, groupId, `membership:${targetUserId}:${groupId}:${now}`, "membership.changed", now);
+  } catch (error) {
+    console.error(JSON.stringify({ message: "group membership realtime update failed", error: toErrorMessage(error) }));
+  }
   return operationResponse(c);
+});
+
+export const handleAdminCreateApiToken = factory.createHandlers(async (c) => {
+  const actor = c.get("user");
+  const denied = requireSuperadmin(actor.role);
+  if (denied) return denied;
+  const form = await c.req.raw.formData();
+  const name = String(form.get("name") ?? "").trim();
+  const rawExpiresAt = String(form.get("expires_at") ?? "").trim();
+  if (!name || name.length > 100) return respondJson({ error: "invalid_name" }, 400);
+  let expiresAt: string | null = null;
+  if (rawExpiresAt) {
+    const parsed = new Date(rawExpiresAt);
+    if (Number.isNaN(parsed.getTime()) || parsed.getTime() <= Date.now()) return respondJson({ error: "invalid_expiration" }, 400);
+    expiresAt = parsed.toISOString();
+  }
+  try {
+    const token = await createApiToken(c.env["pulse-db"], Number(c.req.param("id")), name, expiresAt, new Date().toISOString(), actor.id);
+    return respondJson(token, 201);
+  } catch (error) {
+    console.error(JSON.stringify({ message: "api token creation failed", error: toErrorMessage(error) }));
+    return respondJson({ error: "token_creation_failed" }, 400);
+  }
+});
+
+export const handleAdminDeleteApiToken = factory.createHandlers(async (c) => {
+  const actor = c.get("user");
+  const denied = requireSuperadmin(actor.role);
+  if (denied) return denied;
+  const tokenId = Number(c.req.param("tokenId"));
+  if (!Number.isInteger(tokenId) || tokenId < 1) return respondJson({ error: "invalid_token" }, 400);
+  const deleted = await deleteApiToken(c.env["pulse-db"], tokenId, actor.id, new Date().toISOString());
+  return deleted ? respondJson({ ok: true }) : respondJson({ error: "not_found" }, 404);
 });

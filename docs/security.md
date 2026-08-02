@@ -49,7 +49,7 @@ secret:
 - 運用スクリプト
 - 外部の管理経路
 
-将来の user 向け API token は user 単位で管理します。token の平文は保存せず hash のみを D1 に保存し、失効・有効期限・最終利用日時を管理します。group 単位の共有 token は採用しません。既存の `ADMIN_API_TOKEN` は機械連携用の環境変数 token として別扱いにします。
+user 向け API token は user 単位で管理します。認証済みユーザーは `/account` から自分の token を発行・削除でき、平文は発行時のレスポンスで一度だけ返します。superadmin は管理画面の管理用操作として対象 user の token も発行・削除できます。D1 には hash のみを保存し、有効期限、最終利用日時を管理します。削除した token は復元できません。group 単位の共有 token は採用しません。既存の `ADMIN_API_TOKEN` は機械連携用の環境変数 token として別扱いにします。
 
 API token による操作でも、token 所有 user の `superadmin` または対象 check の group membership を毎回確認します。
 

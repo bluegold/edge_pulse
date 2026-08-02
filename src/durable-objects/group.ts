@@ -26,6 +26,12 @@ export class GroupDurableObject extends DurableObject<Env> {
     }
   }
 
+  async disconnectUser(userId: number): Promise<void> {
+    for (const socket of this.ctx.getWebSockets(`user:${userId}`)) {
+      socket.close(4003, "group membership revoked");
+    }
+  }
+
   webSocketMessage(): void {
     // Initial WebSocket support is receive-only for clients.
   }

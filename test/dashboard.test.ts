@@ -306,6 +306,12 @@ describe("renderDashboardPage", () => {
     expect(html).not.toContain('id="topbar-theme-button"');
     expect(html).toContain("USER");
     expect(html).toContain("kaneko@example.com");
+
+    const adminResponse = await renderDashboardPage(dashboardData, accessIdentity, true, [1]);
+    const adminHtml = await adminResponse.text();
+    expect(adminHtml).toContain('id="topbar-user-link"');
+    expect(adminHtml).toContain('href="/account"');
+    expect(adminHtml).toContain('href="/admin"');
   });
 
   it("renders the active incident count when incidents are present", async () => {
