@@ -29,14 +29,16 @@ const makeDb = (
   rows: {
     checks: Array<Record<string, unknown>>;
     incidents: Array<{ check_id: number }>;
+    groups?: Array<{ id: number; name: string; slug: string }>;
   },
-  search: { q?: string; filter?: string; order?: string } = {},
+  search: { q?: string; filter?: string; order?: string; groupId?: number } = {},
 ): D1Database => {
   const recentIncidentCheckIds = new Set(rows.incidents.map((row) => row.check_id));
   const filterAst = search.filter ? parseCheckSearchFilter(search.filter) : null;
 
   const filteredChecks = rows.checks.filter((row) => {
     const check = row as any;
+    if (search.groupId !== undefined && Number(check.group_id) !== search.groupId) return false;
     if (!matchesCheckTextQuery(check, search.q ?? "")) {
       return false;
     }
@@ -109,6 +111,9 @@ const makeDb = (
           return null as T;
         },
         async all<T>() {
+          if (normalized.includes("FROM groups")) {
+            return { results: rows.groups ?? [] } as T;
+          }
           if (normalized.includes("FROM checks c")) {
             if (normalized.includes("LIMIT ? OFFSET ?")) {
               const limit = Number(boundArgs[boundArgs.length - 2] ?? 20);
@@ -207,6 +212,42 @@ describe("loadChecksPageData", () => {
     expect(data.filter).toBe("");
     expect(data.searchError).toBeNull();
     expect(data.checks).toHaveLength(2);
+  });
+
+  it("filters checks by group and returns visible groups", async () => {
+    const data = await loadChecksPageData(
+      makeDb(
+        {
+          checks: [
+            { id: 1, group_id: 1, name: "platform-api", url: "https://platform.example.com", enabled: 1, last_state: "ok", ...baseCheck },
+            { id: 2, group_id: 2, name: "billing-api", url: "https://billing.example.com", enabled: 1, last_state: "ok", ...baseCheck },
+          ],
+          incidents: [],
+          groups: [
+            { id: 1, name: "Platform", slug: "platform" },
+            { id: 2, name: "Billing", slug: "billing" },
+          ],
+        },
+        { groupId: 2 },
+      ),
+      1,
+      null,
+      null,
+      "",
+      "",
+      "",
+      20,
+      null,
+      2,
+    );
+
+    expect(data.groupId).toBe(2);
+    expect(data.groups).toEqual([
+      { id: 1, name: "Platform", slug: "platform" },
+      { id: 2, name: "Billing", slug: "billing" },
+    ]);
+    expect(data.checks.map((check) => check.id)).toEqual([2]);
+    expect(data.totalChecks).toBe(1);
   });
 
   it("uses the requested page size", async () => {

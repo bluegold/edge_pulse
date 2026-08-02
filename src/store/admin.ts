@@ -7,19 +7,15 @@ export type AdminUser = {
   role: "member" | "superadmin";
   group_ids: number[];
 };
-export type AdminCheck = { id: number; name: string; url: string; group_id: number };
-
 export type AdminData = {
   groups: AdminGroup[];
   users: AdminUser[];
-  checks: AdminCheck[];
 };
 
 export const loadAdminData = async (db: D1Database): Promise<AdminData> => {
-  const [groups, users, checks, memberships, checkCounts] = await Promise.all([
+  const [groups, users, memberships, checkCounts] = await Promise.all([
     db.prepare("SELECT id, name, slug FROM groups ORDER BY id").all<Omit<AdminGroup, "check_count">>(),
     db.prepare("SELECT id, identity_subject, display_name, email, role FROM users ORDER BY id").all<Omit<AdminUser, "group_ids">>(),
-    db.prepare("SELECT id, name, url, group_id FROM checks ORDER BY id").all<AdminCheck>(),
     db.prepare("SELECT user_id, group_id FROM group_members ORDER BY user_id, group_id").all<{ user_id: number; group_id: number }>(),
     db.prepare("SELECT group_id, COUNT(*) AS check_count FROM checks WHERE group_id IS NOT NULL GROUP BY group_id").all<{ group_id: number; check_count: number }>(),
   ]);
@@ -36,7 +32,6 @@ export const loadAdminData = async (db: D1Database): Promise<AdminData> => {
   return {
     groups: groups.results.map((group) => ({ ...group, check_count: checkCountByGroup.get(group.id) ?? 0 })),
     users: users.results.map((user) => ({ ...user, group_ids: groupIds.get(user.id) ?? [] })),
-    checks: checks.results,
   };
 };
 

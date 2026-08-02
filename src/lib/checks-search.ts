@@ -36,6 +36,7 @@ export type BuildChecksUrlParams = {
   q?: string | null;
   filter?: string | null;
   order?: string | null;
+  group?: number | null;
 };
 
 export type CheckOrderDirection = "asc" | "desc";
@@ -568,6 +569,7 @@ export const buildChecksUrl = ({
   q,
   filter,
   order,
+  group,
 }: BuildChecksUrlParams): string => {
   const params = new URLSearchParams();
   if (page !== undefined && page !== null) params.set("page", String(page));
@@ -576,6 +578,7 @@ export const buildChecksUrl = ({
   if (q !== undefined && q !== null && q !== "") params.set("q", q);
   if (filter !== undefined && filter !== null && filter !== "") params.set("filter", filter);
   if (order !== undefined && order !== null && order !== "") params.set("order", order);
+  if (group !== undefined && group !== null) params.set("group", String(group));
 
   const search = params.toString();
   return search ? `/checks?${search}` : "/checks";

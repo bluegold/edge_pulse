@@ -1,6 +1,6 @@
 import { createFactory } from "hono/factory";
 import type { AppEnv } from "../auth/types";
-import { createGroup, loadAdminData, moveCheckToGroup, setUserGroupMembership } from "../store/admin";
+import { createGroup, loadAdminData, setUserGroupMembership } from "../store/admin";
 import { renderAdminPage, renderAdminPanel } from "../views/admin-page.tsx";
 import { respondHtml } from "../http/shared";
 import { toErrorMessage } from "../lib/error-message";
@@ -70,24 +70,6 @@ export const handleAdminSetUserGroup = factory.createHandlers(async (c) => {
   }
   try {
     await setUserGroupMembership(c.env["pulse-db"], user.id, targetUserId, groupId, form.get("operation") === "add");
-  } catch (error) {
-    return adminError(c, error);
-  }
-  return operationResponse(c);
-});
-
-export const handleAdminMoveCheck = factory.createHandlers(async (c) => {
-  const user = c.get("user");
-  const denied = requireSuperadmin(user.role);
-  if (denied) return denied;
-  const form = await c.req.raw.formData();
-  const checkId = Number(c.req.param("id"));
-  const groupId = Number(form.get("group_id"));
-  if (!Number.isInteger(checkId) || checkId < 1 || !Number.isInteger(groupId) || groupId < 1) {
-    return operationResponse(c, "check または group の指定が不正です。", 400);
-  }
-  try {
-    await moveCheckToGroup(c.env["pulse-db"], user.id, checkId, groupId);
   } catch (error) {
     return adminError(c, error);
   }

@@ -5,6 +5,7 @@ import {
   handleCheckDetailRequest,
   handleChecksRequest,
   handleCreateCheck,
+  handleMoveCheckToGroup,
   handleUpdateCheck,
 } from "../../controllers/checks";
 
@@ -15,6 +16,7 @@ checks.use("*", csrf());
 checks.get("/", ...handleChecksRequest);
 checks.get("/:id", ...handleCheckDetailRequest);
 checks.post("/", ...handleCreateCheck);
+checks.post("/:id/group", ...handleMoveCheckToGroup);
 checks.post("/:id", ...handleUpdateCheck);
 checks.post("/:id/certificate/recheck", ...handleCertificateRecheck);
 

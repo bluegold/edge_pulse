@@ -11,6 +11,7 @@ import { renderRecentCheckCard } from "../views/dashboard-page.tsx";
 import { isHxRequest, readCheckInputFromRequest, respondHtml, respondJson, respondHxOrHtml } from "../http/shared";
 import { refreshCertificateSnapshot } from "../services/certificate-check";
 import { renderPendingAccessPage } from "../views/pending-access";
+import { moveCheckToGroup } from "../store/admin";
 
 const factory = createFactory<AppEnv>();
 
@@ -36,12 +37,14 @@ const getPageFromRequest = (request: Request): number => {
   return Number(new URL(request.url).searchParams.get("page") ?? "1");
 };
 
-const getSearchParamsFromRequest = (request: Request): { q: string; filter: string; order: string } => {
+const getSearchParamsFromRequest = (request: Request): { q: string; filter: string; order: string; groupId: number | null } => {
   const searchParams = new URL(request.url).searchParams;
+  const group = Number(searchParams.get("group"));
   return {
     q: searchParams.get("q") ?? "",
     filter: searchParams.get("filter") ?? "",
     order: searchParams.get("order") ?? "",
+    groupId: Number.isInteger(group) && group > 0 ? group : null,
   };
 };
 
@@ -110,9 +113,10 @@ const renderChecksPageResponse = async (
   order = "",
   groupIds: number[] | null = null,
   isSuperadmin = false,
+  groupId: number | null = null,
 ): Promise<Response> => {
-  const data = await loadChecksPageData(env["pulse-db"], page, editId, highlightId, q, filter, order, getChecksPageSize(env), groupIds);
-  return respondHxOrHtml(request, () => renderChecksShell(data), () => renderChecksPage(data, isSuperadmin));
+  const data = await loadChecksPageData(env["pulse-db"], page, editId, highlightId, q, filter, order, getChecksPageSize(env), groupIds, groupId);
+  return respondHxOrHtml(request, () => renderChecksShell(data, isSuperadmin), () => renderChecksPage(data, isSuperadmin));
 };
 
 const renderCheckDetailPageResponse = async (request: Request, env: Env, id: number, groupIds: number[] | null = null, isSuperadmin = false): Promise<Response> => {
@@ -131,8 +135,8 @@ export const handleChecksRequest = factory.createHandlers(async (c) => {
   const page = Number(c.req.query("page") ?? "1");
   const editId = c.req.query("edit");
   const focusId = c.req.query("focus");
-  const { q, filter, order } = getSearchParamsFromRequest(c.req.raw);
-  return renderChecksPageResponse(c.req.raw, c.env, page, editId ? Number(editId) : null, focusId ? Number(focusId) : null, q, filter, order, visibleGroupIds(user));
+  const { q, filter, order, groupId } = getSearchParamsFromRequest(c.req.raw);
+  return renderChecksPageResponse(c.req.raw, c.env, page, editId ? Number(editId) : null, focusId ? Number(focusId) : null, q, filter, order, visibleGroupIds(user), user.role === "superadmin", groupId);
 });
 
 export const handleCheckDetailRequest = factory.createHandlers(async (c) => {
@@ -141,7 +145,7 @@ export const handleCheckDetailRequest = factory.createHandlers(async (c) => {
 
 export const handleCreateCheck = factory.createHandlers(async (c) => {
   const page = getPageFromRequest(c.req.raw);
-  const { q, filter, order } = getSearchParamsFromRequest(c.req.raw);
+  const { q, filter, order, groupId } = getSearchParamsFromRequest(c.req.raw);
   const inputResult = await readValidatedCheckInput(c.req.raw);
   if (!inputResult.ok) {
     return inputResult.response;
@@ -150,12 +154,12 @@ export const handleCreateCheck = factory.createHandlers(async (c) => {
 
   const now = new Date().toISOString();
   await insertCheck(c.env["pulse-db"], input, now);
-  return renderChecksPageResponse(c.req.raw, c.env, page, null, null, q, filter, order, visibleGroupIds(c.get("user")), c.get("user").role === "superadmin");
+  return renderChecksPageResponse(c.req.raw, c.env, page, null, null, q, filter, order, visibleGroupIds(c.get("user")), c.get("user").role === "superadmin", groupId);
 });
 
 export const handleUpdateCheck = factory.createHandlers(async (c) => {
   const page = getPageFromRequest(c.req.raw);
-  const { q, filter, order } = getSearchParamsFromRequest(c.req.raw);
+  const { q, filter, order, groupId } = getSearchParamsFromRequest(c.req.raw);
   const view = new URL(c.req.url).searchParams.get("view");
   const inputResult = await readValidatedCheckInput(c.req.raw);
   if (!inputResult.ok) {
@@ -169,7 +173,7 @@ export const handleUpdateCheck = factory.createHandlers(async (c) => {
   if (view === "detail") {
     return renderCheckDetailPageResponse(c.req.raw, c.env, id);
   }
-  return renderChecksPageResponse(c.req.raw, c.env, page, null, id, q, filter, order);
+  return renderChecksPageResponse(c.req.raw, c.env, page, null, id, q, filter, order, visibleGroupIds(c.get("user")), c.get("user").role === "superadmin", groupId);
 });
 
 export const handleCertificateRecheck = factory.createHandlers(async (c) => {
@@ -197,6 +201,28 @@ export const handleCertificateRecheck = factory.createHandlers(async (c) => {
   }
 
   return Response.redirect(new URL("/", c.req.url), 303);
+});
+
+export const handleMoveCheckToGroup = factory.createHandlers(async (c) => {
+  const user = c.get("user");
+  if (user.role !== "superadmin") return respondHtml(`<main id="content" class="p-6 text-sm text-rose-200" role="alert">管理者権限が必要です</main>`, 403);
+
+  const checkId = Number(c.req.param("id"));
+  const groupId = Number((await c.req.raw.formData()).get("group_id"));
+  if (!Number.isInteger(checkId) || checkId < 1 || !Number.isInteger(groupId) || groupId < 1) {
+    return respondHtml(`<main id="content" class="p-6 text-sm text-rose-200" role="alert">check または group の指定が不正です。</main>`, 400);
+  }
+
+  try {
+    await moveCheckToGroup(c.env["pulse-db"], user.id, checkId, groupId);
+  } catch (error) {
+    console.error(JSON.stringify({ message: "check group move failed", error: String(error) }));
+    return respondHtml(`<main id="content" class="p-6 text-sm text-rose-200" role="alert">監視対象の group 移動に失敗しました。</main>`, 400);
+  }
+
+  const page = getPageFromRequest(c.req.raw);
+  const { q, filter, order, groupId: selectedGroupId } = getSearchParamsFromRequest(c.req.raw);
+  return renderChecksPageResponse(c.req.raw, c.env, page, null, checkId, q, filter, order, null, true, selectedGroupId);
 });
 
 export const handleApiListChecks = factory.createHandlers(async (c) => {

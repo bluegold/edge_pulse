@@ -95,6 +95,23 @@
     if (target.closest("#checks-create-close")) {
       event.preventDefault();
       closePanel();
+      return;
+    }
+
+    const openDialogButton = target.closest("[data-dialog-id]");
+    if (openDialogButton) {
+      const dialog = document.getElementById(openDialogButton.dataset.dialogId || "");
+      if (dialog instanceof HTMLDialogElement) {
+        event.preventDefault();
+        dialog.showModal();
+      }
+      return;
+    }
+
+    const cancelButton = target.closest("[id$='-group-cancel']");
+    if (cancelButton) {
+      const dialog = cancelButton.closest("dialog");
+      if (dialog instanceof HTMLDialogElement) dialog.close();
     }
   });
 

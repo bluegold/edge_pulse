@@ -55,7 +55,7 @@ const formatTimingMs = (value: number | null | undefined, fractionDigits = 3): s
   return `${Number.isInteger(value) ? String(value) : value.toFixed(fractionDigits).replace(/\.?0+$/, "")}ms`;
 };
 
-const SearchPanel = ({ q, filter, order, searchError }: { q: string; filter: string; order: string; searchError: string | null }) => (
+const SearchPanel = ({ q, filter, order, groupId, groups, searchError }: { q: string; filter: string; order: string; groupId: number | null; groups: NonNullable<ChecksPageData["groups"]>; searchError: string | null }) => (
   <div class="summary-cell checks-search-cell min-w-0">
     <form
       id="checks-search-form"
@@ -63,19 +63,19 @@ const SearchPanel = ({ q, filter, order, searchError }: { q: string; filter: str
       action="/checks"
       method="get"
       hx-get="/checks"
-      hx-trigger="submit, change from:select"
+      hx-trigger="submit, change from:#checks-status-filter, change from:#checks-group-filter"
       hx-target="#content"
       hx-swap={HX_SWAP_NO_SCROLL}
     >
       <p class="text-sm font-bold tracking-wide text-slate-200">検索</p>
-      <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
+      <div class="grid grid-cols-1 gap-2 sm:grid-cols-4">
         <input
           name="q"
           value={q}
           placeholder="name, url, state..."
           class="glass-input w-full rounded-md px-3 py-2 text-slate-100 placeholder:text-slate-400 sm:col-span-2"
         />
-        <select name="filter" class="glass-input min-w-0 rounded-md px-3 py-2 text-slate-100">
+        <select id="checks-status-filter" name="filter" class="glass-input min-w-0 rounded-md px-3 py-2 text-slate-100">
           <option value="" selected={filter === ""}>
             すべて
           </option>
@@ -91,6 +91,10 @@ const SearchPanel = ({ q, filter, order, searchError }: { q: string; filter: str
           <option value="(recent_incident_24h=1)" selected={filter === "(recent_incident_24h=1)"}>
             24h障害件数
           </option>
+        </select>
+        <select id="checks-group-filter" name="group" class="glass-input min-w-0 rounded-md px-3 py-2 text-slate-100">
+          <option value="" selected={groupId === null}>すべての group</option>
+          {groups.map((group) => <option value={group.id} selected={group.id === groupId}>{group.name} ({group.slug})</option>)}
         </select>
         <input type="hidden" name="order" value={order} />
       </div>
@@ -111,17 +115,19 @@ const SortHeader = ({
   order,
   q,
   filter,
+  groupId,
 }: {
   label: string;
   orderKey: SortableHeaderKey;
   order: string;
   q: string;
   filter: string;
+  groupId: number | null;
 }) => {
   const currentDirection = getCheckOrderDirection(order, orderKey);
   const nextDirection = currentDirection === null ? "asc" : currentDirection === "asc" ? "desc" : null;
   const nextOrder = buildCheckOrderWithTerm(order, orderKey, nextDirection);
-  const href = buildChecksUrl({ page: 1, q, filter, order: nextOrder });
+  const href = buildChecksUrl({ page: 1, q, filter, order: nextOrder, group: groupId });
   const icon =
     currentDirection === null ? (
       <svg viewBox="0 0 24 24" class="sort-toggle-icon" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -163,12 +169,38 @@ const SortHeader = ({
   );
 };
 
+const CheckGroupBadge = ({ check, groups }: { check: ChecksPageData["checks"][number]; groups: NonNullable<ChecksPageData["groups"]> }) => {
+  const currentGroup = groups.find((group) => group.id === check.group_id);
+  return <span id={`check-item-${check.id}-group`} class="group-badge">{currentGroup ? `${currentGroup.name} (${currentGroup.slug})` : "割当待ち"}</span>;
+};
+
+const CheckGroupMoveControl = ({ check, groups, groupId, q, filter, order, isSuperadmin }: { check: ChecksPageData["checks"][number]; groups: NonNullable<ChecksPageData["groups"]>; groupId: number | null; q: string; filter: string; order: string; isSuperadmin: boolean }) => {
+  if (!isSuperadmin) return null;
+
+  const action = buildChecksUrl({ q, filter, order, group: groupId }).replace("/checks", `/checks/${check.id}/group`);
+  return (
+    <div class="grid w-full justify-items-end gap-2">
+      <button id={`check-item-${check.id}-group-move-open`} class="glass-button inline-flex h-10 w-full items-center justify-center rounded-md px-4 text-sm font-semibold text-slate-100" type="button" data-dialog-id={`check-item-${check.id}-group-dialog`} aria-haspopup="dialog">移動</button>
+      <dialog id={`check-item-${check.id}-group-dialog`} aria-labelledby={`check-item-${check.id}-group-dialog-title`} class="check-group-dialog glass-surface w-[min(30rem,calc(100vw-2rem))] rounded-lg border border-white/15 p-6 text-slate-100 shadow-2xl backdrop:bg-slate-950/70">
+        <form id={`check-item-${check.id}-group-form`} class="grid gap-4" method="post" action={action} hx-post={action} hx-target="#content" hx-swap={HX_SWAP_NO_SCROLL}>
+          <div><h3 id={`check-item-${check.id}-group-dialog-title`} class="text-lg font-black">group を移動</h3><p class="mt-1 text-sm text-slate-300">{check.name}</p></div>
+          <label class="grid gap-1 text-sm"><span class="font-semibold text-slate-200">移動先 group</span><select id={`check-item-${check.id}-group-select`} name="group_id" class="glass-input rounded-md px-2 py-2" required>{groups.map((group) => <option value={group.id} selected={group.id === check.group_id}>{group.name} ({group.slug})</option>)}</select></label>
+          <div class="flex justify-end gap-2"><button id={`check-item-${check.id}-group-cancel`} class="glass-button rounded-md px-3 py-2 text-sm" type="button">キャンセル</button><button id={`check-item-${check.id}-group-save`} class="glass-button rounded-md px-3 py-2 text-sm font-bold" type="submit">保存</button></div>
+        </form>
+      </dialog>
+    </div>
+  );
+};
+
 const ViewCard = ({
   check,
   page,
   q,
   filter,
   order,
+  groupId,
+  groups,
+  isSuperadmin,
   generatedAt,
   highlighted,
 }: {
@@ -177,6 +209,9 @@ const ViewCard = ({
   q: string;
   filter: string;
   order: string;
+  groupId: number | null;
+  groups: NonNullable<ChecksPageData["groups"]>;
+  isSuperadmin: boolean;
   generatedAt: string;
   highlighted: boolean;
 }) => (
@@ -192,6 +227,7 @@ const ViewCard = ({
         <MaintenanceBadge check={check} />
       </div>
       <p class="check-url">{check.url}</p>
+      <div class="mt-2 flex justify-end"><CheckGroupBadge check={check} groups={groups} /></div>
     </th>
     <td class="check-meta-cell">
       <div class="check-meta-value"><LocalTime iso={check.last_checked_at} class="whitespace-nowrap" /></div>
@@ -233,13 +269,14 @@ const ViewCard = ({
       </div>
     </td>
     <td class="check-actions-cell">
+      <CheckGroupMoveControl check={check} groups={groups ?? []} groupId={groupId} q={q} filter={filter} order={order} isSuperadmin={isSuperadmin} />
       <a
         id={`check-item-${check.id}-edit`}
-        href={buildChecksUrl({ page, edit: check.id, focus: check.id, q, filter, order })}
-        hx-get={buildChecksUrl({ page, edit: check.id, focus: check.id, q, filter, order })}
+        href={buildChecksUrl({ page, edit: check.id, focus: check.id, q, filter, order, group: groupId })}
+        hx-get={buildChecksUrl({ page, edit: check.id, focus: check.id, q, filter, order, group: groupId })}
         hx-target="#content"
         hx-swap={HX_SWAP_NO_SCROLL}
-        class="glass-button inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-semibold text-slate-100"
+        class="glass-button inline-flex h-10 w-full items-center justify-center rounded-md px-4 text-sm font-semibold text-slate-100"
       >
         編集
       </a>
@@ -253,12 +290,14 @@ const EditCard = ({
   q,
   filter,
   order,
+  groupId,
 }: {
   check: ChecksPageData["checks"][number];
   page: number;
   q: string;
   filter: string;
   order: string;
+  groupId: number | null;
 }) => (
   <tr id={`check-item-${check.id}`} class="check-row check-row-edit">
     <td colSpan={6} class="check-edit-cell">
@@ -268,20 +307,20 @@ const EditCard = ({
         submitId={`check-item-${check.id}-save`}
         cancelId={`check-item-${check.id}-cancel`}
         title="監視対象を編集"
-        action={buildChecksUrl({ page, q, filter, order }).replace("/checks", `/checks/${check.id}`)}
+        action={buildChecksUrl({ page, q, filter, order, group: groupId }).replace("/checks", `/checks/${check.id}`)}
         target="#content"
-        cancelHref={buildChecksUrl({ page, focus: check.id, q, filter, order })}
+        cancelHref={buildChecksUrl({ page, focus: check.id, q, filter, order, group: groupId })}
       />
     </td>
   </tr>
 );
 
-const CreateForm = ({ page, q, filter, order }: { page: number; q: string; filter: string; order: string }) => (
+const CreateForm = ({ page, q, filter, order, groupId }: { page: number; q: string; filter: string; order: string; groupId: number | null }) => (
   <div id="checks-create-form-wrap" hidden>
     <form
       id="checks-create-form"
       class="table-wrap mt-4 grid gap-3 p-4"
-      hx-post={buildChecksUrl({ page, q, filter, order })}
+      hx-post={buildChecksUrl({ page, q, filter, order, group: groupId })}
       hx-target="#content"
       hx-swap={HX_SWAP_NO_SCROLL}
     >
@@ -347,6 +386,7 @@ const Pagination = ({
   q,
   filter,
   order,
+  groupId,
 }: {
   page: number;
   pageSize: number;
@@ -355,6 +395,7 @@ const Pagination = ({
   q: string;
   filter: string;
   order: string;
+  groupId: number | null;
 }) => {
   const prevPage = Math.max(1, page - 1);
   const nextPage = Math.min(totalPages, page + 1);
@@ -379,8 +420,8 @@ const Pagination = ({
           {hasPrev ? (
             <a
               id="checks-pagination-prev"
-              href={buildChecksUrl({ page: prevPage, q, filter, order })}
-              hx-get={buildChecksUrl({ page: prevPage, q, filter, order })}
+              href={buildChecksUrl({ page: prevPage, q, filter, order, group: groupId })}
+              hx-get={buildChecksUrl({ page: prevPage, q, filter, order, group: groupId })}
               hx-target="#content"
               hx-swap={HX_SWAP_NO_SCROLL}
               class={buttonClass}
@@ -398,8 +439,8 @@ const Pagination = ({
           {hasNext ? (
             <a
               id="checks-pagination-next"
-              href={buildChecksUrl({ page: nextPage, q, filter, order })}
-              hx-get={buildChecksUrl({ page: nextPage, q, filter, order })}
+              href={buildChecksUrl({ page: nextPage, q, filter, order, group: groupId })}
+              hx-get={buildChecksUrl({ page: nextPage, q, filter, order, group: groupId })}
               hx-target="#content"
               hx-swap={HX_SWAP_NO_SCROLL}
               class={buttonClass}
@@ -417,7 +458,7 @@ const Pagination = ({
   );
 };
 
-const ChecksShell = ({ data }: { data: ChecksPageData }) => (
+const ChecksShell = ({ data, isSuperadmin }: { data: ChecksPageData; isSuperadmin: boolean }) => (
   <section
     id="checks-shell"
     class="w-full"
@@ -460,7 +501,7 @@ const ChecksShell = ({ data }: { data: ChecksPageData }) => (
             <dd>{data.stoppedChecks}</dd>
           </div>
         </div>
-        <SearchPanel q={data.q} filter={data.filter} order={data.order} searchError={data.searchError} />
+        <SearchPanel q={data.q} filter={data.filter} order={data.order} groupId={data.groupId ?? null} groups={data.groups ?? []} searchError={data.searchError} />
       </div>
 
       <div class="px-2 pt-2">
@@ -473,7 +514,7 @@ const ChecksShell = ({ data }: { data: ChecksPageData }) => (
               </div>
               <span class="count-badge">{data.totalChecks} 件</span>
             </div>
-            <CreateForm page={data.page} q={data.q} filter={data.filter} order={data.order} />
+            <CreateForm page={data.page} q={data.q} filter={data.filter} order={data.order} groupId={data.groupId ?? null} />
             <div id="checks-list" class="mt-4 overflow-x-auto">
               {data.checks.length > 0 ? (
                 <table class="checks-table">
@@ -487,18 +528,18 @@ const ChecksShell = ({ data }: { data: ChecksPageData }) => (
                   </colgroup>
                   <thead>
                     <tr>
-                      <SortHeader label="監視対象" orderKey="name" order={data.order} q={data.q} filter={data.filter} />
-                      <SortHeader label="最終確認" orderKey="checked_at" order={data.order} q={data.q} filter={data.filter} />
+                      <SortHeader label="監視対象" orderKey="name" order={data.order} q={data.q} filter={data.filter} groupId={data.groupId ?? null} />
+                      <SortHeader label="最終確認" orderKey="checked_at" order={data.order} q={data.q} filter={data.filter} groupId={data.groupId ?? null} />
                       <th scope="col">HTTP / 応答時間</th>
                       <th scope="col">稼働</th>
-                      <SortHeader label="証明書" orderKey="certificate_remain" order={data.order} q={data.q} filter={data.filter} />
+                      <SortHeader label="証明書" orderKey="certificate_remain" order={data.order} q={data.q} filter={data.filter} groupId={data.groupId ?? null} />
                       <th scope="col">操作</th>
                     </tr>
                   </thead>
                   <tbody>
                     {data.checks.map((check) =>
                       data.editId === check.id ? (
-                        <EditCard check={check} page={data.page} q={data.q} filter={data.filter} order={data.order} />
+                        <EditCard check={check} page={data.page} q={data.q} filter={data.filter} order={data.order} groupId={data.groupId ?? null} />
                       ) : (
                         <ViewCard
                           check={check}
@@ -506,6 +547,9 @@ const ChecksShell = ({ data }: { data: ChecksPageData }) => (
                           q={data.q}
                           filter={data.filter}
                           order={data.order}
+                          groupId={data.groupId ?? null}
+                          groups={data.groups ?? []}
+                          isSuperadmin={isSuperadmin}
                           generatedAt={data.generatedAt}
                           highlighted={data.highlightId === check.id}
                         />
@@ -529,7 +573,7 @@ const ChecksShell = ({ data }: { data: ChecksPageData }) => (
         </section>
       </div>
       <div class="px-6 pb-2 mb-4">
-        <Pagination page={data.page} pageSize={data.pageSize} totalPages={data.totalPages} totalChecks={data.totalChecks} q={data.q} filter={data.filter} order={data.order} />
+        <Pagination page={data.page} pageSize={data.pageSize} totalPages={data.totalPages} totalChecks={data.totalChecks} q={data.q} filter={data.filter} order={data.order} groupId={data.groupId ?? null} />
       </div>
     </div>
   </section>
@@ -542,11 +586,11 @@ const ChecksDocument = ({ data, isSuperadmin }: { data: ChecksPageData; isSupera
     footerStatus={data.checks.some((check) => check.enabled === 1 && check.last_state === "fail") ? "degraded" : "healthy"}
     isSuperadmin={isSuperadmin}
   >
-    <ChecksShell data={data} />
+    <ChecksShell data={data} isSuperadmin={isSuperadmin} />
   </AppLayout>
 );
 
-export const renderChecksShell = (data: ChecksPageData): string => renderToString(<ChecksShell data={data} />);
+export const renderChecksShell = (data: ChecksPageData, isSuperadmin = false): string => renderToString(<ChecksShell data={data} isSuperadmin={isSuperadmin} />);
 
 export const renderChecksPage = (data: ChecksPageData, isSuperadmin = false): Response =>
   new Response(renderToString(<ChecksDocument data={data} isSuperadmin={isSuperadmin} />), {

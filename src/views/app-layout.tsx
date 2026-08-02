@@ -199,6 +199,27 @@ export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, isS
           border-color: rgba(56, 189, 248, 0.45);
           background: rgba(15, 35, 64, 0.95);
         }
+        .group-badge,
+        .count-badge {
+          display: inline-flex;
+          max-width: 100%;
+          align-items: center;
+          border: 1px solid rgba(56, 189, 248, 0.32);
+          border-radius: 0.35rem;
+          background: rgba(14, 116, 144, 0.18);
+          padding: 0.28rem 0.6rem;
+          color: #bae6fd;
+          font-size: 0.72rem;
+          line-height: 1.1;
+          white-space: nowrap;
+        }
+        .check-group-dialog {
+          position: fixed;
+          top: 33.333vh;
+          left: 50%;
+          margin: 0;
+          transform: translate(-50%, -50%);
+        }
         .glass-surface,
         .glass-surface-elevated,
         .glass-input {
@@ -451,8 +472,8 @@ export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, isS
           min-width: 22rem;
         }
         .checks-table col.check-actions-col {
-          width: 5.5rem;
-          max-width: 5.5rem;
+          width: 9rem;
+          max-width: 9rem;
         }
         .checks-table thead th {
           padding: 0.75rem 1rem 1rem;
@@ -498,8 +519,8 @@ export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, isS
           text-align: left;
         }
         .check-actions-cell {
-          width: 5.5rem;
-          max-width: 5.5rem;
+          width: 9rem;
+          max-width: 9rem;
           border-right: 1px solid rgba(148, 163, 184, 0.14);
           white-space: nowrap;
           text-align: right;

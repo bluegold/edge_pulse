@@ -4,7 +4,11 @@ import { summarizeChecks } from "../lib/checks-summary";
 
 export type ChecksPageRow = CheckRow & {
   uptime_started_at?: string | null;
+  group_name?: string | null;
+  group_slug?: string | null;
 };
+
+export type ChecksGroup = { id: number; name: string; slug: string };
 
 export type ChecksPageData = {
   checks: ChecksPageRow[];
@@ -19,6 +23,8 @@ export type ChecksPageData = {
   q: string;
   filter: string;
   order: string;
+  groupId?: number | null;
+  groups?: ChecksGroup[];
   searchError: string | null;
   generatedAt: string;
 };
@@ -131,6 +137,7 @@ export const loadChecksPageData = async (
   order = "",
   pageSize = 20,
   groupIds: number[] | null = null,
+  groupId: number | null = null,
 ): Promise<ChecksPageData> => {
   const normalizedPageSize = normalizePageSize(pageSize);
   const normalizedQuery = q.trim();
@@ -141,9 +148,13 @@ export const loadChecksPageData = async (
   const { sql: whereSql, params: whereParams, searchError } = buildChecksSearchWhereClause(normalizedQuery, normalizedFilter, dayAgo);
   const orderBySql = buildCheckOrderByClause(normalizedOrder);
   const groupClause = groupIds === null ? "" : groupIds.length > 0 ? `c.group_id IN (${groupIds.map(() => "?").join(", ")})` : "1 = 0";
-  const whereParts = [whereSql, groupClause].filter(Boolean);
+  const selectedGroupClause = groupId === null ? "" : "c.group_id = ?";
+  const whereParts = [whereSql, groupClause, selectedGroupClause].filter(Boolean);
   const whereClause = whereParts.length > 0 ? `WHERE ${whereParts.join(" AND ")}` : "";
-  const scopedWhereParams = [...whereParams, ...(groupIds ?? [])];
+  const scopedWhereParams = [...whereParams, ...(groupIds ?? []), ...(groupId === null ? [] : [groupId])];
+
+  const groupsWhere = groupIds === null ? "" : groupIds.length > 0 ? `WHERE id IN (${groupIds.map(() => "?").join(", ")})` : "WHERE 1 = 0";
+  const groupsResult = await db.prepare(`SELECT id, name, slug FROM groups ${groupsWhere} ORDER BY name, id`).bind(...(groupIds ?? [])).all<ChecksGroup>();
 
   const countQuery = `
         SELECT COUNT(*) AS count
@@ -165,6 +176,8 @@ export const loadChecksPageData = async (
   const dataQuery = `
         SELECT
           c.*,
+          g.name AS group_name,
+          g.slug AS group_slug,
           uptime.uptime_started_at,
           (
             SELECT r.x_runtime_ms
@@ -174,6 +187,7 @@ export const loadChecksPageData = async (
             LIMIT 1
           ) AS last_runtime_ms
         FROM checks c
+        LEFT JOIN groups g ON g.id = c.group_id
         LEFT JOIN (
           SELECT
             check_id,
@@ -206,6 +220,8 @@ export const loadChecksPageData = async (
     q: normalizedQuery,
     filter: normalizedFilter,
     order: normalizedOrder,
+    groupId,
+    groups: groupsResult.results,
     searchError,
     generatedAt: new Date().toISOString(),
   };

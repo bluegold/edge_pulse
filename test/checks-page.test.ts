@@ -73,6 +73,7 @@ const checksPageData: ChecksPageData = {
   q: "",
   filter: "",
   order: "",
+  groups: [{ id: 1, name: "Orphan", slug: "orphan" }],
   searchError: null,
   generatedAt: "2026-06-22T00:00:00.000Z",
 };
@@ -164,5 +165,22 @@ describe("renderChecksPage", () => {
     expect(html).toContain('id="checks-pagination-prev" aria-disabled="true" class="glass-button inline-flex items-center rounded-md px-4 py-3 text-sm font-semibold text-slate-100 opacity-55"');
     expect(html).toContain('id="checks-pagination-next" aria-disabled="true" class="glass-button inline-flex items-center rounded-md px-4 py-3 text-sm font-semibold text-slate-100 opacity-55"');
     expect(html).toContain("1-2 / 2 件");
+  });
+
+  it("renders the group badge and superadmin move dialog", async () => {
+    const response = await renderChecksPage({
+      ...checksPageData,
+      groupId: 1,
+      groups: [{ id: 1, name: "Platform", slug: "platform" }],
+    }, true);
+
+    const html = await response.text();
+    expect(html).toContain('id="check-item-1-group" class="group-badge"');
+    expect(html).toContain('id="check-item-1-group-move-open"');
+    expect(html).toContain('id="check-item-1-group-dialog"');
+    expect(html).toContain('id="check-item-1-group-select"');
+    expect(html).toContain('id="check-item-1-group-save"');
+    expect(html).toContain('id="check-item-1-group-cancel"');
+    expect(html).toContain('hx-trigger="submit, change from:#checks-status-filter, change from:#checks-group-filter"');
   });
 });
