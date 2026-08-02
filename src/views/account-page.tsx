@@ -16,15 +16,16 @@ const statusLabel: Record<AccountToken["status"], string> = {
 };
 
 const AccountPanel = ({ tokens, newToken, feedback }: { tokens: ApiTokenRow[]; newToken?: string | null; feedback?: string | null }) => (
-  <section id="account-panel" class="shell p-6">
-    <div id="account-header" class="flex flex-wrap items-end justify-between gap-4">
-      <div><p class="text-sm font-bold uppercase tracking-[0.28em] text-sky-300">Account</p><h2 class="mt-2 text-3xl font-black text-slate-50">ユーザー設定</h2></div>
-      <p class="text-sm text-slate-300">自分の API token を管理します。</p>
-    </div>
-    {feedback ? <div id="account-feedback" class="mt-4 rounded-md border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100" role="alert">{feedback}</div> : null}
-    {newToken ? <div id="account-new-token" class="mt-6 rounded-md border border-emerald-400/30 bg-emerald-500/10 p-4"><p class="font-bold text-emerald-100">token を作成しました。この値は今回だけ表示されます。</p><div class="mt-3 flex items-start gap-2"><code id="account-new-token-value" class="min-w-0 flex-1 break-all rounded bg-slate-950/70 p-3 text-sm text-emerald-200">{newToken}</code><button id="account-new-token-copy" class="glass-button shrink-0 rounded-md px-3 py-2 text-sm font-bold" type="button" data-copy-target="account-new-token-value">コピー</button></div></div> : null}
-    <section id="account-token-create-section" class="mt-8 grid gap-6 lg:grid-cols-3">
-      <div id="account-token-create-card" class="glass-surface rounded-lg p-4">
+  <section id="account-panel" class="w-full">
+    <div class="shell">
+      <header id="account-header" class="section-head flex flex-wrap items-end justify-between gap-4 px-6 py-6">
+        <div><p class="text-sm font-bold uppercase tracking-[0.28em] text-sky-300">Account</p><h2 class="mt-2 text-3xl font-black text-slate-50">ユーザー設定</h2></div>
+        <p class="text-sm text-slate-300">自分の API token を管理します。</p>
+      </header>
+      {feedback ? <div id="account-feedback" class="mx-6 mt-4 rounded-md border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100" role="alert">{feedback}</div> : null}
+      {newToken ? <div id="account-new-token" class="mx-6 mt-6 rounded-md border border-emerald-400/30 bg-emerald-500/10 p-4"><p class="font-bold text-emerald-100">token を作成しました。この値は今回だけ表示されます。</p><div class="mt-3 flex items-start gap-2"><code id="account-new-token-value" class="min-w-0 flex-1 break-all rounded bg-slate-950/70 p-3 text-sm text-emerald-200">{newToken}</code><button id="account-new-token-copy" class="glass-button shrink-0 rounded-md px-3 py-2 text-sm font-bold" type="button" data-copy-target="account-new-token-value">コピー</button></div></div> : null}
+      <section id="account-token-create-section" class="mt-8 grid gap-6 border-b border-slate-700/30 px-6 pb-8 lg:grid-cols-3">
+      <div id="account-token-create-card" class="lg:border-r lg:border-slate-700/30 lg:pr-6">
         <h3 class="font-black text-slate-50">API token を作成</h3>
         <form id="account-token-create-form" class="mt-4 grid gap-3" method="post" action="/account/tokens" hx-post="/account/tokens" hx-target="#account-panel" hx-swap="outerHTML">
           <input id="account-token-name" class="glass-input rounded-md px-3 py-2" name="name" placeholder="用途名" required maxlength={100} />
@@ -32,7 +33,7 @@ const AccountPanel = ({ tokens, newToken, feedback }: { tokens: ApiTokenRow[]; n
           <button id="account-token-create-submit" class="glass-button rounded-md px-3 py-2 font-bold" type="submit">作成</button>
         </form>
       </div>
-      <div id="account-token-list-card" class="glass-surface rounded-lg p-4 lg:col-span-2">
+      <div id="account-token-list-card" class="lg:col-span-2">
         <h3 id="account-token-list-title" class="font-black text-slate-50">発行済み token</h3>
         <div id="account-token-list" class="mt-4 grid gap-2">
           {tokens.length > 0 ? tokens.map((token) => {
@@ -41,7 +42,8 @@ const AccountPanel = ({ tokens, newToken, feedback }: { tokens: ApiTokenRow[]; n
           }) : <p id="account-token-empty" class="text-sm text-slate-400">発行済み token はありません。</p>}
         </div>
       </div>
-    </section>
+      </section>
+    </div>
   </section>
 );
 

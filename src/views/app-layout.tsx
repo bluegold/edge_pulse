@@ -18,6 +18,12 @@ const AccessBadge = ({ label, value }: { label: string; value: string }) => (
   </div>
 );
 
+export const DashboardDivider = () => (
+  <div class="dashboard-divider" aria-hidden="true">
+    <span></span>
+  </div>
+);
+
 export const AppLayout = ({ title, activeHref, footerStatus, accessIdentity, isSuperadmin = false, resetScrollOnLoad = false, children }: AppLayoutProps) => (
   <html lang="ja">
     <head>
