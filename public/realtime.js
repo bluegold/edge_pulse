@@ -7,6 +7,33 @@
 
   const getDashboard = () => document.getElementById("dashboard-shell");
 
+  const formatLocalDateTime = (date, withSeconds) => {
+    const values = [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, "0"),
+      String(date.getDate()).padStart(2, "0"),
+      String(date.getHours()).padStart(2, "0"),
+      String(date.getMinutes()).padStart(2, "0"),
+    ];
+    if (withSeconds) values.push(String(date.getSeconds()).padStart(2, "0"));
+    return withSeconds
+      ? `${values[0]}-${values[1]}-${values[2]} ${values[3]}:${values[4]}:${values[5]}`
+      : `${values[0]}-${values[1]}-${values[2]} ${values[3]}:${values[4]}`;
+  };
+
+  const renderLocalTimes = (root = document) => {
+    for (const element of root.querySelectorAll("[data-utc-time]")) {
+      const iso = element.getAttribute("data-utc-time");
+      if (!iso) continue;
+      const date = new Date(iso);
+      if (Number.isNaN(date.getTime())) continue;
+      const withSeconds = element.getAttribute("data-utc-seconds") !== "false";
+      element.textContent = formatLocalDateTime(date, withSeconds);
+      element.title = iso;
+      element.setAttribute("data-localized", "true");
+    }
+  };
+
   const setStatus = (text) => {
     const status = document.getElementById("dashboard-realtime-status");
     if (status) status.textContent = text;
@@ -33,6 +60,7 @@
       const nextContent = template.content.querySelector("#content");
       const currentContent = document.getElementById("content");
       if (nextContent && currentContent) {
+        renderLocalTimes(nextContent);
         currentContent.replaceWith(nextContent);
         window.scrollTo({ top: scrollY, left: 0, behavior: "auto" });
       }
@@ -97,5 +125,6 @@
   };
 
   document.addEventListener("htmx:afterSwap", () => setTimeout(connect, 0));
+  renderLocalTimes();
   connect();
 })();
