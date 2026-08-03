@@ -155,18 +155,17 @@ export const loadDashboardData = async (db: D1Database, groupIds: number[] | nul
         `
         SELECT
           c.*,
-          uptime.uptime_started_at
+          (
+            SELECT e.occurred_at
+            FROM status_events e
+            WHERE e.check_id = c.id
+              AND e.to_state = 'ok'
+            ORDER BY e.occurred_at DESC, e.id DESC
+            LIMIT 1
+          ) AS uptime_started_at
         FROM checks c
-        LEFT JOIN (
-          SELECT
-            check_id,
-            MAX(occurred_at) AS uptime_started_at
-          FROM status_events
-          WHERE to_state = 'ok'
-          GROUP BY check_id
-        ) AS uptime ON uptime.check_id = c.id
-          WHERE 1 = 1${groupClause}
-          ORDER BY c.created_at DESC, c.id DESC
+        WHERE 1 = 1${groupClause}
+        ORDER BY c.created_at DESC, c.id DESC
       `,
       )
       .bind(...groupParams)

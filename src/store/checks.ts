@@ -36,7 +36,14 @@ export const getCheckById = async (db: D1Database, id: number, groupIds: number[
       `
       SELECT
         c.*,
-        uptime.uptime_started_at,
+        (
+          SELECT e.occurred_at
+          FROM status_events e
+          WHERE e.check_id = c.id
+            AND e.to_state = 'ok'
+          ORDER BY e.occurred_at DESC, e.id DESC
+          LIMIT 1
+        ) AS uptime_started_at,
         (
           SELECT r.x_runtime_ms
           FROM check_results r
@@ -45,14 +52,6 @@ export const getCheckById = async (db: D1Database, id: number, groupIds: number[
           LIMIT 1
         ) AS last_runtime_ms
       FROM checks c
-      LEFT JOIN (
-        SELECT
-          check_id,
-          MAX(occurred_at) AS uptime_started_at
-        FROM status_events
-        WHERE to_state = 'ok'
-        GROUP BY check_id
-      ) AS uptime ON uptime.check_id = c.id
       WHERE c.id = ?${groupClause}
       LIMIT 1
     `,
@@ -178,7 +177,14 @@ export const loadChecksPageData = async (
           c.*,
           g.name AS group_name,
           g.slug AS group_slug,
-          uptime.uptime_started_at,
+          (
+            SELECT e.occurred_at
+            FROM status_events e
+            WHERE e.check_id = c.id
+              AND e.to_state = 'ok'
+            ORDER BY e.occurred_at DESC, e.id DESC
+            LIMIT 1
+          ) AS uptime_started_at,
           (
             SELECT r.x_runtime_ms
             FROM check_results r
@@ -188,14 +194,6 @@ export const loadChecksPageData = async (
           ) AS last_runtime_ms
         FROM checks c
         LEFT JOIN groups g ON g.id = c.group_id
-        LEFT JOIN (
-          SELECT
-            check_id,
-            MAX(occurred_at) AS uptime_started_at
-          FROM status_events
-          WHERE to_state = 'ok'
-          GROUP BY check_id
-        ) AS uptime ON uptime.check_id = c.id
         ${whereClause}
         ORDER BY ${orderBySql}
         LIMIT ? OFFSET ?
