@@ -25,7 +25,6 @@ import { toErrorMessage } from "../lib/error-message";
 import { describeCertificateAlert, describeCertificateAlertAt, probeCertificateSnapshot } from "./certificate-check";
 import { dispatchNotifications } from "./notifications";
 import { determineResultState, performHttpCheck } from "./http-check";
-import { publishGroupUpdated, type GroupUpdateReason } from "../realtime/events";
 
 const dispatchCheckRun = async (
   env: Env,
@@ -55,17 +54,9 @@ const requeueStaleCheckRun = async (env: Env, run: CheckJob, now: string): Promi
   await clearCheckRunLease(env["pulse-db"], run.attemptId, now);
 };
 
-const publishCheckUpdate = async (env: Env, check: CheckRow, run: CheckRunRow, reason: GroupUpdateReason, occurredAt: string): Promise<void> => {
-  try {
-    await publishGroupUpdated(env, check.group_id, `check-run:${run.id}`, reason, occurredAt);
-  } catch (error) {
-    console.error(JSON.stringify({ message: "group update publish failed", checkId: check.id, groupId: check.group_id, runId: run.id, error: toErrorMessage(error) }));
-  }
-};
-
-export const runCheck = async (env: Env, job: CheckJob, ctx?: ExecutionContext): Promise<void> => {
+export const runCheck = async (env: Env, job: CheckJob, ctx?: ExecutionContext): Promise<number | null> => {
   const claim = await ensureCheckRunForExecution(env["pulse-db"], job, new Date().toISOString());
-  if (claim.kind === "finished" || claim.kind === "missing") return;
+  if (claim.kind === "finished" || claim.kind === "missing") return null;
   if (claim.kind === "leased") {
     throw new Error("check run is leased");
   }
@@ -74,11 +65,11 @@ export const runCheck = async (env: Env, job: CheckJob, ctx?: ExecutionContext):
   const check = await getCheckForExecution(env["pulse-db"], job.checkId);
   if (!check) {
     await finishCheckRun(env["pulse-db"], run, new Date().toISOString(), "skipped", "check_not_found");
-    return;
+    return null;
   }
   if (!check.enabled) {
     await finishCheckRun(env["pulse-db"], run, new Date().toISOString(), "skipped", "check_disabled");
-    return;
+    return check.group_id;
   }
 
   const validation = validateMonitorUrl(check.url);
@@ -93,10 +84,7 @@ export const runCheck = async (env: Env, job: CheckJob, ctx?: ExecutionContext):
       checkedAt,
     });
     await persistCheckResult(env["pulse-db"], check, result, null, run);
-    const publish = publishCheckUpdate(env, check, run, "check.status_changed", checkedAt);
-    if (ctx) ctx.waitUntil(publish);
-    else await publish;
-    return;
+    return check.group_id;
   }
 
   const latestRecovery = await getLatestRecoveryAt(env["pulse-db"], check);
@@ -127,11 +115,8 @@ export const runCheck = async (env: Env, job: CheckJob, ctx?: ExecutionContext):
   });
 
   const transition = await persistCheckResult(env["pulse-db"], check, result, certificate, run);
-  const publish = publishCheckUpdate(env, check, run, !transition || transition.kind === "none" ? "check.updated" : "check.status_changed", result.checkedAt);
-  if (ctx) ctx.waitUntil(publish);
-  else await publish;
-  if (!transition || transition.kind === "none" || transition.kind === "state-initialized") return;
-  if (isMaintenanceWindowActive(check.maintenance_enabled)) return;
+  if (!transition || transition.kind === "none" || transition.kind === "state-initialized") return check.group_id;
+  if (isMaintenanceWindowActive(check.maintenance_enabled)) return check.group_id;
 
   const notification = dispatchNotifications(env, {
     check,
@@ -151,7 +136,7 @@ export const runCheck = async (env: Env, job: CheckJob, ctx?: ExecutionContext):
         }));
       }),
     );
-    return;
+    return check.group_id;
   }
 
   await notification.catch((error) => {
@@ -163,6 +148,7 @@ export const runCheck = async (env: Env, job: CheckJob, ctx?: ExecutionContext):
       error: toErrorMessage(error),
     }));
   });
+  return check.group_id;
 };
 
 const handleScheduled = async (controller: ScheduledController, env: Env): Promise<void> => {

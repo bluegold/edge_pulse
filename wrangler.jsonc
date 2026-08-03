@@ -61,7 +61,7 @@
 		"consumers": [
 			{
 				"queue": "pulse-queue",
-				"max_batch_size": 1,
+				"max_batch_size": 5,
 				"max_batch_timeout": 1,
 				"max_retries": 3,
 				"visibility_timeout_ms": 30000

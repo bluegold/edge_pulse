@@ -131,12 +131,14 @@ D1 に check / incident / status_event を保存
   ↓
 関連 group の DO に publish
   ↓
-同じ group の WebSocket 接続へ broadcast
+DO が短時間の通知を集約
   ↓
-クライアントが必要に応じて D1 ベースの画面/API を再取得
+同じ group の WebSocket 接続へ1回 broadcast
+  ↓
+クライアントが D1 ベースの画面/API を再取得
 ```
 
-D1 の保存を先に完了させる。DO への publish が失敗しても、監視結果の保存を巻き戻さない。WebSocket は表示の即時性を高めるための配信経路であり、状態の正しさを保証する経路ではない。
+D1 の保存を先に完了させる。Queue consumer はバッチ内の check を並列処理し、完了後に group ごとの publish を行う。DO は短時間の publish を1回に集約する。DO への publish が失敗しても、監視結果の保存を巻き戻さない。WebSocket は表示更新の契機を通知する経路であり、状態の正しさを保証する経路ではない。
 
 イベントには少なくとも次を含める。
 

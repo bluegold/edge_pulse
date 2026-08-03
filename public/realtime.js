@@ -104,7 +104,6 @@
       console.error("[edge-pulse:realtime]", error);
     } finally {
       refreshing = false;
-      connect();
     }
   };
 

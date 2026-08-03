@@ -229,7 +229,7 @@ describe("check execution service", () => {
             return this;
           },
           async all<T>() {
-            return { results: [{ id: 7, interval_minutes: 15 }] } as T;
+            return { results: [{ id: 7, group_id: 3, interval_minutes: 15 }] } as T;
           },
           async first<T>() {
             if (normalized.startsWith("INSERT OR IGNORE INTO check_runs")) {
@@ -498,7 +498,7 @@ describe("check execution service", () => {
           attemptId: "attempt-1",
         },
       ),
-    ).resolves.toBeUndefined();
+    ).resolves.toBe(1);
 
     expect(storeMocks.persistCheckResult).toHaveBeenCalledTimes(1);
     const [, , resultArg] = storeMocks.persistCheckResult.mock.calls[0] ?? [];

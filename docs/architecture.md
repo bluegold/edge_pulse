@@ -114,7 +114,7 @@ TLS 証明書情報は Worker の `fetch()` だけでは取り切れないため
 
 group ごとの Durable Object は WebSocket 接続とイベント broadcast だけを担当します。監視結果、incident、reaction、membership は D1 に保存し、D1 を状態の唯一の保存先とします。
 
-監視結果や reaction の D1 保存が完了した後に Group DO へイベントを送ります。DO への送信失敗は D1 の保存を巻き戻さず、クライアントは再接続時またはイベント受信後に D1 ベースの状態を再取得します。
+Queue consumer はバッチ内の check を並列処理し、監視結果や incident の D1 保存後に、結果に含まれる group ごとに Group DO へイベントを送ります。Group DO は短時間のイベントを集約して WebSocket へ通知します。DO への送信失敗は D1 の保存を巻き戻さず、クライアントはイベント受信後に D1 ベースの状態を再取得します。
 
 Access の安定した subject を `identity_provider + identity_subject` として user に保存します。初回ログイン時は user を冪等に自動作成しますが、group membership は自動作成しません。group の作成、membership の変更、check の group 移動は superadmin のみが行えます。check の group 移動は監査ログに保存し、監査ログは superadmin のみが閲覧できます。
 
